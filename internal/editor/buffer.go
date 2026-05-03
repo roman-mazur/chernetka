@@ -29,7 +29,7 @@ func NewFullTextBuffer(path string, in io.Reader) (*Buffer, error) {
 
 	return &Buffer{
 		path:    path,
-		content: data,
+		content: &data,
 	}, nil
 }
 
@@ -71,19 +71,11 @@ func (b *Buffer) render(out *bufio.Writer) {
 
 	lines := b.content.Lines()
 
-	for row := 0; row < b.viewHeight(); row++ {
-		contentRow := row + b.offset
-		out.WriteString("\x1b[K") // clear line
-		if contentRow < len(lines) {
-			line := lines[contentRow].String()
-			if len(line) > b.w {
-				line = line[:b.w]
-			}
-			out.WriteString(line)
-		} else {
-			out.WriteString("~")
-		}
-		out.WriteString("\r\n")
+	printableCount := min(b.viewHeight(), len(lines)-b.offset)
+	content.Print(out, b.content, b.offset, b.offset+printableCount)
+
+	for row := printableCount; row < b.viewHeight(); row++ {
+		out.WriteString("~\r\n")
 	}
 
 	// status bar (reverse video)

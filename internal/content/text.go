@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"slices"
 )
 
 // TextLine is a text Line implementation.
@@ -30,23 +31,37 @@ func LoadFullText(in io.Reader) (FullText, error) {
 		if readError != nil && !end {
 			return nil, readError
 		}
-		line = dropR(line)
+		line = dropRN(line)
 		ft = append(ft, TextLine(line))
 	}
 	return ft, nil
 }
 
-func (ft FullText) Len() int      { return len(ft) }
-func (ft FullText) Lines() []Line { return ft }
+func (ft *FullText) Len() int      { return len(*ft) }
+func (ft *FullText) Lines() []Line { return *ft }
+
+func (ft *FullText) Insert(pos int, line Line) {
+	*ft = slices.Insert(*ft, pos, line)
+}
+func (ft *FullText) Update(pos int, line Line) {
+	(*ft)[pos] = line
+}
+func (ft *FullText) Delete(pos int) {
+	*ft = slices.Delete(*ft, pos, pos+1)
+}
 
 // Empty returns an implementation of an empty content.
 func Empty() Interface {
-	return make(FullText, 0)
+	var ft FullText
+	return &ft
 }
 
-func dropR(line string) string {
+func dropRN(line string) string {
+	if len(line) > 0 && line[len(line)-1] == '\n' {
+		line = line[:len(line)-1]
+	}
 	if len(line) > 0 && line[len(line)-1] == '\r' {
-		return line[:len(line)-1]
+		line = line[:len(line)-1]
 	}
 	return line
 }

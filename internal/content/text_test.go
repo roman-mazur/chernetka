@@ -40,8 +40,32 @@ func TestLoadFullText(t *testing.T) {
 					t.Log(lines)
 					t.Error("bad lines")
 				}
+				for _, line := range ft.Lines() {
+					if strings.HasSuffix(line.String(), "\n") {
+						t.Fatal("\\n detected")
+					}
+				}
 			})
 		}
+	}
+}
+
+func TestFullText_Mutate(t *testing.T) {
+	data := FullText{
+		TextLine("a"),
+		TextLine("b"),
+		TextLine("c"),
+	}
+	data.Update(1, TextLine("d"))
+	data.Insert(0, TextLine("0"))
+	data.Delete(1)
+	data.Insert(3, TextLine("e"))
+
+	var buf strings.Builder
+	Print(&buf, &data, 0, data.Len())
+	if res := buf.String(); res != "0\r\nd\r\nc\r\ne\r\n" {
+		t.Log(res)
+		t.Error("mutations failed")
 	}
 }
 
