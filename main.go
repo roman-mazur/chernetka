@@ -1,4 +1,3 @@
-// Command edit starts an interactive text editor in your terminal.
 package main
 
 import (
