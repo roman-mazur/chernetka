@@ -42,6 +42,7 @@ type Editor struct {
 	bi int       // current buffer
 
 	termFd int
+	rPrefs renderPrefs
 }
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
@@ -72,6 +73,8 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	_, _ = fmt.Fprint(f, escAltBufferOn)
 	defer fmt.Fprint(f, escAltBufferOff)
 
+	e.rPrefs = newRenderPrefs()
+
 	e.termFd = int(f.Fd())
 	state, err := term.MakeRaw(e.termFd)
 	if err != nil {
@@ -88,7 +91,7 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 		// Render.
 		for buf := range e.layout() {
 			buf.clampCursor()
-			buf.render(out)
+			buf.render(out, &e.rPrefs)
 		}
 
 		// Get input.
@@ -116,6 +119,14 @@ func (e *Editor) handleInput(mode Mode, input []byte) (quit bool) {
 
 	switch mode {
 	case ModeNormal:
+		switch string(input) {
+		case "+", "=":
+			e.rPrefs.tabSize = min(e.rPrefs.tabSize+2, 8)
+			return false
+		case "-":
+			e.rPrefs.tabSize = max(e.rPrefs.tabSize-2, 0)
+			return false
+		}
 		return normalInput(buf, input)
 	case ModeInsert:
 		insertInput(buf, input)
@@ -155,4 +166,12 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 		done = true
 		yield(buf)
 	}
+}
+
+type renderPrefs struct {
+	tabSize int
+}
+
+func newRenderPrefs() renderPrefs {
+	return renderPrefs{tabSize: 8}
 }

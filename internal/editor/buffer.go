@@ -18,7 +18,6 @@ type Buffer struct {
 	cx, cy int // cursor column and row within the file (0-indexed)
 	offset int // first visible row (scroll)
 	w, h   int // terminal window dimensions
-
 }
 
 func NewFullTextBuffer(path string, in io.Reader) (*Buffer, error) {
@@ -46,7 +45,7 @@ func (b *Buffer) clampCursor() {
 
 	maxX := 0
 	if len(lines) > 0 {
-		maxX := len(lines[b.cy].String())
+		maxX = len(lines[b.cy].String())
 		if b.mode == ModeNormal && maxX > 0 {
 			maxX-- // Normal mode: cursor sits on a character, not past the last one.
 		}
@@ -65,20 +64,20 @@ func (b *Buffer) clampCursor() {
 // viewHeight is the number of text rows (terminal height minus the status bar).
 func (b *Buffer) viewHeight() int { return b.h - 1 }
 
-func (b *Buffer) render(out *bufio.Writer) {
+func (b *Buffer) render(out *bufio.Writer, prefs *renderPrefs) {
 	out.WriteString("\x1b[?25l") // hide cursor while drawing
 	out.WriteString("\x1b[H")    // move to top-left
 
 	lines := b.content.Lines()
 
 	printableCount := min(b.viewHeight(), len(lines)-b.offset)
-	content.Print(out, b.content, b.offset, b.offset+printableCount)
+	printContent(out, b.content, b.offset, b.offset+printableCount, prefs)
 
 	for row := printableCount; row < b.viewHeight(); row++ {
 		out.WriteString("~\r\n")
 	}
 
-	// status bar (reverse video)
+	// Status bar (reverse colors).
 	out.WriteString("\x1b[7m")
 	modeLabel := b.mode.String()
 	dirtyMark := ""
@@ -96,7 +95,7 @@ func (b *Buffer) render(out *bufio.Writer) {
 	out.WriteString(pos)
 	out.WriteString("\x1b[0m")
 
-	// reposition and show cursor
+	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
 	screenCol := b.cx + 1
 	fmt.Fprintf(out, "\x1b[%d;%dH", screenRow, screenCol)
