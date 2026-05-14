@@ -113,7 +113,7 @@ func (e *Editor) handleInput(mode Mode, input []byte) (quit bool) {
 	buf := e.b[e.bi]
 
 	if isArrow(input) {
-		buf.handleCursor(input)
+		buf.handleCursor(input, &e.rPrefs)
 		return false
 	}
 
@@ -121,13 +121,13 @@ func (e *Editor) handleInput(mode Mode, input []byte) (quit bool) {
 	case ModeNormal:
 		switch string(input) {
 		case "+", "=":
-			e.rPrefs.tabSize = min(e.rPrefs.tabSize+2, 8)
+			e.rPrefs.tabSize = min(e.rPrefs.tabSize*2, 8)
 			return false
 		case "-":
-			e.rPrefs.tabSize = max(e.rPrefs.tabSize-2, 0)
+			e.rPrefs.tabSize = max(e.rPrefs.tabSize/2, 1)
 			return false
 		}
-		return normalInput(buf, input)
+		return normalInput(buf, input, &e.rPrefs)
 	case ModeInsert:
 		insertInput(buf, input)
 		return false

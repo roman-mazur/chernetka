@@ -2,15 +2,15 @@ package editor
 
 import "rmazur.io/x/edit/internal/content"
 
-func normalInput(buf *Buffer, b []byte) (quit bool) {
+func normalInput(buf *Buffer, b []byte, prefs *renderPrefs) (quit bool) {
 	lines := buf.content.Lines()
 	switch {
 	case len(b) == 1:
 		switch b[0] {
 		case 'h':
-			buf.cx--
+			buf.moveHorizontal(-1, prefs.tabSize)
 		case 'l':
-			buf.cx++
+			buf.moveHorizontal(1, prefs.tabSize)
 		case 'j':
 			buf.cy++
 		case 'k':

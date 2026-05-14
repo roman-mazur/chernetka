@@ -25,8 +25,8 @@
 //	A        enter insert mode at end of line
 //	o        open a new line below and enter insert mode
 //	x        delete the character under the cursor
-//	+ / =    increase tab width (step 2, max 8)
-//	-        decrease tab width (step 2, min 0)
+//	+ / =    increase tab width
+//	-        decrease tab width
 //	q        quit
 //
 // # Insert mode

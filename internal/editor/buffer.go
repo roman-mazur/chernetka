@@ -108,17 +108,62 @@ func (b *Buffer) canEdit() bool {
 	return ok
 }
 
-func (b *Buffer) handleCursor(input []byte) {
+func (b *Buffer) handleCursor(input []byte, prefs *renderPrefs) {
 	switch input[2] {
 	case 'A':
 		b.cy--
 	case 'B':
 		b.cy++
 	case 'C':
-		b.cx++
+		b.moveHorizontal(1, prefs.tabSize)
 	case 'D':
-		b.cx--
+		b.moveHorizontal(-1, prefs.tabSize)
 	}
+}
+
+func (b *Buffer) moveHorizontal(d int, tabSize int) {
+	line := b.content.Lines()[b.cy].String()
+	ti := screenToTextIdx(line, b.cx, tabSize)
+	switch {
+	case d > 0:
+		if ti >= len(line) {
+			return
+		}
+		if line[ti] == '\t' {
+			b.cx += tabSize
+		} else {
+			b.cx++
+		}
+	case d < 0:
+		if ti == 0 {
+			return
+		}
+		// '\t' is single-byte ASCII (0x09); continuation bytes (0x80–0xBF) in
+		// UTF-8 can never equal 0x09, so checking line[ti-1] is safe here.
+		if line[ti-1] == '\t' {
+			b.cx -= tabSize
+		} else {
+			b.cx--
+		}
+	}
+}
+
+// screenToTextIdx returns the byte index of the character displayed at the
+// given visual column. Each tab counts as tabSize columns. Returns len(line)
+// when screenCol is at or past the visual end of the line.
+func screenToTextIdx(line string, screenCol int, tabSize int) int {
+	sc := 0
+	for i, c := range line {
+		w := 1
+		if c == '\t' {
+			w = tabSize
+		}
+		sc += w
+		if sc > screenCol {
+			return i
+		}
+	}
+	return len(line)
 }
 
 func (b *Buffer) mutate() content.Mutable {
