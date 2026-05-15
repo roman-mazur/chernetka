@@ -46,7 +46,7 @@ type Editor struct {
 	bi int       // current buffer
 
 	termFd int
-	rPrefs renderPrefs
+	rPrefs RenderPrefs
 }
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
@@ -192,13 +192,13 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 	}
 }
 
-type renderPrefs struct {
-	tabSize int
+type RenderPrefs struct {
+	TabSize int
 }
 
-func newRenderPrefs() renderPrefs {
-	return renderPrefs{tabSize: 4}
+func newRenderPrefs() RenderPrefs {
+	return RenderPrefs{TabSize: 4}
 }
 
-func (rp *renderPrefs) tabsScaleUp()   { rp.tabSize = min(rp.tabSize*2, 8) }
-func (rp *renderPrefs) tabsScaleDown() { rp.tabSize = max(rp.tabSize/2, 1) }
+func (rp *RenderPrefs) tabsScaleUp()   { rp.TabSize = min(rp.TabSize*2, 8) }
+func (rp *RenderPrefs) tabsScaleDown() { rp.TabSize = max(rp.TabSize/2, 1) }

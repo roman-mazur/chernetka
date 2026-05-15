@@ -51,14 +51,14 @@ func (b *Buffer) clampCursor() {
 // viewHeight is the number of text rows (terminal height minus the status bar).
 func (b *Buffer) viewHeight() int { return b.h - 1 }
 
-func (b *Buffer) render(out *bufio.Writer, prefs *renderPrefs) {
+func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	out.WriteString("\x1b[?25l") // hide cursor while drawing
 	out.WriteString("\x1b[H")    // move to top-left
 
 	lines := b.content.Lines()
 
 	printableCount := min(b.viewHeight(), len(lines)-b.offset)
-	printFmt(out, b.content, b.offset, b.offset+printableCount, prefs.tabSize)
+	printFmt(out, b.content, b.offset, b.offset+printableCount, prefs.TabSize)
 
 	for row := printableCount; row < b.viewHeight(); row++ {
 		printClearLine(out)
@@ -96,43 +96,16 @@ func (b *Buffer) canEdit() bool {
 	return ok
 }
 
-func (b *Buffer) handleCursor(input []byte, prefs *renderPrefs) {
+func (b *Buffer) handleCursor(input []byte, prefs *RenderPrefs) {
 	switch input[2] {
 	case 'A':
-		b.cy--
+		RelMove{Dy: -1}.Do(b, *prefs)
 	case 'B':
-		b.cy++
+		RelMove{Dy: 1}.Do(b, *prefs)
 	case 'C':
-		b.moveHorizontal(1, prefs.tabSize)
+		RelMove{Dx: 1}.Do(b, *prefs)
 	case 'D':
-		b.moveHorizontal(-1, prefs.tabSize)
-	}
-}
-
-func (b *Buffer) moveHorizontal(d int, tabSize int) {
-	line := b.content.Lines()[b.cy].String()
-	ti := screenToTextIdx(line, b.cx, tabSize)
-	switch {
-	case d > 0:
-		if ti >= len(line) {
-			return
-		}
-		if line[ti] == '\t' {
-			b.cx += tabSize
-		} else {
-			b.cx++
-		}
-	case d < 0:
-		if ti == 0 {
-			return
-		}
-		// '\t' is single-byte ASCII (0x09); continuation bytes (0x80–0xBF) in
-		// UTF-8 can never equal 0x09, so checking line[ti-1] is safe here.
-		if line[ti-1] == '\t' {
-			b.cx -= tabSize
-		} else {
-			b.cx--
-		}
+		RelMove{Dx: -1}.Do(b, *prefs)
 	}
 }
 

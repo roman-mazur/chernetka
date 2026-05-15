@@ -108,7 +108,7 @@ func TestBuffer_MoveHorizontal(t *testing.T) {
 			buf := &Buffer{content: &ft, cy: tc.cy, cx: tc.cx}
 			buf.moveHorizontal(tc.d, tc.tabSize)
 			if buf.cx != tc.wantCx {
-				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d, tabSize=%d)",
+				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d, TabSize=%d)",
 					buf.cx, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d, tc.tabSize)
 			}
 		})
