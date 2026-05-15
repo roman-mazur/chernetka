@@ -125,9 +125,17 @@ func (fl *fsEntryLine) Len() int { return len(fl.display) }
 func (fl *fsEntryLine) MimeType() string { return "text/filename" }
 
 func (fl *fsEntryLine) Engage() {
-	if fl.err != nil || fl.fc == nil || !fl.entry.IsDir() {
+	if fl.err != nil || fl.fc == nil {
 		return
 	}
+
+	if !fl.entry.IsDir() {
+		// TODO: support opening the file.
+		// Idea is to check if there is a partner process that can accept a command to edit the file.
+		// If not, ask the terminal to split the panel and launch the partner edit process there.
+		return
+	}
+
 	fl.expIdx = 1 - fl.expIdx
 	switch fl.expIdx {
 	case 0:
