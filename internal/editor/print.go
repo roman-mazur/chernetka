@@ -1,4 +1,4 @@
-package editor
+package printfmt
 
 import (
 	"bufio"
@@ -7,11 +7,11 @@ import (
 	"rmazur.io/x/edit/internal/content"
 )
 
-func printContent(out *bufio.Writer, data content.Interface, i, j int, prefs *renderPrefs) {
+func Content(out *bufio.Writer, data content.Interface, i, j int, tabSize int) {
 	lines := data.Lines()
 	_ = lines[i:j] // boundary check
 
-	tab := strings.Repeat(" ", prefs.tabSize)
+	tab := strings.Repeat(" ", tabSize)
 	for x := i; x < j; x++ {
 		line := lines[x].String()
 		line = strings.ReplaceAll(line, "\t", tab)
