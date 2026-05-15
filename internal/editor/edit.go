@@ -121,10 +121,10 @@ func (e *Editor) handleInput(mode Mode, input []byte) (quit bool) {
 	case ModeNormal:
 		switch string(input) {
 		case "+", "=":
-			e.rPrefs.tabSize = min(e.rPrefs.tabSize*2, 8)
+			e.rPrefs.tabsScaleUp()
 			return false
 		case "-":
-			e.rPrefs.tabSize = max(e.rPrefs.tabSize/2, 1)
+			e.rPrefs.tabsScaleDown()
 			return false
 		}
 		return normalInput(buf, input, &e.rPrefs)
@@ -173,5 +173,8 @@ type renderPrefs struct {
 }
 
 func newRenderPrefs() renderPrefs {
-	return renderPrefs{tabSize: 8}
+	return renderPrefs{tabSize: 4}
 }
+
+func (rp *renderPrefs) tabsScaleUp()   { rp.tabSize = min(rp.tabSize*2, 8) }
+func (rp *renderPrefs) tabsScaleDown() { rp.tabSize = max(rp.tabSize/2, 1) }
