@@ -7,10 +7,12 @@ import (
 	"io"
 	"iter"
 	"os"
+	"path/filepath"
 	"slices"
 	"time"
 
 	"golang.org/x/term"
+	"rmazur.io/x/edit/internal/content"
 	"rmazur.io/x/edit/internal/logger"
 )
 
@@ -21,6 +23,8 @@ const (
 	ModeNormal Mode = iota
 	ModeInsert
 )
+
+const debugInput = false
 
 func (m Mode) String() string {
 	switch m {
@@ -47,12 +51,29 @@ type Editor struct {
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
 func (e *Editor) OpenReader(path string, in io.Reader) error {
-	buf, err := NewFullTextBuffer(path, in)
+	data, err := content.LoadFullText(in)
 	if err != nil {
 		return err
 	}
-	e.push(buf)
+
+	e.push(&Buffer{
+		path:    path,
+		content: &data,
+	})
 	return nil
+}
+
+// OpenDir adds a new buffer to the Editor by reading the directory content.
+func (e *Editor) OpenDir(path string) {
+	displayPath := path
+	absPath, err := filepath.Abs(path)
+	if err == nil {
+		displayPath = filepath.Base(absPath)
+	}
+	e.push(&Buffer{
+		path:    displayPath,
+		content: content.LoadFolder(path),
+	})
 }
 
 // New creates a new scratch buffer that can be later written to a file.
@@ -103,6 +124,9 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 			continue
 		}
 		input := inBuf[:n]
+		if debugInput {
+			logf("input: %v", input)
+		}
 
 		// Handle input.
 		quit = e.handleInput(e.b[e.bi].mode, input)

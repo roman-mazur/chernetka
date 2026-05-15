@@ -43,6 +43,10 @@ func normalInput(buf *Buffer, b []byte, prefs *renderPrefs) (quit bool) {
 			if buf.cx < len(line) {
 				buf.mutate().Update(buf.cy, content.TextLine(line[:buf.cx]+line[buf.cx+1:]))
 			}
+		case '\r':
+			if action, ok := lines[buf.cy].(content.LineAction); ok {
+				action.Engage()
+			}
 		case 'q':
 			return true
 		}

@@ -32,14 +32,24 @@ func main() {
 		}
 	} else {
 		path := flag.Arg(0)
-		f, err := os.Open(path)
+
+		info, err := os.Stat(path)
 		if err != nil {
-			log.Fatal("cannot open the specified file:", err)
+			log.Fatal("cannot get path info:", err)
 		}
-		defer f.Close()
-		err = edit.OpenReader(path, f)
+		if info.IsDir() {
+			edit.OpenDir(path)
+		} else {
+			var f *os.File
+			f, err = os.Open(path)
+			if err != nil {
+				log.Fatal("cannot open the specified file:", err)
+			}
+			defer f.Close()
+			err = edit.OpenReader(path, f)
+		}
 		if err != nil {
-			log.Fatal("cannot read the specified file:", err)
+			log.Fatal("cannot read the specified path:", err)
 		}
 	}
 

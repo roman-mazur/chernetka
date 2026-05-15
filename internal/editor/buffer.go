@@ -3,7 +3,6 @@ package editor
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"strings"
 
 	"rmazur.io/x/edit/internal/content"
@@ -18,18 +17,6 @@ type Buffer struct {
 	cx, cy int // cursor column and row within the file (0-indexed)
 	offset int // first visible row (scroll)
 	w, h   int // terminal window dimensions
-}
-
-func NewFullTextBuffer(path string, in io.Reader) (*Buffer, error) {
-	data, err := content.LoadFullText(in)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Buffer{
-		path:    path,
-		content: &data,
-	}, nil
 }
 
 func NewScratchBuffer() *Buffer {
@@ -71,10 +58,11 @@ func (b *Buffer) render(out *bufio.Writer, prefs *renderPrefs) {
 	lines := b.content.Lines()
 
 	printableCount := min(b.viewHeight(), len(lines)-b.offset)
-	printContent(out, b.content, b.offset, b.offset+printableCount, prefs)
+	printFmt(out, b.content, b.offset, b.offset+printableCount, prefs.tabSize)
 
 	for row := printableCount; row < b.viewHeight(); row++ {
-		out.WriteString("~\r\n")
+		printClearLine(out)
+		out.WriteString("\r\n")
 	}
 
 	// Status bar (reverse colors).
