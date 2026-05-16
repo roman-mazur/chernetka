@@ -52,6 +52,24 @@ func (r RelMove) moveDx(b *Buffer, tabSize int) {
 	}
 }
 
+// screenToTextIdx returns the byte index of the character displayed at the
+// given visual column. Each tab counts as tabSize columns. Returns len(line)
+// when screenCol is at or past the visual end of the line.
+func screenToTextIdx(line string, screenCol int, tabSize int) int {
+	sc := 0
+	for i, c := range line {
+		w := 1
+		if c == '\t' {
+			w = tabSize
+		}
+		sc += w
+		if sc > screenCol {
+			return i
+		}
+	}
+	return len(line)
+}
+
 type CommandFunc func(b *Buffer, prefs RenderPrefs)
 
 func (f CommandFunc) Do(buf *Buffer, prefs RenderPrefs) { f(buf, prefs) }

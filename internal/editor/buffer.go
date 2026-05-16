@@ -109,24 +109,6 @@ func (b *Buffer) handleCursor(input []byte, prefs *RenderPrefs) {
 	}
 }
 
-// screenToTextIdx returns the byte index of the character displayed at the
-// given visual column. Each tab counts as tabSize columns. Returns len(line)
-// when screenCol is at or past the visual end of the line.
-func screenToTextIdx(line string, screenCol int, tabSize int) int {
-	sc := 0
-	for i, c := range line {
-		w := 1
-		if c == '\t' {
-			w = tabSize
-		}
-		sc += w
-		if sc > screenCol {
-			return i
-		}
-	}
-	return len(line)
-}
-
 func (b *Buffer) mutate() content.Mutable {
 	m, _ := b.content.(content.Mutable)
 	return bufMutator{
@@ -141,21 +123,21 @@ type bufMutator struct {
 }
 
 func (bm bufMutator) Insert(pos int, line content.Line) {
-	if !bm.canEdit() {
+	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Insert(pos, line)
 	bm.dirty = true
 }
 func (bm bufMutator) Update(pos int, line content.Line) {
-	if !bm.canEdit() {
+	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Update(pos, line)
 	bm.dirty = true
 }
 func (bm bufMutator) Delete(pos int) {
-	if !bm.canEdit() {
+	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Delete(pos)

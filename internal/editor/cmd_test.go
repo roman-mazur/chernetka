@@ -55,7 +55,7 @@ func TestScreenToTextIdx(t *testing.T) {
 	}
 }
 
-func TestBuffer_MoveHorizontal(t *testing.T) {
+func TestRelMove_Dx(t *testing.T) {
 	cases := []struct {
 		name    string
 		lines   []string // one entry per line in the buffer
@@ -106,7 +106,7 @@ func TestBuffer_MoveHorizontal(t *testing.T) {
 				ft[i] = content.TextLine(l)
 			}
 			buf := &Buffer{content: &ft, cy: tc.cy, cx: tc.cx}
-			buf.moveHorizontal(tc.d, tc.tabSize)
+			RelMove{Dx: tc.d}.Do(buf, RenderPrefs{TabSize: tc.tabSize})
 			if buf.cx != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d, TabSize=%d)",
 					buf.cx, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d, tc.tabSize)
