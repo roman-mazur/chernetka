@@ -70,9 +70,7 @@ func (c *Server) Run(e Executor, logf logger.Func) {
 
 		scan := bufio.NewScanner(conn)
 		scan.Split(bufio.ScanLines)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer conn.Close()
 
 			for scan.Scan() {
@@ -81,7 +79,7 @@ func (c *Server) Run(e Executor, logf logger.Func) {
 					commands <- line
 				}
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

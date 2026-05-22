@@ -74,10 +74,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	}
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.path, dirtyMark)
 	pos := fmt.Sprintf("%d:%d ", b.cy+1, b.cx+1)
-	padding := b.w - len(status) - len(pos)
-	if padding < 0 {
-		padding = 0
-	}
+	padding := max(b.w-len(status)-len(pos), 0)
 	out.WriteString(status)
 	out.WriteString(strings.Repeat(" ", padding))
 	out.WriteString(pos)
