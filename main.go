@@ -79,5 +79,5 @@ func (rce *remoteCmdExecutor) ExecuteCommand(cmd remotectl.CommandData) {
 	}
 
 	rce.logf("remote cmd: %s", cmd.Action)
-	editorCommand.DoOnEditor(rce.edit)
+	rce.edit.Post(editorCommand)
 }

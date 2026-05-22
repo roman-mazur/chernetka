@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/term"
@@ -46,6 +48,10 @@ type Editor struct {
 	b  []*Buffer // open buffers
 	bi int       // current buffer
 
+	layoutRequested bool
+	cmdChannel      chan Command
+	quitRequested   atomic.Bool
+
 	termFd int
 	rPrefs RenderPrefs
 }
@@ -80,6 +86,10 @@ func (e *Editor) OpenDir(path string) {
 // New creates a new scratch buffer that can be later written to a file.
 func (e *Editor) New() { e.push(NewScratchBuffer()) }
 
+func (e *Editor) Post(cmd Command) {
+	e.cmdChannel <- cmd
+}
+
 func (e *Editor) push(buf *Buffer) { e.b = slices.Insert(e.b, e.bi, buf) }
 
 func (e *Editor) Run(f *os.File, logf logger.Func) {
@@ -105,32 +115,64 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	}
 	defer term.Restore(e.termFd, state)
 
-	var inBuf [64]byte
-	out := bufio.NewWriter(os.Stdout)
-	quit := false
+	e.layoutRequested = true
+	e.cmdChannel = make(chan Command)
+	go e.readAndHandleInput(f, logf)
 
-	for !quit {
+	out := bufio.NewWriter(os.Stdout)
+
+	for !e.quitRequested.Load() {
 		// Render.
-		for buf := range e.layout() {
-			buf.clampCursor()
-			buf.render(out, &e.rPrefs)
+		if e.layoutRequested {
+			for buf := range e.layout() {
+				buf.clampCursor()
+				buf.render(out, &e.rPrefs)
+			}
+			e.layoutRequested = false
 		}
 
+		// Handle commands, including inputs.
+	loop:
+		for {
+			select {
+			case cmd := <-e.cmdChannel:
+				cmd.DoOnEditor(e)
+			default:
+				break loop
+			}
+		}
+	}
+}
+
+func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func) {
+	bPool := sync.Pool{New: func() any { return make([]byte, 64) }}
+	var inBuf [64]byte
+	for !e.quitRequested.Load() {
 		// Get input.
 		n, err := f.Read(inBuf[:])
 		if err != nil {
+			e.cmdChannel <- commandQuit
 			break
 		}
 		if n == 0 {
 			continue
 		}
-		input := inBuf[:n]
-		if debugInput {
-			logf("input: %v", input)
-		}
 
+		input := bPool.Get().([]byte)
+		copy(input, inBuf[:n])
+		if debugInput {
+			logf("input: %v", input[:n])
+		}
 		// Handle input.
-		quit = e.handleInput(e.b[e.bi].mode, input)
+		e.cmdChannel <- CommandFunc(func(e *Editor) {
+			quit := e.handleInput(e.b[e.bi].mode, input[:n])
+			if quit {
+				commandQuit(e)
+			} else {
+				e.layoutRequested = true
+			}
+			bPool.Put(input)
+		})
 	}
 }
 

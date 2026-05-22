@@ -98,6 +98,8 @@ type OpenFile struct {
 }
 
 func (of *OpenFile) DoOnEditor(e *Editor) {
+	e.layoutRequested = true
+
 	f, err := os.Open(of.Path)
 	if err != nil {
 		of.handleError(e, err)
@@ -116,3 +118,11 @@ func (of *OpenFile) handleError(e *Editor, err error) {
 		content: &content.ErrorContent{Error: err},
 	})
 }
+
+type CommandFunc func(e *Editor)
+
+func (f CommandFunc) DoOnEditor(e *Editor) { f(e) }
+
+var (
+	commandQuit = CommandFunc(func(e *Editor) { e.quitRequested.Store(true) })
+)
