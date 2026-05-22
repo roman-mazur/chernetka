@@ -99,13 +99,13 @@ func (b *Buffer) canEdit() bool {
 func (b *Buffer) handleCursor(input []byte, prefs *RenderPrefs) {
 	switch input[2] {
 	case 'A':
-		RelMove{Dy: -1}.Do(b, *prefs)
+		RelMove{Dy: -1}.DoOnBuffer(b, *prefs)
 	case 'B':
-		RelMove{Dy: 1}.Do(b, *prefs)
+		RelMove{Dy: 1}.DoOnBuffer(b, *prefs)
 	case 'C':
-		RelMove{Dx: 1}.Do(b, *prefs)
+		RelMove{Dx: 1}.DoOnBuffer(b, *prefs)
 	case 'D':
-		RelMove{Dx: -1}.Do(b, *prefs)
+		RelMove{Dx: -1}.DoOnBuffer(b, *prefs)
 	}
 }
 

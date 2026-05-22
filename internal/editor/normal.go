@@ -34,7 +34,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			if action, ok := lines[buf.cy].(content.LineAction); ok {
 				action.Engage()
 			} else {
-				RelMove{Dy: 1}.Do(buf, *prefs)
+				RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
 			}
 
 		// Delete.
@@ -49,17 +49,17 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 
 		// Commands.
 		case 'h':
-			RelMove{Dx: -1}.Do(buf, *prefs)
+			RelMove{Dx: -1}.DoOnBuffer(buf, *prefs)
 		case 'l':
-			RelMove{Dx: 1}.Do(buf, *prefs)
+			RelMove{Dx: 1}.DoOnBuffer(buf, *prefs)
 		case 'j':
-			RelMove{Dy: 1}.Do(buf, *prefs)
+			RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
 		case 'k':
-			RelMove{Dy: -1}.Do(buf, *prefs)
+			RelMove{Dy: -1}.DoOnBuffer(buf, *prefs)
 		case '0':
-			MoveHome.Do(buf, *prefs)
+			MoveHome.DoOnBuffer(buf, *prefs)
 		case '$':
-			MoveEnd.Do(buf, *prefs)
+			MoveEnd.DoOnBuffer(buf, *prefs)
 		}
 	}
 	return false

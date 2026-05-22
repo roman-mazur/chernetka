@@ -106,7 +106,7 @@ func TestRelMove_Dx(t *testing.T) {
 				ft[i] = content.TextLine(l)
 			}
 			buf := &Buffer{content: &ft, cy: tc.cy, cx: tc.cx}
-			RelMove{Dx: tc.d}.Do(buf, RenderPrefs{TabSize: tc.tabSize})
+			RelMove{Dx: tc.d}.DoOnBuffer(buf, RenderPrefs{TabSize: tc.tabSize})
 			if buf.cx != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d, TabSize=%d)",
 					buf.cx, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d, tc.tabSize)

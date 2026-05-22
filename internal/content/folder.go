@@ -13,10 +13,15 @@ type LineAction interface {
 	Engage()
 }
 
-func LoadFolder(dir string) Interface {
+type OpenFile interface {
+	OpenFile(p string)
+}
+
+func LoadFolder(dir string, open OpenFile) Interface {
 	fc := &fsContent{
 		rootPath: dir,
 		root:     os.DirFS(dir),
+		open:     open,
 	}
 	fc.insert(-1, ".")
 	return fc
@@ -25,6 +30,7 @@ func LoadFolder(dir string) Interface {
 type fsContent struct {
 	rootPath string
 	root     fs.FS
+	open     OpenFile
 
 	entries []fs.DirEntry
 	lines   []Line
@@ -130,9 +136,9 @@ func (fl *fsEntryLine) Engage() {
 	}
 
 	if !fl.entry.IsDir() {
-		// TODO: support opening the file.
-		// Idea is to check if there is a partner process that can accept a command to edit the file.
-		// If not, ask the terminal to split the panel and launch the partner edit process there.
+		if open := fl.fc.open; open != nil {
+			open.OpenFile(path.Join(fl.dir, fl.entry.Name()))
+		}
 		return
 	}
 

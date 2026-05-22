@@ -14,6 +14,7 @@ import (
 	"golang.org/x/term"
 	"rmazur.io/x/edit/internal/content"
 	"rmazur.io/x/edit/internal/logger"
+	"rmazur.io/x/edit/internal/remotectl"
 )
 
 // Mode represents that editor mode (normal vs insert).
@@ -72,7 +73,7 @@ func (e *Editor) OpenDir(path string) {
 	}
 	e.push(&Buffer{
 		path:    displayPath,
-		content: content.LoadFolder(path),
+		content: content.LoadFolder(path, editorFileOpener{e}),
 	})
 }
 
@@ -202,3 +203,14 @@ func newRenderPrefs() RenderPrefs {
 
 func (rp *RenderPrefs) tabsScaleUp()   { rp.TabSize = min(rp.TabSize*2, 8) }
 func (rp *RenderPrefs) tabsScaleDown() { rp.TabSize = max(rp.TabSize/2, 1) }
+
+type editorFileOpener struct {
+	*Editor
+}
+
+func (eof editorFileOpener) OpenFile(path string) {
+	_ = remotectl.SendCommand(&remotectl.CommandData{
+		Action: "open",
+		Args:   []string{path},
+	})
+}

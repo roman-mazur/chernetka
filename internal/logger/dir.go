@@ -4,16 +4,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"rmazur.io/x/edit/internal"
 )
 
 // UserLogFile returns a logger that appends to a std log file of the editor.
 // In case of an error a Discard function is returned.
 func UserLogFile() (Func, error) {
-	userDir, err := os.UserHomeDir()
+	userDir, err := internal.UserDir()
 	if err != nil {
 		return Discard, err
 	}
-	logPath := filepath.Join(userDir, ".edit", "logs", "editor.log")
+	logPath := filepath.Join(userDir, "logs", "editor.log")
 	_ = os.MkdirAll(filepath.Dir(logPath), 0755)
 	f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0660)
 	if err != nil {

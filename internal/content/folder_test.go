@@ -7,7 +7,8 @@ import (
 )
 
 func TestLoadFolder(t *testing.T) {
-	fc := LoadFolder("testdata/dirs/sample1")
+	var openFile testOpenFile
+	fc := LoadFolder("testdata/dirs/sample1", &openFile)
 	expectedStructure := []struct {
 		name string
 		dir  bool
@@ -30,19 +31,20 @@ func TestLoadFolder(t *testing.T) {
 		if mimeType := lines[i].MimeType(); mimeType != "text/filename" {
 			t.Errorf("lines[%d].MimeType() = %q, want %q", i, mimeType, "text/filename")
 		}
-		if entry.dir {
-			action, ok := lines[i].(LineAction)
-			if !ok {
-				t.Errorf("line %d: expected LineAction, got %T", i, lines[i])
-				continue
-			}
 
+		action, ok := lines[i].(LineAction)
+		if !ok {
+			t.Errorf("line %d: expected LineAction, got %T", i, lines[i])
+			continue
+		}
+
+		if entry.dir {
 			action.Engage() // Expand.
 			if fc.Len() <= len(lines) && !strings.HasSuffix(entry.name, "-empty") {
 				t.Errorf("expanding dir %q didn't work", lines[i])
 				(*testWriter)(t).printContent(fc)
 			}
-			if expandedName := lines[i].String(); !strings.Contains(expandedName, "- "+entry.name) {
+			if expandedName := lines[i].String(); !strings.Contains(expandedName, "~ "+entry.name) {
 				t.Errorf("bad display of expanded dir: %q", expandedName)
 			}
 			if nextLine := fc.Lines()[i+1]; nextLine.String()[0] != '\t' {
@@ -55,8 +57,27 @@ func TestLoadFolder(t *testing.T) {
 				t.Errorf("collapsing dir %q didn't work", lines[i])
 				(*testWriter)(t).printContent(fc)
 			}
+
+			if openFile.lastPath != "" {
+				t.Errorf("unexpected open file %q after engaging with %q", openFile.lastPath, lines[i])
+			}
+		} else {
+			action.Engage() // Open file.
+			if openFile.lastPath != entry.name {
+				t.Errorf("opening file %s didn't work; lastPath = %q", entry.name, openFile.lastPath)
+			}
 		}
+
+		openFile.lastPath = ""
 	}
+}
+
+type testOpenFile struct {
+	lastPath string
+}
+
+func (tof *testOpenFile) OpenFile(path string) {
+	tof.lastPath = path
 }
 
 type testWriter testing.T
