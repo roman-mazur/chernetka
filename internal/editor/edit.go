@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/term"
 	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/x/edit/internal/editor/escape"
 	"rmazur.io/x/edit/internal/logger"
 )
 
@@ -97,12 +98,8 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 		logf("session done %s", time.Since(start))
 	}()
 
-	const (
-		escAltBufferOn  = "\x1b[?1049h"
-		escAltBufferOff = "\x1b[?1049l"
-	)
-	_, _ = fmt.Fprint(f, escAltBufferOn)
-	defer fmt.Fprint(f, escAltBufferOff)
+	restoreAltBuffer := escape.EnableAlternativeBuffer(f)
+	defer restoreAltBuffer()
 
 	e.rPrefs = newRenderPrefs()
 

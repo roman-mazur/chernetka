@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/x/edit/internal/editor/escape"
 )
 
 type Buffer struct {
@@ -52,8 +53,8 @@ func (b *Buffer) clampCursor() {
 func (b *Buffer) viewHeight() int { return b.h - 1 }
 
 func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
-	out.WriteString("\x1b[?25l") // hide cursor while drawing
-	out.WriteString("\x1b[H")    // move to top-left
+	showCursor := escape.HideCursor(out)
+	escape.MoveTopLeft(out)
 
 	lines := b.content.Lines()
 
@@ -66,7 +67,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	}
 
 	// Status bar (reverse colors).
-	out.WriteString("\x1b[7m")
+	restoreColors := escape.ReverseVideo(out)
 	modeLabel := b.mode.String()
 	dirtyMark := ""
 	if b.dirty {
@@ -78,14 +79,15 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	out.WriteString(status)
 	out.WriteString(strings.Repeat(" ", padding))
 	out.WriteString(pos)
-	out.WriteString("\x1b[0m")
+	restoreColors()
 
 	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
 	screenCol := b.cx + 1
-	fmt.Fprintf(out, "\x1b[%d;%dH", screenRow, screenCol)
-	out.WriteString("\x1b[?25h")
-	out.Flush()
+	escape.SetCursorPosition(out, screenRow, screenCol)
+	showCursor()
+
+	_ = out.Flush()
 }
 
 func (b *Buffer) canEdit() bool {
