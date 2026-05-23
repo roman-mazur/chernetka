@@ -8,7 +8,6 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,12 +44,11 @@ type Content []string
 
 // Editor represents the editor internal state.
 type Editor struct {
-	b  []*Buffer // open buffers
-	bi int       // current buffer
+	b []*Buffer // stack open buffers
 
 	layoutRequested bool
 	cmdChannel      chan Command
-	quitRequested   atomic.Bool
+	quitRequested   bool
 
 	termFd int
 	rPrefs RenderPrefs
@@ -90,7 +88,20 @@ func (e *Editor) Post(cmd Command) {
 	e.cmdChannel <- cmd
 }
 
-func (e *Editor) push(buf *Buffer) { e.b = slices.Insert(e.b, e.bi, buf) }
+func (e *Editor) push(buf *Buffer) { e.b = append(e.b, buf) }
+
+func (e *Editor) pop() (empty bool) {
+	size := len(e.b)
+	if size == 0 {
+		return true
+	}
+
+	e.b[size-1] = nil
+	e.b = e.b[:size-1]
+	return len(e.b) == 0
+}
+
+func (e *Editor) top() *Buffer { return e.b[len(e.b)-1] }
 
 func (e *Editor) Run(f *os.File, logf logger.Func) {
 	start := time.Now()
@@ -111,13 +122,25 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	}
 	defer term.Restore(e.termFd, state)
 
-	e.layoutRequested = true
 	e.cmdChannel = make(chan Command)
-	go e.readAndHandleInput(f, logf)
+
+	var inputsStop atomic.Bool
+	defer inputsStop.Store(true)
+	go e.readAndHandleInput(f, logf, &inputsStop)
 
 	out := bufio.NewWriter(os.Stdout)
 
-	for !e.quitRequested.Load() {
+	e.layoutRequested = true
+	for {
+		// Close the current buffer if necessary.
+		if e.quitRequested {
+			if e.pop() {
+				break // All done.
+			}
+			e.quitRequested = false
+			e.layoutRequested = true
+		}
+
 		// Render.
 		if e.layoutRequested {
 			for buf := range e.layout() {
@@ -140,10 +163,10 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	}
 }
 
-func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func) {
+func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func, stop *atomic.Bool) {
 	bPool := sync.Pool{New: func() any { return make([]byte, 64) }}
 	var inBuf [64]byte
-	for !e.quitRequested.Load() {
+	for !stop.Load() {
 		// Get input.
 		n, err := f.Read(inBuf[:])
 		if err != nil {
@@ -161,7 +184,7 @@ func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func) {
 		}
 		// Handle input.
 		e.cmdChannel <- CommandFunc(func(e *Editor) {
-			quit := e.handleInput(e.b[e.bi].mode, input[:n])
+			quit := e.handleInput(input[:n])
 			if quit {
 				commandQuit(e)
 			} else {
@@ -172,15 +195,15 @@ func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func) {
 	}
 }
 
-func (e *Editor) handleInput(mode Mode, input []byte) (quit bool) {
-	buf := e.b[e.bi]
+func (e *Editor) handleInput(input []byte) (quit bool) {
+	buf := e.top()
 
 	if isArrow(input) {
 		buf.handleCursor(input, &e.rPrefs)
 		return false
 	}
 
-	switch mode {
+	switch buf.mode {
 	case ModeNormal:
 		switch string(input) {
 		case "+", "=":
@@ -223,7 +246,7 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 			return
 		}
 		// TODO: consider rendering multiple buffers.
-		buf := lps.editor.b[lps.editor.bi]
+		buf := lps.editor.top()
 		buf.w, buf.h = w, h
 
 		done = true

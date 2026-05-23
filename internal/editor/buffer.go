@@ -62,7 +62,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	printFmt(out, b.content, b.offset, b.offset+printableCount, prefs.TabSize)
 
 	for row := printableCount; row < b.viewHeight(); row++ {
-		printClearLine(out)
+		escape.ClearLine(out)
 		out.WriteString("\r\n")
 	}
 

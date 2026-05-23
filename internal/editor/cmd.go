@@ -124,5 +124,5 @@ type CommandFunc func(e *Editor)
 func (f CommandFunc) DoOnEditor(e *Editor) { f(e) }
 
 var (
-	commandQuit = CommandFunc(func(e *Editor) { e.quitRequested.Store(true) })
+	commandQuit = CommandFunc(func(e *Editor) { e.quitRequested = true })
 )
