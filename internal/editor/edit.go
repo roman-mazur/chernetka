@@ -44,7 +44,7 @@ type Content []string
 
 // Editor represents the editor internal state.
 type Editor struct {
-	b []*Buffer // stack open buffers
+	top *bufEntry // stack of open buffers
 
 	layoutRequested bool
 	cmdChannel      chan Command
@@ -56,6 +56,13 @@ type Editor struct {
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
 func (e *Editor) OpenReader(path string, in io.Reader) error {
+	for entry := range e.buffers() {
+		if entry.matches(path) {
+			e.selectBuffer(entry)
+			return nil
+		}
+	}
+
 	data, err := content.LoadFullText(in)
 	if err != nil {
 		return err
@@ -88,20 +95,73 @@ func (e *Editor) Post(cmd Command) {
 	e.cmdChannel <- cmd
 }
 
-func (e *Editor) push(buf *Buffer) { e.b = append(e.b, buf) }
+func (e *Editor) push(buf *Buffer) {
+	entry := &bufEntry{
+		b:    buf,
+		next: e.top,
+	}
+	if e.top != nil {
+		e.top.prev = entry
+	}
+	e.top = entry
+}
 
 func (e *Editor) pop() (empty bool) {
-	size := len(e.b)
-	if size == 0 {
+	if e.top == nil {
 		return true
 	}
 
-	e.b[size-1] = nil
-	e.b = e.b[:size-1]
-	return len(e.b) == 0
+	e.top = e.top.next
+	if e.top == nil {
+		return true
+	}
+	e.top.prev = nil
+	return false
 }
 
-func (e *Editor) top() *Buffer { return e.b[len(e.b)-1] }
+// selectBuffer moves the selected buffer to the top of the stack.
+func (e *Editor) selectBuffer(entry *bufEntry) {
+	if entry == e.top {
+		return
+	}
+	if e.top.prev != nil {
+		panic("top has prev")
+	}
+
+	if entry.next != nil {
+		entry.next.prev = entry.prev
+	}
+	if entry.prev != nil {
+		entry.prev.next = entry.next
+	}
+
+	entry.prev = nil
+	entry.next = e.top
+
+	e.top.prev = entry
+	e.top = entry
+}
+
+func (e *Editor) buffers() iter.Seq[*bufEntry] {
+	cur := e.top
+	return func(yield func(*bufEntry) bool) {
+		for cur != nil {
+			if !yield(cur) {
+				return
+			}
+			cur = cur.next
+		}
+	}
+}
+
+type bufEntry struct {
+	b          *Buffer
+	next, prev *bufEntry
+}
+
+func (be *bufEntry) matches(p string) bool {
+	return be.b.path == p
+}
 
 func (e *Editor) Run(f *os.File, logf logger.Func) {
 	start := time.Now()
@@ -196,7 +256,7 @@ func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func, stop *atomic.B
 }
 
 func (e *Editor) handleInput(input []byte) (quit bool) {
-	buf := e.top()
+	buf := e.top.b
 
 	if isArrow(input) {
 		buf.handleCursor(input, &e.rPrefs)
@@ -246,7 +306,7 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 			return
 		}
 		// TODO: consider rendering multiple buffers.
-		buf := lps.editor.top()
+		buf := lps.editor.top.b
 		buf.w, buf.h = w, h
 
 		done = true
