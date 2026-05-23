@@ -9,6 +9,10 @@
 // read-only buffer. When no file and no pipe are present, a blank scratch
 // buffer is opened instead.
 //
+// Opening a directory is also supported. Editor will display a terminal UI allowing
+// to navigate the directory tree. Pressing Enter on a file will attempt opening this
+// file in the right pane of your terminal.
+//
 // # Normal mode
 //
 // The editor starts in normal mode. The cursor rests on a character (never
