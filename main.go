@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -17,6 +18,9 @@ func main() {
 		edit    editor.Editor
 		skipCtl bool
 	)
+
+	logf, _ := logger.UserLogFile()
+	delegate := editDelegate{edit: &edit, logf: logf}
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
@@ -40,20 +44,18 @@ func main() {
 			log.Fatal("cannot get path info:", err)
 		}
 		if info.IsDir() {
-			edit.OpenDir(path)
+			edit.OpenDir(path, &delegate)
 			skipCtl = true
 		} else {
 			(&editor.OpenFile{Path: path}).DoOnEditor(&edit)
 		}
 	}
 
-	logf, _ := logger.UserLogFile()
-
 	if !skipCtl {
 		srv, err := remotectl.NewServer()
 		if err == nil {
 			defer srv.Close()
-			go srv.Run(&remoteCmdExecutor{edit: &edit, logf: logf}, logf)
+			go srv.Run(&delegate, logf)
 		} else {
 			logf("ctl error: %s", err)
 		}
@@ -62,22 +64,43 @@ func main() {
 	edit.Run(ttyFile, logf)
 }
 
-type remoteCmdExecutor struct {
+type editDelegate struct {
 	edit *editor.Editor
 	logf logger.Func
 }
 
-func (rce *remoteCmdExecutor) ExecuteCommand(cmd remotectl.CommandData) {
+func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
 	var editorCommand editor.Command
 
 	switch cmd.Action {
 	case "open":
 		editorCommand = &editor.OpenFile{Path: cmd.Args[0]}
 	default:
-		rce.logf("ignore remote cmd: %s", cmd.Action)
+		ed.logf("ignore remote cmd: %s", cmd.Action)
 		return
 	}
 
-	rce.logf("remote cmd: %s", cmd.Action)
-	rce.edit.Post(editorCommand)
+	ed.logf("remote cmd: %s", cmd.Action)
+	ed.edit.Post(editorCommand)
+}
+
+func (ed *editDelegate) OpenFile(path string) {
+	err := ed.sendOpenCommand(path)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		ed.logf("starting main editor")
+		err := openMainEditor(path)
+		if err != nil {
+			ed.logf("error with main editor: %s", err)
+		}
+	}
+}
+
+func (ed *editDelegate) sendOpenCommand(path string) error {
+	return remotectl.SendCommand(&remotectl.CommandData{
+		Action: "open",
+		Args:   []string{path},
+	})
 }
