@@ -171,6 +171,8 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 
 	restoreAltBuffer := escape.EnableAlternativeBuffer(f)
 	defer restoreAltBuffer()
+	restoreLineWrapping := escape.DisableLineWrapping(f)
+	defer restoreLineWrapping()
 
 	e.rPrefs = newRenderPrefs()
 

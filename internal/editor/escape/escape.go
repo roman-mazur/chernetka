@@ -30,6 +30,10 @@ func ClearLine(out io.Writer) {
 	_, _ = fmt.Fprint(out, "\x1b[2K")
 }
 
+func DisableLineWrapping(out io.Writer) (restore func()) {
+	return applyPair(out, "\x1b[?7l", "\x1b[?7h")
+}
+
 func applyPair(out io.Writer, action, revert string) (restore func()) {
 	_, err := fmt.Fprint(out, action)
 	if err == nil {
