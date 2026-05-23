@@ -204,7 +204,7 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 		// Render.
 		if e.layoutRequested {
 			for buf := range e.layout() {
-				buf.clampCursor()
+				buf.clampCursor(&e.rPrefs)
 				buf.render(out, &e.rPrefs)
 			}
 			e.layoutRequested = false

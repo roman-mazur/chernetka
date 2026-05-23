@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"rmazur.io/x/edit/internal/content"
 	"rmazur.io/x/edit/internal/editor/escape"
@@ -15,7 +16,7 @@ type Buffer struct {
 	mode    Mode
 	dirty   bool
 
-	cx, cy int // cursor column and row within the file (0-indexed)
+	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
 	w, h   int // terminal window dimensions
 }
@@ -26,19 +27,25 @@ func NewScratchBuffer() *Buffer {
 	}
 }
 
-func (b *Buffer) clampCursor() {
+func (b *Buffer) clampCursor(_ *RenderPrefs) {
 	lines := b.content.Lines()
 
 	b.cy = max(0, min(b.cy, len(lines)-1))
 
-	maxX := 0
+	var line string
 	if len(lines) > 0 {
-		maxX = len(lines[b.cy].String())
-		if b.mode == ModeNormal && maxX > 0 {
-			maxX-- // Normal mode: cursor sits on a character, not past the last one.
-		}
+		line = lines[b.cy].String()
+	}
+	maxX := len(line)
+	if b.mode == ModeNormal && maxX > 0 {
+		_, sz := utf8.DecodeLastRuneInString(line)
+		maxX -= sz // Normal mode: cursor sits on a character, not past the last one.
 	}
 	b.cx = max(0, min(b.cx, maxX))
+	// Vertical movement may land cx mid-rune; snap back to the rune start.
+	for b.cx > 0 && b.cx < len(line) && !utf8.RuneStart(line[b.cx]) {
+		b.cx--
+	}
 
 	// Adjust scroll so cursor is visible.
 	if b.cy < b.offset {
@@ -47,6 +54,26 @@ func (b *Buffer) clampCursor() {
 	if b.cy >= b.offset+b.viewHeight() {
 		b.offset = b.cy - b.viewHeight() + 1
 	}
+}
+
+// byteToScreenCol returns the visual column at the given byte index, expanding
+// tabs by tabSize. Used once per render to project cx onto the terminal.
+func byteToScreenCol(line string, byteIdx, tabSize int) int {
+	if byteIdx > len(line) {
+		byteIdx = len(line)
+	}
+	col := 0
+	for i, r := range line {
+		if i >= byteIdx {
+			break
+		}
+		if r == '\t' {
+			col += tabSize
+		} else {
+			col++
+		}
+	}
+	return col
 }
 
 // viewHeight is the number of text rows (terminal height minus the status bar).
@@ -66,6 +93,12 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 		out.WriteString("\r\n")
 	}
 
+	var cursorLine string
+	if len(lines) > 0 {
+		cursorLine = lines[b.cy].String()
+	}
+	screenCol := byteToScreenCol(cursorLine, b.cx, prefs.TabSize)
+
 	// Status bar (reverse colors).
 	restoreColors := escape.ReverseVideo(out)
 	modeLabel := b.mode.String()
@@ -74,7 +107,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 		dirtyMark = " [*]"
 	}
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.path, dirtyMark)
-	pos := fmt.Sprintf("%d:%d ", b.cy+1, b.cx+1)
+	pos := fmt.Sprintf("%d:%d ", b.cy+1, screenCol+1)
 	padding := max(b.w-len(status)-len(pos), 0)
 	out.WriteString(status)
 	out.WriteString(strings.Repeat(" ", padding))
@@ -83,8 +116,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
-	screenCol := b.cx + 1
-	escape.SetCursorPosition(out, screenRow, screenCol)
+	escape.SetCursorPosition(out, screenRow, screenCol+1)
 	showCursor()
 
 	_ = out.Flush()

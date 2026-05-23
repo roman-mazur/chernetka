@@ -1,6 +1,10 @@
 package editor
 
-import "rmazur.io/x/edit/internal/content"
+import (
+	"unicode/utf8"
+
+	"rmazur.io/x/edit/internal/content"
+)
 
 func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 	lines := buf.content.Lines()
@@ -15,7 +19,11 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		case 'i':
 			buf.mode = ModeInsert
 		case 'a':
-			buf.cx++
+			line := lines[buf.cy].String()
+			if buf.cx < len(line) {
+				_, sz := utf8.DecodeRuneInString(line[buf.cx:])
+				buf.cx += sz
+			}
 			buf.mode = ModeInsert
 		case 'A':
 			buf.cx = buf.content.Lines()[buf.cy].Len()
@@ -44,7 +52,8 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			}
 			line := lines[buf.cy].String()
 			if buf.cx < len(line) {
-				buf.mutate().Update(buf.cy, content.TextLine(line[:buf.cx]+line[buf.cx+1:]))
+				_, sz := utf8.DecodeRuneInString(line[buf.cx:])
+				buf.mutate().Update(buf.cy, content.TextLine(line[:buf.cx]+line[buf.cx+sz:]))
 			}
 
 		// Commands.

@@ -2,6 +2,7 @@ package editor
 
 import (
 	"os"
+	"unicode/utf8"
 
 	"rmazur.io/x/edit/internal/content"
 )
@@ -21,64 +22,28 @@ type RelMove struct {
 	Dx, Dy int
 }
 
-func (r RelMove) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
+func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	if r.Dx != 0 {
-		r.moveDx(buf, prefs.TabSize)
+		r.moveDx(buf)
 	}
 	if r.Dy != 0 {
 		buf.cy += r.Dy
 	}
 }
 
-func (r RelMove) moveDx(b *Buffer, tabSize int) {
+func (r RelMove) moveDx(b *Buffer) {
 	line := b.content.Lines()[b.cy].String()
 	d := r.Dx
-	for d != 0 {
-		ti := screenToTextIdx(line, b.cx, tabSize)
-		switch {
-		case d > 0:
-			if ti >= len(line) {
-				return
-			}
-			if line[ti] == '\t' {
-				b.cx += tabSize
-			} else {
-				b.cx++
-			}
-			d--
-
-		case d < 0:
-			if ti == 0 {
-				return
-			}
-			// '\t' is single-byte ASCII (0x09); continuation bytes (0x80–0xBF) in
-			// UTF-8 can never equal 0x09, so checking line[ti-1] is safe here.
-			if line[ti-1] == '\t' {
-				b.cx -= tabSize
-			} else {
-				b.cx--
-			}
-			d++
-		}
+	for d > 0 && b.cx < len(line) {
+		_, sz := utf8.DecodeRuneInString(line[b.cx:])
+		b.cx += sz
+		d--
 	}
-}
-
-// screenToTextIdx returns the byte index of the character displayed at the
-// given visual column. Each tab counts as tabSize columns. Returns len(line)
-// when screenCol is at or past the visual end of the line.
-func screenToTextIdx(line string, screenCol int, tabSize int) int {
-	sc := 0
-	for i, c := range line {
-		w := 1
-		if c == '\t' {
-			w = tabSize
-		}
-		sc += w
-		if sc > screenCol {
-			return i
-		}
+	for d < 0 && b.cx > 0 {
+		_, sz := utf8.DecodeLastRuneInString(line[:b.cx])
+		b.cx -= sz
+		d++
 	}
-	return len(line)
 }
 
 type BufferCommandFunc func(b *Buffer, prefs RenderPrefs)

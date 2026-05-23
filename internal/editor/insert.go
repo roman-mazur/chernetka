@@ -1,6 +1,10 @@
 package editor
 
-import "rmazur.io/x/edit/internal/content"
+import (
+	"unicode/utf8"
+
+	"rmazur.io/x/edit/internal/content"
+)
 
 func insertInput(buf *Buffer, b []byte) {
 	// Esc.
@@ -23,8 +27,9 @@ func insertInput(buf *Buffer, b []byte) {
 	// Backspace.
 	case len(b) == 1 && (b[0] == 0x7f || b[0] == 0x08):
 		if buf.cx > 0 {
-			mut.Update(buf.cy, content.TextLine(line[:buf.cx-1]+line[buf.cx:]))
-			buf.cx--
+			_, sz := utf8.DecodeLastRuneInString(line[:buf.cx])
+			mut.Update(buf.cy, content.TextLine(line[:buf.cx-sz]+line[buf.cx:]))
+			buf.cx -= sz
 		} else if buf.cy > 0 {
 			prev := lines[buf.cy-1].String()
 			buf.cx = len(prev)
