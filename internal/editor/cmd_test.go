@@ -1,6 +1,9 @@
 package editor
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"rmazur.io/x/edit/internal/content"
@@ -67,3 +70,36 @@ func TestRelMove_Dx(t *testing.T) {
 
 // s is a shorthand for constructing a string slice in table literals.
 func s(lines ...string) []string { return lines }
+
+func TestSave(t *testing.T) {
+	ftContent, err := content.LoadFullText(strings.NewReader("test content\nline 2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := &Buffer{
+		content: &ftContent,
+		dirty:   true,
+	}
+	dstPath := filepath.Join(t.TempDir(), "editor-save")
+	save := &Save{DstPath: dstPath}
+	save.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
+
+	if buf.dirty {
+		t.Error("buffer remains dirty after save")
+	}
+
+	outFile, err := os.Open(dstPath)
+	if err != nil {
+		t.Fatal("cannot open saved file:", err)
+	}
+	t.Cleanup(func() { _ = outFile.Close() })
+	outContent, err := content.LoadFullText(outFile)
+	if err != nil {
+		t.Fatal("cannot read saved file:", err)
+	}
+	t.Logf("saved content (len=%d): %s", outContent.Len(), outContent)
+	if outContent.Len() != ftContent.Len() {
+		t.Errorf("wanted %d, got %d lines", ftContent.Len(), outContent.Len())
+	}
+}

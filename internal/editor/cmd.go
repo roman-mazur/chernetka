@@ -57,6 +57,22 @@ var (
 	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = b.content.Lines()[b.cy].Len() })
 )
 
+// Save stores the boffer content in the destination path.
+type Save struct {
+	DstPath string
+}
+
+func (s *Save) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
+	if s.DstPath == "" {
+		return
+	}
+	err := content.Save(buf.content, s.DstPath)
+	if err == nil {
+		buf.dirty = false
+	}
+	// TODO: Visualize the error.
+}
+
 // OpenFile opens a new file via Editor.OpenReader.
 type OpenFile struct {
 	Path string
