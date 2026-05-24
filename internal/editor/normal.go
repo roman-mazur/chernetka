@@ -37,6 +37,11 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			buf.cx = 0
 			buf.mode = ModeInsert
 
+		// Enter command-line mode.
+		case ':':
+			buf.cmdline = ""
+			buf.mode = ModeCommand
+
 		// Engage.
 		case '\r':
 			if action, ok := lines[buf.cy].(content.LineAction); ok {

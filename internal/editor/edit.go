@@ -24,6 +24,7 @@ type Mode int
 const (
 	ModeNormal Mode = iota
 	ModeInsert
+	ModeCommand
 )
 
 const debugInput = false
@@ -34,6 +35,8 @@ func (m Mode) String() string {
 		return "NORMAL"
 	case ModeInsert:
 		return "INSERT"
+	case ModeCommand:
+		return "COMMAND"
 	default:
 		return fmt.Sprintf("UNKNOWN_%d", int(m))
 	}
@@ -265,6 +268,12 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
+	// Ctrl+S saves the current buffer in any mode.
+	if len(input) == 1 && input[0] == 0x13 {
+		(&Save{buf.path}).DoOnBuffer(buf, e.rPrefs)
+		return false
+	}
+
 	switch buf.mode {
 	case ModeNormal:
 		switch string(input) {
@@ -279,6 +288,8 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	case ModeInsert:
 		insertInput(buf, input)
 		return false
+	case ModeCommand:
+		return commandInput(buf, input, &e.rPrefs)
 	default:
 		return false
 	}

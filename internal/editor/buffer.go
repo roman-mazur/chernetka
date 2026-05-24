@@ -15,6 +15,7 @@ type Buffer struct {
 	content content.Interface
 	mode    Mode
 	dirty   bool
+	cmdline string // text typed after ':' while in ModeCommand
 
 	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
@@ -101,6 +102,19 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Status bar (reverse colors).
 	restoreColors := escape.ReverseVideo(out)
+
+	if b.mode == ModeCommand {
+		// In command mode, the status bar becomes the command line.
+		escape.ClearLine(out)
+		out.WriteString(":")
+		out.WriteString(b.cmdline)
+		escape.SetCursorPosition(out, b.h, len(b.cmdline)+2)
+		showCursor()
+		restoreColors()
+		_ = out.Flush()
+		return
+	}
+
 	modeLabel := b.mode.String()
 	dirtyMark := ""
 	if b.dirty {
