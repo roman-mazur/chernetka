@@ -195,6 +195,9 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 
 	out := bufio.NewWriter(os.Stdout)
 
+	var lastRenderTime time.Time
+	const renderDelay = 10 * time.Millisecond
+
 	e.layoutRequested = true
 	for {
 		// Close the current buffer if necessary.
@@ -214,6 +217,7 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 			}
 			e.layoutRequested = false
 		}
+		lastRenderTime = time.Now()
 
 		// Handle commands, including inputs.
 	loop:
@@ -222,6 +226,9 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 			case cmd := <-e.cmdChannel:
 				cmd.DoOnEditor(e)
 			default:
+				if passed := time.Since(lastRenderTime); passed < renderDelay {
+					time.Sleep(renderDelay - passed)
+				}
 				break loop
 			}
 		}
