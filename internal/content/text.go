@@ -52,7 +52,7 @@ func (ft *FullText) Delete(pos int) {
 
 // Empty returns an implementation of an empty content.
 func Empty() Interface {
-	var ft FullText
+	ft := FullText{TextLine("")}
 	return &ft
 }
 

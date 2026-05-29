@@ -69,6 +69,14 @@ func TestFullText_Mutate(t *testing.T) {
 	}
 }
 
+func TestEmpty(t *testing.T) {
+	c := Empty()
+	if c.Len() != 1 {
+		t.Error("wrong length", c.Len())
+	}
+	t.Logf("content: %q", c.Lines()[0].String())
+}
+
 func must(err error) {
 	if err != nil {
 		panic(err)

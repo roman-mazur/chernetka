@@ -20,8 +20,8 @@ func insertInput(buf *Buffer, b []byte) {
 		return
 	}
 	lines := buf.content.Lines()
-	mut := buf.mutate()
 	line := lines[buf.cy].String()
+	mut := buf.mutate()
 
 	switch {
 	// Backspace.
