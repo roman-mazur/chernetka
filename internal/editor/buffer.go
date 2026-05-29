@@ -130,7 +130,8 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
-	escape.SetCursorPosition(out, screenRow, screenCol+1)
+	numDisplayWidth := nlDigitsLen(b.content.Len())
+	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 	showCursor()
 
 	_ = out.Flush()
