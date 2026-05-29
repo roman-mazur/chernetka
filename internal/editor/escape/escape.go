@@ -3,6 +3,7 @@ package escape
 
 import (
 	"fmt"
+	"image/color"
 	"io"
 )
 
@@ -28,6 +29,15 @@ func SetCursorPosition(out io.Writer, row, col int) {
 
 func ClearLine(out io.Writer) {
 	_, _ = fmt.Fprint(out, "\x1b[2K")
+}
+
+func ColorText(out io.Writer, text string, color color.Color) {
+	_, _ = fmt.Fprintf(out, colorTemplate(color), text)
+}
+
+func colorTemplate(c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%%s\x1b[0m", r, g, b)
 }
 
 func DisableLineWrapping(out io.Writer) (restore func()) {

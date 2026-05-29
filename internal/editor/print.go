@@ -3,6 +3,7 @@ package editor
 import (
 	"bufio"
 	"fmt"
+	"image/color"
 	"strconv"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 	"rmazur.io/x/edit/internal/editor/escape"
 )
 
-func printFmt(out *bufio.Writer, data content.Interface, i, j int, tabSize int) {
+func printFmt(out *bufio.Writer, data content.Interface, i, j int, tabSize int, cy int) {
 	lines := data.Lines()
 	_ = lines[i:j] // boundary check
 
@@ -22,7 +23,11 @@ func printFmt(out *bufio.Writer, data content.Interface, i, j int, tabSize int) 
 		line := lines[x].String()
 		line = strings.ReplaceAll(line, "\t", tab)
 		escape.ClearLine(out)
-		_, _ = fmt.Fprintf(out, nlFmt, x+1)
+		nlColor := color.Gray{Y: 100}
+		if x == cy {
+			nlColor.Y = 200
+		}
+		escape.ColorText(out, fmt.Sprintf(nlFmt, x+1), nlColor)
 		out.WriteString(line)
 		out.WriteString("\r\n")
 	}
