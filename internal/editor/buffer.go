@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -20,6 +21,8 @@ type Buffer struct {
 	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
 	w, h   int // terminal window dimensions
+
+	lsp lspBufferData
 }
 
 func NewScratchBuffer() *Buffer {
@@ -87,7 +90,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	lines := b.content.Lines()
 
 	printableCount := min(b.viewHeight(), len(lines)-b.offset)
-	printFmt(out, b.content, b.offset, b.offset+printableCount, prefs.TabSize, b.cy)
+	b.printFmt(out, b.offset, b.offset+printableCount, prefs)
 
 	for row := printableCount; row < b.viewHeight(); row++ {
 		escape.ClearLine(out)
@@ -130,11 +133,27 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
-	numDisplayWidth := nlDigitsLen(b.content.Len())
+	numDisplayWidth := nlDigitsLen(b.content.Len()) + 1
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 	showCursor()
 
 	_ = out.Flush()
+}
+
+// acceptSuggestion inserts the active inline suggestion at the cursor and
+// advances past it. It is a no-op when there is no suggestion or the buffer is
+// read-only.
+func (b *Buffer) acceptSuggestion(sug string) {
+	b.lsp.suggestions = nil
+	if sug == "" || !b.canEdit() {
+		return
+	}
+	line := b.content.Lines()[b.cy].String()
+	if b.cx > len(line) {
+		b.cx = len(line)
+	}
+	b.mutate().Update(b.cy, content.TextLine(line[:b.cx]+sug+line[b.cx:]))
+	b.cx += len(sug)
 }
 
 func (b *Buffer) canEdit() bool {
@@ -153,6 +172,12 @@ func (b *Buffer) handleCursor(input []byte, prefs *RenderPrefs) {
 	case 'D':
 		RelMove{Dx: -1}.DoOnBuffer(b, *prefs)
 	}
+}
+
+func (b *Buffer) text() string {
+	var buf bytes.Buffer
+	_ = content.SaveToWriter(b.content, &buf)
+	return buf.String()
 }
 
 func (b *Buffer) mutate() content.Mutable {

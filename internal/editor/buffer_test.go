@@ -78,6 +78,22 @@ func TestBuffer_Render(t *testing.T) {
 			contains: []string{"1 a    b"},
 		},
 		{
+			name: "inline suggestion rendered as ghost text after cursor",
+			buf: &Buffer{
+				path:    "test.go",
+				content: &content.FullText{content.TextLine("Pri")},
+				mode:    ModeInsert,
+				cx:      3,
+				lsp: lspBufferData{
+					suggestions: []string{"ntln"},
+				},
+				w: 40,
+				h: 3,
+			},
+			prefs:    RenderPrefs{TabSize: 4},
+			contains: []string{"1 Println"},
+		},
+		{
 			name: "command mode shows cmdline and hides status",
 			buf: &Buffer{
 				path:    "test.txt",
@@ -113,5 +129,23 @@ func TestBuffer_Render(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuffer_AcceptSuggestion(t *testing.T) {
+	buf := &Buffer{
+		content: &content.FullText{content.TextLine("Pri")},
+		cx:      3,
+		lsp:     lspBufferData{suggestions: []string{"ntln"}},
+	}
+	buf.acceptSuggestion(buf.lsp.suggestions[0])
+	if got := buf.content.Lines()[0].String(); got != "Println" {
+		t.Errorf("line = %q, want %q", got, "Println")
+	}
+	if buf.cx != 7 {
+		t.Errorf("cx = %d, want 7", buf.cx)
+	}
+	if buf.lsp.suggestions != nil {
+		t.Errorf("suggestions = %v, want cleared", buf.lsp.suggestions)
 	}
 }

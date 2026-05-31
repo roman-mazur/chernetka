@@ -55,6 +55,8 @@ type Editor struct {
 
 	termFd int
 	rPrefs RenderPrefs
+
+	lsp lspIntegration
 }
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
@@ -71,10 +73,12 @@ func (e *Editor) OpenReader(path string, in io.Reader) error {
 		return err
 	}
 
-	e.push(&Buffer{
+	buf := &Buffer{
 		path:    path,
 		content: &data,
-	})
+	}
+	e.push(buf)
+	e.lsp.maybeAttach(buf)
 	return nil
 }
 
@@ -170,6 +174,7 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	start := time.Now()
 	defer func() {
 		logf("session done %s", time.Since(start))
+		_ = e.lsp.Close()
 	}()
 
 	restoreAltBuffer := escape.EnableAlternativeBuffer(f)
@@ -294,6 +299,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return normalInput(buf, input, &e.rPrefs)
 	case ModeInsert:
 		insertInput(buf, input)
+		e.afterEdit(buf)
 		return false
 	case ModeCommand:
 		return commandInput(buf, input, &e.rPrefs)
