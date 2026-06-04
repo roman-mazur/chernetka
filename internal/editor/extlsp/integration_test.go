@@ -1,10 +1,15 @@
 package extlsp
 
 import (
+	"context"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"go.lsp.dev/protocol"
+	"go.lsp.dev/uri"
+	"rmazur.io/x/edit/internal/editor"
 )
 
 func TestUTF16Len(t *testing.T) {
@@ -71,5 +76,101 @@ func TestIdentTrailing(t *testing.T) {
 
 func s(s ...string) []string { return s }
 
-// TODO: Add tests that verify how inputs are handled (in input_test.go), and here for checking how stale suggestions
-//       are dropped.
+// fakeLSP is a stand-in lspClient that records the document versions it is told
+// about and returns canned completion items.
+type fakeLSP struct {
+	openVersion    int32
+	changedVersion int32
+	items          []protocol.CompletionItem
+}
+
+func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, _, _ string, v int32) error {
+	f.openVersion = v
+	return nil
+}
+
+func (f *fakeLSP) DidChange(_ context.Context, _ uri.URI, _ string, v int32) error {
+	f.changedVersion = v
+	return nil
+}
+
+func (f *fakeLSP) Completion(context.Context, uri.URI, uint32, uint32) ([]protocol.CompletionItem, error) {
+	return f.items, nil
+}
+
+func (f *fakeLSP) Shutdown(context.Context) error { return nil }
+
+// newGoBuffer wires le into a fresh editor backed by fake, opens a Go buffer
+// holding text, and returns the buffer together with its LSP extension data.
+func newGoBuffer(t *testing.T, le *Integration, fake *fakeLSP, text string) (*editor.TestHarness, *editor.Buffer, *BufferData) {
+	t.Helper()
+	le.Starter = func(context.Context, string) (lspClient, error) { return fake, nil }
+
+	h := editor.NewTestHarness()
+	h.Extend(le)
+	if err := h.OpenReader("completion_buf.go", strings.NewReader(text)); err != nil {
+		t.Fatalf("OpenReader: %v", err)
+	}
+	buf := h.ActiveBuffer()
+	data, _ := buf.ExtensionData(le.ID()).(*BufferData)
+	if data == nil {
+		t.Fatal("buffer has no LSP extension data")
+	}
+	return h, buf, data
+}
+
+// runPosted drains and applies the single command the integration posts back to
+// the editor from its completion goroutine.
+func runPosted(t *testing.T, h *editor.TestHarness) {
+	t.Helper()
+	select {
+	case cmd := <-h.Commands():
+		cmd.DoOnEditor(h.Editor)
+	case <-time.After(2 * time.Second):
+		t.Fatal("no command posted back")
+	}
+}
+
+func TestIntegration_AfterEditSetsSuggestion(t *testing.T) {
+	fake := &fakeLSP{items: []protocol.CompletionItem{{Label: "Println"}}}
+	var le Integration
+	h, buf, data := newGoBuffer(t, &le, fake, "Pri")
+	h.MoveCursorToLineEnd() // cursor sits right after "Pri"
+
+	if fake.openVersion != 1 {
+		t.Errorf("DidOpen version = %d, want 1", fake.openVersion)
+	}
+
+	le.AfterEdit(h.Editor, buf)
+
+	if fake.changedVersion != 2 {
+		t.Errorf("DidChange version = %d, want 2", fake.changedVersion)
+	}
+
+	runPosted(t, h)
+
+	if !data.HasSuggestions() {
+		t.Fatal("no suggestion assigned")
+	}
+	if got := data.CurrentSuggestion(); got != "ntln" {
+		t.Errorf("suggestion = %q, want %q", got, "ntln")
+	}
+}
+
+func TestIntegration_AfterEditDropsStaleSuggestion(t *testing.T) {
+	fake := &fakeLSP{items: []protocol.CompletionItem{{Label: "Println"}}}
+	var le Integration
+	h, buf, data := newGoBuffer(t, &le, fake, "Pri")
+	h.MoveCursorToLineEnd()
+
+	le.AfterEdit(h.Editor, buf)
+	// A newer edit bumps the request counter before the in-flight completion
+	// result is applied, marking that result stale.
+	data.reqCompletion++
+
+	runPosted(t, h)
+
+	if data.HasSuggestions() {
+		t.Errorf("stale suggestion applied: %v", data.suggestions)
+	}
+}

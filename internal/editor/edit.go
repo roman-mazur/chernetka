@@ -208,7 +208,9 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	}
 	defer term.Restore(e.termFd, state)
 
-	e.cmdChannel = make(chan Command)
+	if e.cmdChannel == nil {
+		e.cmdChannel = make(chan Command)
+	}
 
 	var inputsStop atomic.Bool
 	defer inputsStop.Store(true)
