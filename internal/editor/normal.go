@@ -4,16 +4,29 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/x/edit/internal/editor/inputs"
 )
 
 func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
-	lines := buf.content.Lines()
+	var arrow inputs.CursorArrow
+	if inputs.IsArrow(b, &arrow) {
+		buf.handleCursor(arrow, prefs)
+		return false
+	}
+
+	lines := buf.Content.Lines()
 	switch {
 	case len(b) == 1:
 		switch b[0] {
 		// Quit.
 		case 'q':
 			return true
+
+		// Tab size.
+		case '+', '=':
+			prefs.tabsScaleUp()
+		case '-':
+			prefs.tabsScaleDown()
 
 		// Switch mode.
 		case 'i':
@@ -26,7 +39,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			}
 			buf.mode = ModeInsert
 		case 'A':
-			buf.cx = buf.content.Lines()[buf.cy].Len()
+			buf.cx = buf.Content.Lines()[buf.cy].Len()
 			buf.mode = ModeInsert
 		case 'o':
 			if !buf.canEdit() {

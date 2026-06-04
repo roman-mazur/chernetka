@@ -32,7 +32,7 @@ func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 }
 
 func (r RelMove) moveDx(b *Buffer) {
-	line := b.content.Lines()[b.cy].String()
+	line := b.Content.Lines()[b.cy].String()
 	d := r.Dx
 	for d > 0 && b.cx < len(line) {
 		_, sz := utf8.DecodeRuneInString(line[b.cx:])
@@ -54,7 +54,7 @@ var (
 	// MoveHome moves the cursor the beginning of the line.
 	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = 0 })
 	// MoveEnd moves the cursor the end of the line.
-	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = b.content.Lines()[b.cy].Len() })
+	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = b.Content.Lines()[b.cy].Len() })
 )
 
 // Save stores the boffer content in the destination path.
@@ -66,7 +66,7 @@ func (s *Save) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	if s.DstPath == "" {
 		return
 	}
-	err := content.Save(buf.content, s.DstPath)
+	err := content.Save(buf.Content, s.DstPath)
 	if err == nil {
 		buf.dirty = false
 	}
@@ -95,8 +95,8 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 
 func (of *OpenFile) handleError(e *Editor, err error) {
 	e.push(&Buffer{
-		path:    of.Path,
-		content: &content.ErrorContent{Error: err},
+		Path:    of.Path,
+		Content: &content.ErrorContent{Error: err},
 	})
 }
 
@@ -107,3 +107,7 @@ func (f CommandFunc) DoOnEditor(e *Editor) { f(e) }
 var (
 	commandQuit = CommandFunc(func(e *Editor) { e.quitRequested = true })
 )
+
+type SwitchMode Mode
+
+func (s SwitchMode) DoOnBuffer(buf *Buffer, _ RenderPrefs) { buf.mode = Mode(s) }

@@ -9,30 +9,41 @@ import (
 
 	"rmazur.io/x/edit/internal/content"
 	"rmazur.io/x/edit/internal/editor/escape"
+	"rmazur.io/x/edit/internal/editor/inputs"
 )
 
 type Buffer struct {
-	path    string
-	content content.Interface
+	Path    string
+	Content content.Interface
+
 	mode    Mode
 	dirty   bool
-	cmdline string // text typed after ':' while in ModeCommand
+	cmdline string // Text typed after ':' while in ModeCommand
 
 	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
 	w, h   int // terminal window dimensions
 
-	lsp lspBufferData
+	xData map[string]BufferExtData
 }
 
 func NewScratchBuffer() *Buffer {
 	return &Buffer{
-		content: content.Empty(),
+		Content: content.Empty(),
 	}
 }
 
+func (b *Buffer) ExtensionData(id string) BufferExtData {
+	if b.xData == nil {
+		return nil
+	}
+	return b.xData[id]
+}
+
+func (b *Buffer) Pos() (cx, cy int) { return b.cx, b.cy }
+
 func (b *Buffer) clampCursor(_ *RenderPrefs) {
-	lines := b.content.Lines()
+	lines := b.Content.Lines()
 
 	b.cy = max(0, min(b.cy, len(lines)-1))
 
@@ -87,7 +98,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	showCursor := escape.HideCursor(out)
 	escape.MoveTopLeft(out)
 
-	lines := b.content.Lines()
+	lines := b.Content.Lines()
 
 	printableCount := min(b.viewHeight(), len(lines)-b.offset)
 	b.printFmt(out, b.offset, b.offset+printableCount, prefs)
@@ -123,7 +134,7 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	if b.dirty {
 		dirtyMark = " [*]"
 	}
-	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.path, dirtyMark)
+	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.Path, dirtyMark)
 	pos := fmt.Sprintf("%d:%d ", b.cy+1, screenCol+1)
 	padding := max(b.w-len(status)-len(pos), 0)
 	out.WriteString(status)
@@ -133,22 +144,21 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
-	numDisplayWidth := nlDigitsLen(b.content.Len()) + 1
+	numDisplayWidth := nlDigitsLen(b.Content.Len())
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 	showCursor()
 
 	_ = out.Flush()
 }
 
-// acceptSuggestion inserts the active inline suggestion at the cursor and
+// AcceptSuggestion inserts the active inline suggestion at the cursor and
 // advances past it. It is a no-op when there is no suggestion or the buffer is
 // read-only.
-func (b *Buffer) acceptSuggestion(sug string) {
-	b.lsp.suggestions = nil
+func (b *Buffer) AcceptSuggestion(sug string) {
 	if sug == "" || !b.canEdit() {
 		return
 	}
-	line := b.content.Lines()[b.cy].String()
+	line := b.Content.Lines()[b.cy].String()
 	if b.cx > len(line) {
 		b.cx = len(line)
 	}
@@ -157,31 +167,31 @@ func (b *Buffer) acceptSuggestion(sug string) {
 }
 
 func (b *Buffer) canEdit() bool {
-	_, ok := b.content.(content.Mutable)
+	_, ok := b.Content.(content.Mutable)
 	return ok
 }
 
-func (b *Buffer) handleCursor(input []byte, prefs *RenderPrefs) {
-	switch input[2] {
-	case 'A':
+func (b *Buffer) handleCursor(arrow inputs.CursorArrow, prefs *RenderPrefs) {
+	switch arrow {
+	case inputs.CursorArrowUp:
 		RelMove{Dy: -1}.DoOnBuffer(b, *prefs)
-	case 'B':
+	case inputs.CursorArrowDown:
 		RelMove{Dy: 1}.DoOnBuffer(b, *prefs)
-	case 'C':
+	case inputs.CursorArrowRight:
 		RelMove{Dx: 1}.DoOnBuffer(b, *prefs)
-	case 'D':
+	case inputs.CursorArrowLeft:
 		RelMove{Dx: -1}.DoOnBuffer(b, *prefs)
 	}
 }
 
-func (b *Buffer) text() string {
+func (b *Buffer) Text() string {
 	var buf bytes.Buffer
-	_ = content.SaveToWriter(b.content, &buf)
+	_ = content.SaveToWriter(b.Content, &buf)
 	return buf.String()
 }
 
 func (b *Buffer) mutate() content.Mutable {
-	m, _ := b.content.(content.Mutable)
+	m, _ := b.Content.(content.Mutable)
 	return bufMutator{
 		Mutable: m,
 		Buffer:  b,

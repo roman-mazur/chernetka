@@ -1,4 +1,4 @@
-package editor
+package extlsp
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
+	"rmazur.io/x/edit/internal/editor"
 	"rmazur.io/x/edit/internal/lsp"
 )
 
@@ -31,30 +32,62 @@ func defaultLSPStarter(ctx context.Context, rootDir string) (lspClient, error) {
 	return lsp.Start(ctx, rootDir)
 }
 
-// lspIntegration encapsulates the logic of integrating with an LSP client in an Editor and Buffer.
-type lspIntegration struct {
-	client     lspClient
-	starter    lspStarter
-	cancel     context.CancelFunc
+// Integration encapsulates the logic of integrating with an LSP client in an editor.Editor and editor.Buffer.
+type Integration struct {
+	Starter lspStarter
+
+	client lspClient
+	cancel context.CancelFunc
+
 	startError error
 }
 
-type lspBufferData struct {
-	docUri      uri.URI
-	suggestions []string
+func (le *Integration) ID() string { return "lsp" }
 
-	version       int32
-	reqCompletion int
+func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
+	if !strings.HasSuffix(buf.Path, ".go") {
+		return nil
+	}
+
+	absPath, err := filepath.Abs(buf.Path)
+	if err != nil {
+		return nil
+	}
+	if err := le.ensureLSP(filepath.Dir(absPath)); err != nil {
+		return nil
+	}
+
+	var bufData BufferData
+	bufData.SetPath(absPath)
+	bufData.version = 1
+	_ = le.client.DidOpen(context.Background(), bufData.docUri, "go", buf.Text(), bufData.version)
+	return &bufData
+}
+
+func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
+	data, active := le.activeOn(buf)
+	if !active {
+		return
+	}
+	le.sendChange(buf, data) // TODO: consider bouncing and doing asynchronously.
+
+	cx, cy := buf.Pos()
+	var line string
+	if lines := buf.Content.Lines(); cy < len(lines) {
+		line = lines[cy].String()
+	}
+	cx = min(cx, len(line))
+	le.askForNewSuggestion(line, cx, cy, e, data)
 }
 
 // ensureLSP performs the one-time start of the language server. After the
 // first call, subsequent calls return the cached start error (if any) without
 // retrying — a failed start usually means gopls isn't installed.
-func (le *lspIntegration) ensureLSP(fileDir string) error {
+func (le *Integration) ensureLSP(fileDir string) error {
 	if le.client != nil || le.startError != nil {
 		return le.startError
 	}
-	starter := le.starter
+	starter := le.Starter
 	if starter == nil {
 		starter = defaultLSPStarter
 	}
@@ -70,37 +103,52 @@ func (le *lspIntegration) ensureLSP(fileDir string) error {
 	return nil
 }
 
-// maybeAttach starts the language server (lazily, on first .go file) and
-// sends didOpen for buf. Errors are swallowed so the editor stays usable when
-// the language server is unavailable.
-func (le *lspIntegration) maybeAttach(buf *Buffer) {
-	if !strings.HasSuffix(buf.path, ".go") {
-		return
+func (le *Integration) activeOn(buf *editor.Buffer) (*BufferData, bool) {
+	if le.client == nil {
+		return nil, false
 	}
-	absPath, err := filepath.Abs(buf.path)
-	if err != nil {
-		return
+
+	data := buf.ExtensionData(le.ID())
+	if data == nil {
+		return nil, false
 	}
-	if err := le.ensureLSP(filepath.Dir(absPath)); err != nil {
-		return
-	}
-	buf.lsp = lspBufferData{
-		docUri:  uri.File(absPath),
-		version: 1,
-	}
-	_ = le.client.DidOpen(context.Background(), buf.lsp.docUri, "go", buf.text(), buf.lsp.version)
+	return data.(*BufferData), data.(*BufferData).docUri != ""
 }
 
-func (le *lspIntegration) activeOn(buf *Buffer) bool {
-	return le.client != nil && buf.lsp.docUri != ""
+func (le *Integration) sendChange(buf *editor.Buffer, bufData *BufferData) {
+	bufData.version++
+	_ = le.client.DidChange(context.Background(), bufData.docUri, buf.Text(), bufData.version)
 }
 
-func (le *lspIntegration) sendChange(buf *Buffer) {
-	buf.lsp.version++
-	_ = le.client.DidChange(context.Background(), buf.lsp.docUri, buf.text(), buf.lsp.version)
+func (le *Integration) askForNewSuggestion(line string, cx, cy int, e *editor.Editor, bufData *BufferData) {
+	bufData.reqCompletion++
+
+	var (
+		client  = le.client
+		fileURI = bufData.docUri
+		req     = bufData.reqCompletion
+		ln      = uint32(cy)
+		ch      = utf16Len(line[:cx])
+	)
+
+	// TODO: replace with smarter logic when to ask for a suggestion.
+	go func() {
+		items, err := client.Completion(context.Background(), fileURI, ln, ch)
+		if err != nil {
+			return
+		}
+		suggestions := extractLspSuggestions(items, line, cx)
+		e.Post(editor.CommandFunc(func(e *editor.Editor) {
+			if bufData.reqCompletion != req {
+				return // A newer edit superseded this request.
+			}
+			bufData.Assign(suggestions)
+			e.RequestLayout()
+		}))
+	}()
 }
 
-func (le *lspIntegration) Close() error {
+func (le *Integration) Close() error {
 	if le.client == nil {
 		return nil
 	}
@@ -114,59 +162,6 @@ func (le *lspIntegration) Close() error {
 	}
 	le.client = nil
 	return err
-}
-
-// afterEdit notifies the language server that buf changed and asks for a fresh
-// completion at the cursor. The didChange notification is sent synchronously so
-// versions reach gopls in order; only the blocking completion round-trip runs
-// in a goroutine off a snapshot of buffer state, so the input loop never waits
-// on gopls. The result is applied back on the main loop via Post and dropped if
-// newer edits have since superseded it. It is a no-op for buffers the server
-// doesn't track or when not in insert mode.
-func (e *Editor) afterEdit(buf *Buffer) {
-	if !e.lsp.activeOn(buf) {
-		return
-	}
-	e.lsp.sendChange(buf) // TODO: consider bouncing and doing asynchronously.
-
-	buf.lsp.reqCompletion++
-
-	var line string
-	if lines := buf.content.Lines(); buf.cy < len(lines) {
-		line = lines[buf.cy].String()
-	}
-	cx := min(buf.cx, len(line))
-
-	var (
-		client  = e.lsp.client
-		fileURI = buf.lsp.docUri
-		req     = buf.lsp.reqCompletion
-		ln      = uint32(buf.cy)
-		ch      = utf16Len(line[:cx])
-	)
-
-	// TODO: replace with smarter logic when to ask for a suggestion.
-	go func() {
-		items, err := client.Completion(context.Background(), fileURI, ln, ch)
-		if err != nil {
-			return
-		}
-		suggestions := extractLspSuggestions(items, line, cx)
-		e.Post(CommandFunc(func(e *Editor) {
-			if buf.lsp.reqCompletion != req {
-				return // A newer edit superseded this request.
-			}
-			buf.lsp.suggestions = suggestions
-			e.layoutRequested = true
-		}))
-	}()
-}
-
-func utf16Len(s string) (n uint32) {
-	for _, r := range s {
-		n += uint32(utf16.RuneLen(r))
-	}
-	return n
 }
 
 func extractLspSuggestions(items []protocol.CompletionItem, line string, cx int) []string {
@@ -224,4 +219,11 @@ func findGoModRoot(dir string) string {
 		}
 		d = parent
 	}
+}
+
+func utf16Len(s string) (n uint32) {
+	for _, r := range s {
+		n += uint32(utf16.RuneLen(r))
+	}
+	return n
 }

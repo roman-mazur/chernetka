@@ -1,8 +1,18 @@
 package editor
 
-import "strings"
+import (
+	"strings"
+
+	"rmazur.io/x/edit/internal/editor/inputs"
+)
 
 func commandInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
+	var arrow inputs.CursorArrow
+	if inputs.IsArrow(b, &arrow) {
+		// TODO: Handle history on up/down, move on left/right.
+		return false
+	}
+
 	if len(b) != 1 {
 		return false
 	}
@@ -35,7 +45,7 @@ func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
 	}
 
 	if strings.HasPrefix(cmd, "w") {
-		dstPath := buf.path
+		dstPath := buf.Path
 		if len(cmd) > 2 {
 			_, dstPath, _ = strings.Cut(cmd, " ")
 		}

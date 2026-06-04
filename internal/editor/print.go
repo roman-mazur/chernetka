@@ -14,7 +14,7 @@ import (
 // When suggestion is non-empty it is drawn as dim text at byte offset cx of
 // the cursor line cy.
 func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
-	lines := b.content.Lines()
+	lines := b.Content.Lines()
 	_ = lines[i:j] // boundary check
 
 	tab := strings.Repeat(" ", prefs.TabSize)
@@ -22,6 +22,12 @@ func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
 
 	nl := nlDigitsLen(j)
 	nlFmt := "%" + strconv.Itoa(nl) + "d "
+
+	var suggestion string
+	lspExt := b.ExtensionData("lsp")
+	if lspExt != nil {
+		suggestion = lspExt.TextSuggestion()
+	}
 
 	for x := i; x < j; x++ {
 		raw := lines[x].String()
@@ -33,10 +39,9 @@ func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
 		}
 		escape.ColorText(out, fmt.Sprintf(nlFmt, x+1), nlColor)
 
-		if x == b.cy && len(b.lsp.suggestions) > 0 && b.cx <= len(raw) {
+		if x == b.cy && suggestion != "" && b.cx <= len(raw) {
 			out.WriteString(renderText(raw[:b.cx]))
-			sugText := b.lsp.suggestions[0] // TODO: maintain suggestions index
-			escape.ColorText(out, sugText, colors.Suggestion)
+			escape.ColorText(out, suggestion, colors.Suggestion)
 			out.WriteString(renderText(raw[b.cx:]))
 		} else {
 			out.WriteString(renderText(raw))

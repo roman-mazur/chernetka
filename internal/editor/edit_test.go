@@ -57,8 +57,8 @@ func assertLayoutTop(t *testing.T, e *Editor, wantPath string) {
 	if len(bufs) != 1 {
 		t.Fatalf("layout returned %d buffers, want 1", len(bufs))
 	}
-	if bufs[0].path != wantPath {
-		t.Errorf("layout top path = %q, want %q", bufs[0].path, wantPath)
+	if bufs[0].Path != wantPath {
+		t.Errorf("layout top path = %q, want %q", bufs[0].Path, wantPath)
 	}
 }
 

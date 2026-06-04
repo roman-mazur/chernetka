@@ -17,7 +17,7 @@ func TestSave_WritesFileAndClearsDirty(t *testing.T) {
 		content.TextLine("second"),
 		content.TextLine(""),
 	}
-	buf := &Buffer{path: path, content: &ft, dirty: true}
+	buf := &Buffer{Path: path, Content: &ft, dirty: true}
 
 	(&Save{path}).DoOnBuffer(buf, RenderPrefs{})
 
@@ -35,7 +35,7 @@ func TestSave_WritesFileAndClearsDirty(t *testing.T) {
 
 func TestSave_NoPath(t *testing.T) {
 	ft := content.FullText{content.TextLine("x")}
-	buf := &Buffer{content: &ft, dirty: true}
+	buf := &Buffer{Content: &ft, dirty: true}
 
 	(&Save{""}).DoOnBuffer(buf, RenderPrefs{}) // must not panic
 
@@ -46,8 +46,8 @@ func TestSave_NoPath(t *testing.T) {
 
 func TestSave_NotMutable(t *testing.T) {
 	buf := &Buffer{
-		path:    "irrelevant",
-		content: &content.ErrorContent{Error: os.ErrNotExist},
+		Path:    "irrelevant",
+		Content: &content.ErrorContent{Error: os.ErrNotExist},
 		dirty:   true,
 	}
 
@@ -62,7 +62,7 @@ func TestCommandInput_WriteRunsSave(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.txt")
 	ft := content.FullText{content.TextLine("hello")}
-	buf := &Buffer{path: path, content: &ft, dirty: true, mode: ModeCommand}
+	buf := &Buffer{Path: path, Content: &ft, dirty: true, mode: ModeCommand}
 
 	prefs := RenderPrefs{}
 	for _, b := range []byte{'w'} {

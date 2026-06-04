@@ -56,7 +56,11 @@ type Editor struct {
 	termFd int
 	rPrefs RenderPrefs
 
-	lsp lspIntegration
+	x []Extension // extensions
+}
+
+func (e *Editor) Extend(ext Extension) {
+	e.x = append(e.x, ext)
 }
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
@@ -74,12 +78,18 @@ func (e *Editor) OpenReader(path string, in io.Reader) error {
 	}
 
 	buf := &Buffer{
-		path:    path,
-		content: &data,
+		Path:    path,
+		Content: &data,
 	}
 	e.push(buf)
-	e.lsp.maybeAttach(buf)
 	return nil
+}
+
+func (e *Editor) prepareExt(b *Buffer) {
+	b.xData = make(map[string]BufferExtData, len(e.x))
+	for _, ext := range e.x {
+		b.xData[ext.ID()] = ext.MakeBufferData(b)
+	}
 }
 
 // OpenDir adds a new buffer to the Editor by reading the directory content.
@@ -90,8 +100,8 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 		displayPath = filepath.Base(absPath)
 	}
 	e.push(&Buffer{
-		path:    displayPath,
-		content: content.LoadFolder(path, open),
+		Path:    displayPath,
+		Content: content.LoadFolder(path, open),
 	})
 }
 
@@ -103,6 +113,8 @@ func (e *Editor) Post(cmd Command) {
 }
 
 func (e *Editor) push(buf *Buffer) {
+	e.prepareExt(buf)
+
 	entry := &bufEntry{
 		b:    buf,
 		next: e.top,
@@ -167,14 +179,18 @@ type bufEntry struct {
 }
 
 func (be *bufEntry) matches(p string) bool {
-	return be.b.path == p
+	return be.b.Path == p
 }
 
 func (e *Editor) Run(f *os.File, logf logger.Func) {
 	start := time.Now()
 	defer func() {
 		logf("session done %s", time.Since(start))
-		_ = e.lsp.Close()
+		for _, ext := range e.x {
+			if c, ok := ext.(io.Closer); ok {
+				_ = c.Close()
+			}
+		}
 	}()
 
 	restoreAltBuffer := escape.EnableAlternativeBuffer(f)
@@ -275,31 +291,23 @@ func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func, stop *atomic.B
 func (e *Editor) handleInput(input []byte) (quit bool) {
 	buf := e.top.b
 
-	if isArrow(input) {
-		buf.handleCursor(input, &e.rPrefs)
-		return false
-	}
-
 	// Ctrl+S saves the current buffer in any mode.
 	if len(input) == 1 && input[0] == 0x13 {
-		(&Save{buf.path}).DoOnBuffer(buf, e.rPrefs)
+		(&Save{buf.Path}).DoOnBuffer(buf, e.rPrefs)
 		return false
 	}
 
 	switch buf.mode {
 	case ModeNormal:
-		switch string(input) {
-		case "+", "=":
-			e.rPrefs.tabsScaleUp()
-			return false
-		case "-":
-			e.rPrefs.tabsScaleDown()
-			return false
-		}
 		return normalInput(buf, input, &e.rPrefs)
 	case ModeInsert:
-		insertInput(buf, input)
-		e.afterEdit(buf)
+		handled, changed := e.extHandleInsert(buf, input)
+		if !handled {
+			changed = insertInput(buf, input, &e.rPrefs)
+		}
+		if changed {
+			e.extAfterEdit(buf)
+		}
 		return false
 	case ModeCommand:
 		return commandInput(buf, input, &e.rPrefs)
@@ -308,10 +316,24 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	}
 }
 
-// isArrow reports whether b is an ANSI arrow escape sequence.
-func isArrow(b []byte) bool {
-	return len(b) == 3 && b[0] == 0x1b && b[1] == '[' &&
-		(b[2] == 'A' || b[2] == 'B' || b[2] == 'C' || b[2] == 'D')
+func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled, changed bool) {
+	for _, ext := range e.x {
+		handled, changed = ext.HandleInsertInput(buf, &e.rPrefs, b)
+		if handled {
+			return
+		}
+	}
+	return
+}
+
+func (e *Editor) extAfterEdit(buf *Buffer) {
+	for _, ext := range e.x {
+		ext.AfterEdit(e, buf)
+	}
+}
+
+func (e *Editor) RequestLayout() {
+	e.layoutRequested = true
 }
 
 // layout selects the next buffer to render configuring its dimensions.

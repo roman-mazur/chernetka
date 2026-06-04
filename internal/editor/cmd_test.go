@@ -58,7 +58,7 @@ func TestRelMove_Dx(t *testing.T) {
 			for i, l := range tc.lines {
 				ft[i] = content.TextLine(l)
 			}
-			buf := &Buffer{content: &ft, cy: tc.cy, cx: tc.cx}
+			buf := &Buffer{Content: &ft, cy: tc.cy, cx: tc.cx}
 			RelMove{Dx: tc.d}.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
 			if buf.cx != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d)",
@@ -78,7 +78,7 @@ func TestSave(t *testing.T) {
 	}
 
 	buf := &Buffer{
-		content: &ftContent,
+		Content: &ftContent,
 		dirty:   true,
 	}
 	dstPath := filepath.Join(t.TempDir(), "editor-save")

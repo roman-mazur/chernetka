@@ -12,17 +12,18 @@ import (
 
 func TestBuffer_Render(t *testing.T) {
 	cases := []struct {
-		name     string
-		buf      *Buffer
-		prefs    RenderPrefs
-		contains []string
-		absent   []string
+		name        string
+		buf         *Buffer
+		suggestions []string
+		prefs       RenderPrefs
+		contains    []string
+		absent      []string
 	}{
 		{
 			name: "normal mode shows numbered lines and status bar",
 			buf: &Buffer{
-				path: "test.txt",
-				content: &content.FullText{
+				Path: "test.txt",
+				Content: &content.FullText{
 					content.TextLine("hello"),
 					content.TextLine("world"),
 				},
@@ -37,8 +38,8 @@ func TestBuffer_Render(t *testing.T) {
 		{
 			name: "dirty buffer shows marker",
 			buf: &Buffer{
-				path:    "test.txt",
-				content: &content.FullText{content.TextLine("x")},
+				Path:    "test.txt",
+				Content: &content.FullText{content.TextLine("x")},
 				mode:    ModeNormal,
 				dirty:   true,
 				w:       40,
@@ -50,8 +51,8 @@ func TestBuffer_Render(t *testing.T) {
 		{
 			name: "cursor position reflected in status bar",
 			buf: &Buffer{
-				path: "test.txt",
-				content: &content.FullText{
+				Path: "test.txt",
+				Content: &content.FullText{
 					content.TextLine("first"),
 					content.TextLine("second"),
 					content.TextLine("third"),
@@ -68,8 +69,8 @@ func TestBuffer_Render(t *testing.T) {
 		{
 			name: "tab expands to TabSize spaces",
 			buf: &Buffer{
-				path:    "test.txt",
-				content: &content.FullText{content.TextLine("a\tb")},
+				Path:    "test.txt",
+				Content: &content.FullText{content.TextLine("a\tb")},
 				mode:    ModeNormal,
 				w:       40,
 				h:       3,
@@ -80,24 +81,22 @@ func TestBuffer_Render(t *testing.T) {
 		{
 			name: "inline suggestion rendered as ghost text after cursor",
 			buf: &Buffer{
-				path:    "test.go",
-				content: &content.FullText{content.TextLine("Pri")},
+				Path:    "test.go",
+				Content: &content.FullText{content.TextLine("Pri")},
 				mode:    ModeInsert,
 				cx:      3,
-				lsp: lspBufferData{
-					suggestions: []string{"ntln"},
-				},
-				w: 40,
-				h: 3,
+				w:       40,
+				h:       3,
 			},
-			prefs:    RenderPrefs{TabSize: 4},
-			contains: []string{"1 Println"},
+			suggestions: []string{"ntln"},
+			prefs:       RenderPrefs{TabSize: 4},
+			contains:    []string{"1 Println"},
 		},
 		{
 			name: "command mode shows cmdline and hides status",
 			buf: &Buffer{
-				path:    "test.txt",
-				content: &content.FullText{content.TextLine("x")},
+				Path:    "test.txt",
+				Content: &content.FullText{content.TextLine("x")},
 				mode:    ModeCommand,
 				cmdline: "wq",
 				w:       40,
@@ -113,6 +112,9 @@ func TestBuffer_Render(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			tc.buf.xData = make(map[string]BufferExtData)
+			tc.buf.xData["lsp"] = testSuggestionExt(tc.suggestions)
+
 			var out bytes.Buffer
 			bw := bufio.NewWriter(&out)
 			tc.buf.render(bw, &tc.prefs)
@@ -132,20 +134,26 @@ func TestBuffer_Render(t *testing.T) {
 	}
 }
 
+type testSuggestionExt []string
+
+func (tse testSuggestionExt) TextSuggestion() string {
+	if len(tse) == 0 {
+		return ""
+	}
+	return tse[0]
+}
+
 func TestBuffer_AcceptSuggestion(t *testing.T) {
 	buf := &Buffer{
-		content: &content.FullText{content.TextLine("Pri")},
+		Content: &content.FullText{content.TextLine("Pri")},
 		cx:      3,
-		lsp:     lspBufferData{suggestions: []string{"ntln"}},
 	}
-	buf.acceptSuggestion(buf.lsp.suggestions[0])
-	if got := buf.content.Lines()[0].String(); got != "Println" {
+
+	buf.AcceptSuggestion("ntln")
+	if got := buf.Content.Lines()[0].String(); got != "Println" {
 		t.Errorf("line = %q, want %q", got, "Println")
 	}
 	if buf.cx != 7 {
 		t.Errorf("cx = %d, want 7", buf.cx)
-	}
-	if buf.lsp.suggestions != nil {
-		t.Errorf("suggestions = %v, want cleared", buf.lsp.suggestions)
 	}
 }

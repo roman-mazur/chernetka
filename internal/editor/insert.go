@@ -6,30 +6,24 @@ import (
 	"rmazur.io/x/edit/internal/content"
 )
 
-func insertInput(buf *Buffer, b []byte) {
+func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) (changed bool) {
 	if len(b) != 1 {
-		return
+		return false
 	}
 
 	// Esc.
 	if b[0] == 0x1b {
-		if len(buf.lsp.suggestions) > 0 {
-			// Reject suggestions with this Esc.
-			buf.lsp.suggestions = nil
-			return
-		}
-
 		buf.mode = ModeNormal
 		if buf.cx > 0 {
 			buf.cx-- // Land on the last typed character.
 		}
-		return
+		return false
 	}
 
 	if !buf.canEdit() {
 		return
 	}
-	lines := buf.content.Lines()
+	lines := buf.Content.Lines()
 	line := lines[buf.cy].String()
 	mut := buf.mutate()
 
@@ -55,14 +49,6 @@ func insertInput(buf *Buffer, b []byte) {
 		buf.cy++
 		buf.cx = 0
 
-	// Tab.
-	case '\t':
-		if len(buf.lsp.suggestions) > 0 {
-			buf.acceptSuggestion(buf.lsp.suggestions[0])
-			return
-		}
-		fallthrough
-
 	// Printable ASCII.
 	default:
 		if ch >= 0x20 {
@@ -70,4 +56,6 @@ func insertInput(buf *Buffer, b []byte) {
 			buf.cx++
 		}
 	}
+
+	return true
 }

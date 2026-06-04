@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"rmazur.io/x/edit/internal/editor"
+	"rmazur.io/x/edit/internal/editor/extlsp"
 	"rmazur.io/x/edit/internal/logger"
 	"rmazur.io/x/edit/internal/remotectl"
 )
@@ -21,6 +22,8 @@ func main() {
 
 	logf, _ := logger.UserLogFile()
 	delegate := editDelegate{edit: &edit, logf: logf}
+
+	edit.Extend(new(extlsp.Integration))
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
