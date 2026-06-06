@@ -2,8 +2,8 @@
 //
 // Usage:
 //
-//	edit [file]
-//	some-command | edit
+//	chernetka [file]
+//	some-command | chernetka
 //
 // When no file is given and stdin is a pipe, edit opens the piped content in a
 // read-only buffer. When no file and no pipe are present, a blank scratch
