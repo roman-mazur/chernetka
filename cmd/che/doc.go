@@ -1,9 +1,9 @@
-// Command edit starts an interactive text editor in your terminal.
+// Command che starts an interactive text editor in your terminal.
 //
 // Usage:
 //
-//	chernetka [file]
-//	some-command | chernetka
+//	che [file]
+//	some-command | che
 //
 // When no file is given and stdin is a pipe, edit opens the piped content in a
 // read-only buffer. When no file and no pipe are present, a blank scratch
