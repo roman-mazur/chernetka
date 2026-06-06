@@ -1,6 +1,6 @@
 module rmazur.io/chernetka
 
-go 1.26.2
+go 1.26
 
 require (
 	go.lsp.dev/jsonrpc2 v0.10.0
