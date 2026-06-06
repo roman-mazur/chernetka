@@ -113,6 +113,7 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 	go func() {
 		for range changes {
 			folder := content.LoadFolder(path, open)
+			folder.SyncState(buf.Content.(*content.FsContent))
 			e.Post(CommandFunc(func(e *Editor) {
 				buf.Content = folder
 				e.layoutRequested = true

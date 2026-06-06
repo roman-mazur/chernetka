@@ -2,6 +2,7 @@ package content
 
 import (
 	"bufio"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -69,6 +70,60 @@ func TestLoadFolder(t *testing.T) {
 		}
 
 		openFile.lastPath = ""
+	}
+}
+
+func TestFsContent_SyncState(t *testing.T) {
+	var openFile testOpenFile
+	const samplePath = "testdata/dirs/sample1"
+	origin := LoadFolder(samplePath, &openFile)
+
+	t.Log("expand child 2")
+	origin.Lines()[2].(LineAction).Engage()
+	t.Log("expand child 1")
+	origin.Lines()[1].(LineAction).Engage()
+	t.Log("expand child 11")
+	origin.Lines()[2].(LineAction).Engage()
+
+	expectedStructure := []struct {
+		name string
+		dir  bool
+	}{
+		{"child-empty", true},
+		{"child1", true},
+		{"child11", true},
+		{"fulltext-1.txt", false},
+		{"fulltext-empty-0.txt", false},
+		{"fulltext-example-3.txt", false},
+		{"child2", true},
+		{"fulltext-1.txt", false},
+		{"fulltext-example-3.txt", false},
+	}
+	lines := origin.Lines()
+	t.Log("current state", lines)
+
+	verifyStructure := func(origin *FsContent) {
+		t.Helper()
+		if len(expectedStructure) != origin.Len() {
+			t.Errorf("length mismatch: expected %d, got %d", len(expectedStructure), origin.Len())
+		}
+		for i, entry := range expectedStructure {
+			if !strings.Contains(lines[i].String(), entry.name) {
+				t.Errorf("line %d: expected to contain %q, got %q", i, entry.name, lines[i])
+			}
+		}
+	}
+	verifyStructure(origin)
+
+	fc := LoadFolder(samplePath, &openFile)
+	fc.SyncState(origin)
+	t.Log("synced state", fc.Lines())
+	verifyStructure(fc)
+
+	t.Log("open", expectedStructure[3].name)
+	fc.Lines()[3].(LineAction).Engage()
+	if filepath.Base(openFile.lastPath) != expectedStructure[3].name {
+		t.Errorf("expected to open %q, got %q", expectedStructure[3].name, openFile.lastPath)
 	}
 }
 

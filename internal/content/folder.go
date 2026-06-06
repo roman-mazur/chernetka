@@ -17,8 +17,8 @@ type OpenFile interface {
 	OpenFile(p string)
 }
 
-func LoadFolder(dir string, open OpenFile) Interface {
-	fc := &fsContent{
+func LoadFolder(dir string, open OpenFile) *FsContent {
+	fc := &FsContent{
 		rootPath: dir,
 		root:     os.DirFS(dir),
 		open:     open,
@@ -27,7 +27,8 @@ func LoadFolder(dir string, open OpenFile) Interface {
 	return fc
 }
 
-type fsContent struct {
+// FsContent implements the content Interface for a particular directory path.
+type FsContent struct {
 	rootPath string
 	root     fs.FS
 	open     OpenFile
@@ -36,7 +37,49 @@ type fsContent struct {
 	lines   []Line
 }
 
-func (fc *fsContent) insert(pos int, dirPath string) {
+// SyncState ensures that FsContent has all the dirs expanded as in the origin.
+func (fc *FsContent) SyncState(origin *FsContent) {
+	if fc.rootPath != origin.rootPath {
+		return
+	}
+	// We assume the same order between to FsContent entries; fc is collapsed; origin may be expanded.
+	i, j := 0, 0
+	for j < len(origin.lines) {
+		o := origin.lines[j].(*fsEntryLine)
+		var c *fsEntryLine
+		if i < len(fc.lines) {
+			c = fc.lines[i].(*fsEntryLine)
+		}
+		if c.samePath(o) {
+			i++
+			j++
+			continue
+		}
+
+		if (c == nil && o.level > 0) || (c != nil && o.level > c.level) {
+			prev := fc.lines[i-1].(*fsEntryLine)
+			if prev.entry.IsDir() {
+				prev.Engage()
+				if i < len(fc.lines) {
+					c = fc.lines[i].(*fsEntryLine)
+				}
+			}
+			if c.samePath(o) {
+				i++
+				j++
+				continue
+			}
+		}
+
+		if c != nil && c.entry.Name() < o.entry.Name() {
+			i++
+		} else {
+			j++
+		}
+	}
+}
+
+func (fc *FsContent) insert(pos int, dirPath string) {
 	level := 0
 	if pos >= 0 && pos < len(fc.lines) {
 		level = fc.lines[pos].(*fsEntryLine).level + 1
@@ -61,14 +104,14 @@ func (fc *fsContent) insert(pos int, dirPath string) {
 	fc.insertLines(pos+1, lines)
 }
 
-func (fc *fsContent) insertLines(pos int, lines []Line) {
+func (fc *FsContent) insertLines(pos int, lines []Line) {
 	for i := pos; i < len(fc.lines); i++ {
 		fc.lines[i].(*fsEntryLine).pos += len(lines)
 	}
 	fc.lines = slices.Insert(fc.lines, pos, lines...)
 }
 
-func (fc *fsContent) collapse(pos int) {
+func (fc *FsContent) collapse(pos int) {
 	if pos < 0 || pos >= len(fc.lines)-1 {
 		return
 	}
@@ -85,11 +128,11 @@ func (fc *fsContent) collapse(pos int) {
 	}
 }
 
-func (fc *fsContent) Len() int {
+func (fc *FsContent) Len() int {
 	return len(fc.lines)
 }
 
-func (fc *fsContent) Lines() []Line {
+func (fc *FsContent) Lines() []Line {
 	return fc.lines
 }
 
@@ -100,7 +143,7 @@ type fsEntryLine struct {
 	err   error // error to display
 	entry fs.DirEntry
 
-	fc *fsContent
+	fc *FsContent
 
 	// mutable state, depends on the Engage action
 	display []byte
@@ -124,6 +167,13 @@ func (fl *fsEntryLine) String() string {
 		fl.display[fl.level] = signExpanded[fl.expIdx]
 	}
 	return string(fl.display)
+}
+
+func (fl *fsEntryLine) samePath(another *fsEntryLine) bool {
+	if fl == nil || another == nil {
+		return false
+	}
+	return fl.dir == another.dir && fl.entry.Name() == another.entry.Name()
 }
 
 func (fl *fsEntryLine) Len() int { return len(fl.display) }
