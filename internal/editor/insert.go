@@ -4,9 +4,16 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) (changed bool) {
+	var arrow inputs.CursorArrow
+	if inputs.IsArrow(b, &arrow) {
+		buf.handleCursor(arrow, prefs)
+		return false
+	}
+
 	if len(b) != 1 {
 		return false
 	}
