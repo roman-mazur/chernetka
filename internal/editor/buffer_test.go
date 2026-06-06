@@ -36,6 +36,24 @@ func TestBuffer_Render(t *testing.T) {
 			absent:   []string{"[*]"},
 		},
 		{
+			name: "hide line numbers",
+			buf: &Buffer{
+				Path: "test.txt",
+				Content: &content.FullText{
+					content.TextLine("hello"),
+					content.TextLine("world"),
+				},
+
+				hideLineNumbers: true,
+				mode:            ModeNormal,
+				w:               40,
+				h:               5,
+			},
+			prefs:    RenderPrefs{TabSize: 4},
+			contains: []string{"hello", "world", "NORMAL", "test.txt", "1:1"},
+			absent:   []string{"[*]", "1 hello", "2 world"},
+		},
+		{
 			name: "dirty buffer shows marker",
 			buf: &Buffer{
 				Path:    "test.txt",

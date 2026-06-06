@@ -11,7 +11,7 @@ func UserDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	p := filepath.Join(userDir, ".edit")
+	p := filepath.Join(userDir, ".chernetka")
 	_ = os.MkdirAll(p, 0755)
 	return p, nil
 }

@@ -104,6 +104,8 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 	buf := &Buffer{
 		Path:    displayPath,
 		Content: content.LoadFolder(path, open),
+
+		hideLineNumbers: true,
 	}
 	e.push(buf)
 

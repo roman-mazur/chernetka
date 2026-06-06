@@ -33,11 +33,13 @@ func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
 		raw := lines[x].String()
 		escape.ClearLine(out)
 
-		nlColor := colors.Suggestion
-		if x == b.cy {
-			nlColor = colors.Selected
+		if !b.hideLineNumbers {
+			nlColor := colors.Suggestion
+			if x == b.cy {
+				nlColor = colors.Selected
+			}
+			escape.ColorText(out, fmt.Sprintf(nlFmt, x+1), nlColor)
 		}
-		escape.ColorText(out, fmt.Sprintf(nlFmt, x+1), nlColor)
 
 		if x == b.cy && suggestion != "" && b.cx <= len(raw) {
 			out.WriteString(renderText(raw[:b.cx]))

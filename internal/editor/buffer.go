@@ -16,6 +16,8 @@ type Buffer struct {
 	Path    string
 	Content content.Interface
 
+	hideLineNumbers bool
+
 	mode    Mode
 	dirty   bool
 	cmdline string // Text typed after ':' while in ModeCommand
@@ -144,7 +146,10 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Reposition and show cursor.
 	screenRow := b.cy - b.offset + 1
-	numDisplayWidth := nlDigitsLen(b.Content.Len()) + 1
+	var numDisplayWidth int
+	if !b.hideLineNumbers {
+		numDisplayWidth = nlDigitsLen(b.Content.Len()) + 1
+	}
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 	showCursor()
 
