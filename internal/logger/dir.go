@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"rmazur.io/x/edit/internal"
+	"rmazur.io/chernetka/internal"
 )
 
 // UserLogFile returns a logger that appends to a std log file of the editor.

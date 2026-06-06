@@ -9,7 +9,7 @@ import (
 
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
-	"rmazur.io/x/edit/internal/editor"
+	"rmazur.io/chernetka/internal/editor"
 )
 
 func TestUTF16Len(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/chernetka/internal/content"
 )
 
 func TestBuffer_Render(t *testing.T) {

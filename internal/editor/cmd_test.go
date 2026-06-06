@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/chernetka/internal/content"
 )
 
 func TestRelMove_Dx(t *testing.T) {

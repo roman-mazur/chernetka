@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"rmazur.io/x/edit/internal/editor"
+	"rmazur.io/chernetka/internal/editor"
 )
 
 // Raw byte sequences for the inputs HandleInsertInput reacts to.

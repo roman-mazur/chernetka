@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"rmazur.io/x/edit/internal/editor/escape"
+	"rmazur.io/chernetka/internal/editor/escape"
 )
 
 // printFmt renders lines [i, j) with line numbers and tab expansion.

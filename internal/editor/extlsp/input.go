@@ -1,8 +1,8 @@
 package extlsp
 
 import (
-	"rmazur.io/x/edit/internal/editor"
-	"rmazur.io/x/edit/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPrefs, b []byte) (handled, changed bool) {

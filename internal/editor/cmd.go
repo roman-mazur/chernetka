@@ -4,7 +4,7 @@ import (
 	"os"
 	"unicode/utf8"
 
-	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/chernetka/internal/content"
 )
 
 // BufferCommand performs some action on a Buffer.

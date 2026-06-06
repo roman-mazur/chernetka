@@ -3,7 +3,7 @@ package extlsp_test
 import (
 	"testing"
 
-	"rmazur.io/x/edit/internal/editor/extlsp"
+	"rmazur.io/chernetka/internal/editor/extlsp"
 )
 
 func TestBufferData(t *testing.T) {

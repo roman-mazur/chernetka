@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/chernetka/internal/content"
 )
 
 func TestSave_WritesFileAndClearsDirty(t *testing.T) {

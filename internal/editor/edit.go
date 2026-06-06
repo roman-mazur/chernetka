@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"golang.org/x/term"
-	"rmazur.io/x/edit/internal/content"
-	"rmazur.io/x/edit/internal/editor/escape"
-	"rmazur.io/x/edit/internal/logger"
+	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/logger"
 )
 
 // Mode represents that editor mode (normal vs insert).

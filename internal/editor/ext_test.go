@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"rmazur.io/x/edit/internal/editor"
+	"rmazur.io/chernetka/internal/editor"
 )
 
 // recordingExt is a stub Extension that counts how often each method is invoked

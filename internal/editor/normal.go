@@ -3,8 +3,8 @@ package editor
 import (
 	"unicode/utf8"
 
-	"rmazur.io/x/edit/internal/content"
-	"rmazur.io/x/edit/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {

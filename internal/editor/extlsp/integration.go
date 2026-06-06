@@ -12,8 +12,8 @@ import (
 
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
-	"rmazur.io/x/edit/internal/editor"
-	"rmazur.io/x/edit/internal/lsp"
+	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/lsp"
 )
 
 // lspClient is the subset of an LSP backend the editor needs. *lsp.Client

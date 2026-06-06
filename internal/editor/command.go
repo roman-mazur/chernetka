@@ -3,7 +3,7 @@ package editor
 import (
 	"strings"
 
-	"rmazur.io/x/edit/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 func commandInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {

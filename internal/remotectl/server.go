@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"rmazur.io/x/edit/internal"
-	"rmazur.io/x/edit/internal/logger"
+	"rmazur.io/chernetka/internal"
+	"rmazur.io/chernetka/internal/logger"
 )
 
 // Server implements a local socket server to receive editor commands.

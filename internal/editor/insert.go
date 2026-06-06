@@ -3,7 +3,7 @@ package editor
 import (
 	"unicode/utf8"
 
-	"rmazur.io/x/edit/internal/content"
+	"rmazur.io/chernetka/internal/content"
 )
 
 func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) (changed bool) {

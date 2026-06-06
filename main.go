@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"rmazur.io/x/edit/internal/editor"
-	"rmazur.io/x/edit/internal/editor/extlsp"
-	"rmazur.io/x/edit/internal/logger"
-	"rmazur.io/x/edit/internal/remotectl"
+	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/extlsp"
+	"rmazur.io/chernetka/internal/logger"
+	"rmazur.io/chernetka/internal/remotectl"
 )
 
 func main() {

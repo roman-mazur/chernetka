@@ -1,7 +1,7 @@
-# edit
+# chernetka 
 
 An opinionated text editor.
-See package docs for more details (`doc.go``)
+See package docs for more details (`doc.go`)
 
 ### Development
 

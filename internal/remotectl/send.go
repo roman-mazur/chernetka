@@ -6,7 +6,7 @@ import (
 	"net"
 	"path/filepath"
 
-	"rmazur.io/x/edit/internal"
+	"rmazur.io/chernetka/internal"
 )
 
 // CommandData encodes an action that can be sent to a Server.
