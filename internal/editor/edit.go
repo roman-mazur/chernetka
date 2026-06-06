@@ -16,6 +16,7 @@ import (
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/logger"
+	"rmazur.io/watch/dirwatch"
 )
 
 // Mode represents that editor mode (normal vs insert).
@@ -99,10 +100,25 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 	if err == nil {
 		displayPath = filepath.Base(absPath)
 	}
-	e.push(&Buffer{
+
+	buf := &Buffer{
 		Path:    displayPath,
 		Content: content.LoadFolder(path, open),
-	})
+	}
+	e.push(buf)
+
+	changes := make(chan string)
+	go dirwatch.Watch(path, changes)
+
+	go func() {
+		for range changes {
+			folder := content.LoadFolder(path, open)
+			e.Post(CommandFunc(func(e *Editor) {
+				buf.Content = folder
+				e.layoutRequested = true
+			}))
+		}
+	}()
 }
 
 // New creates a new scratch buffer that can be later written to a file.
