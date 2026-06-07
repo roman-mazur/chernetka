@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"image/color"
+	"io"
 	"strconv"
 	"strings"
 
@@ -29,6 +30,16 @@ func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
 		suggestion = lspExt.TextSuggestion()
 	}
 
+	renderLine := func(out io.Writer, x int, line string) {
+		if x == b.cy && suggestion != "" && b.cx <= len(line) {
+			_, _ = fmt.Fprint(out, renderText(line[:b.cx]))
+			escape.ColorText(out, suggestion, colors.Suggestion)
+			_, _ = fmt.Fprint(out, renderText(line[b.cx:]))
+		} else {
+			_, _ = fmt.Fprint(out, renderText(line))
+		}
+	}
+
 	for x := i; x < j; x++ {
 		raw := lines[x].String()
 		escape.ClearLine(out)
@@ -41,12 +52,14 @@ func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
 			escape.ColorText(out, fmt.Sprintf(nlFmt, x+1), nlColor)
 		}
 
-		if x == b.cy && suggestion != "" && b.cx <= len(raw) {
-			out.WriteString(renderText(raw[:b.cx]))
-			escape.ColorText(out, suggestion, colors.Suggestion)
-			out.WriteString(renderText(raw[b.cx:]))
+		if x == b.cy && b.highlightCurrentLine {
+			var lineOut strings.Builder
+			renderLine(&lineOut, x, raw)
+			rightPad := b.w - byteToScreenCol(lineOut.String(), lineOut.Len(), prefs.TabSize)
+			lineOut.WriteString(strings.Repeat(" ", rightPad))
+			escape.ColorBackground(out, lineOut.String(), colors.SelectedBg)
 		} else {
-			out.WriteString(renderText(raw))
+			renderLine(out, x, raw)
 		}
 
 		out.WriteString("\r\n")
@@ -65,7 +78,9 @@ func nlDigitsLen(x int) int {
 var colors = struct {
 	Suggestion color.Color
 	Selected   color.Color
+	SelectedBg color.Color
 }{
 	Suggestion: color.Gray{Y: 100},
 	Selected:   color.Gray{Y: 200},
+	SelectedBg: color.Gray{Y: 150},
 }

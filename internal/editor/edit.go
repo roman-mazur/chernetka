@@ -105,7 +105,8 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 		Path:    displayPath,
 		Content: content.LoadFolder(path, open),
 
-		hideLineNumbers: true,
+		hideLineNumbers:      true,
+		highlightCurrentLine: true,
 	}
 	e.push(buf)
 

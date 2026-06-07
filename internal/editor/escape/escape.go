@@ -32,13 +32,28 @@ func ClearLine(out io.Writer) {
 }
 
 func ColorText(out io.Writer, text string, color color.Color) {
-	_, _ = fmt.Fprintf(out, colorTemplate(color), text)
+	_, _ = fmt.Fprintf(out, colorTemplate(color, colorPurposeForeground), text)
 }
 
-func colorTemplate(c color.Color) string {
-	r, g, b, _ := c.RGBA()
-	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%%s\x1b[0m", r, g, b)
+func ColorBackground(out io.Writer, text string, color color.Color) {
+	_, _ = fmt.Fprintf(out, colorTemplate(color, colorPurposeBackground), text)
 }
+
+func colorTemplate(c color.Color, purpose colorPurpose) string {
+	r, g, b, _ := c.RGBA()
+	code := 38 // foreground color
+	if purpose == colorPurposeBackground {
+		code = 48
+	}
+	return fmt.Sprintf("\x1b[%d;2;%d;%d;%dm%%s\x1b[0m", code, r, g, b)
+}
+
+type colorPurpose byte
+
+const (
+	colorPurposeForeground colorPurpose = iota
+	colorPurposeBackground
+)
 
 func DisableLineWrapping(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?7l", "\x1b[?7h")
