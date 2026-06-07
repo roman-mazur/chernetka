@@ -16,8 +16,8 @@ type Buffer struct {
 	Path    string
 	Content content.Interface
 
-	hideLineNumbers      bool
-	highlightCurrentLine bool
+	hideLineNumbers bool
+	noCurrentLineHL bool
 
 	mode    Mode
 	dirty   bool

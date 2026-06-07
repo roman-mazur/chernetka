@@ -52,11 +52,13 @@ func (b *Buffer) printFmt(out *bufio.Writer, i, j int, prefs *RenderPrefs) {
 			escape.ColorText(out, fmt.Sprintf(nlFmt, x+1), nlColor)
 		}
 
-		if x == b.cy && b.highlightCurrentLine {
+		if x == b.cy && !b.noCurrentLineHL {
 			var lineOut strings.Builder
 			renderLine(&lineOut, x, raw)
 			rightPad := b.w - byteToScreenCol(lineOut.String(), lineOut.Len(), prefs.TabSize)
-			lineOut.WriteString(strings.Repeat(" ", rightPad))
+			if rightPad > 0 {
+				lineOut.WriteString(strings.Repeat(" ", rightPad))
+			}
 			escape.ColorBackground(out, lineOut.String(), colors.SelectedBg)
 		} else {
 			renderLine(out, x, raw)
@@ -82,5 +84,5 @@ var colors = struct {
 }{
 	Suggestion: color.Gray{Y: 100},
 	Selected:   color.Gray{Y: 200},
-	SelectedBg: color.Gray{Y: 150},
+	SelectedBg: color.Gray{Y: 70},
 }
