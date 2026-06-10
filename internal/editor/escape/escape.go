@@ -40,6 +40,9 @@ func ColorBackground(out io.Writer, text string, color color.Color) {
 }
 
 func colorTemplate(c color.Color, purpose colorPurpose) string {
+	if c == nil {
+		return "%s"
+	}
 	r, g, b, _ := c.RGBA()
 	code := 38 // foreground color
 	if purpose == colorPurposeBackground {

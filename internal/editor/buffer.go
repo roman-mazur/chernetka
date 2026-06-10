@@ -104,7 +104,9 @@ func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
 	lines := b.Content.Lines()
 
 	printableCount := min(b.viewHeight(), len(lines)-b.offset)
-	b.printFmt(out, b.offset, b.offset+printableCount, prefs)
+	var cr contentPrinter
+	cr.prepare(b, b.offset, b.offset+printableCount, prefs)
+	cr.render(out)
 
 	for row := printableCount; row < b.viewHeight(); row++ {
 		escape.ClearLine(out)

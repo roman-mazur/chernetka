@@ -66,11 +66,8 @@ func (e *Editor) Extend(ext Extension) {
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
 func (e *Editor) OpenReader(path string, in io.Reader) error {
-	for entry := range e.buffers() {
-		if entry.matches(path) {
-			e.selectBuffer(entry)
-			return nil
-		}
+	if e.findAndActivateBuffer(path) {
+		return nil
 	}
 
 	data, err := content.LoadFullText(in)
@@ -126,6 +123,23 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 
 // New creates a new scratch buffer that can be later written to a file.
 func (e *Editor) New() { e.push(NewScratchBuffer()) }
+
+// OpenBuffer adds the provided buffer to the stack.
+func (e *Editor) OpenBuffer(b *Buffer) {
+	if !e.findAndActivateBuffer(b.Path) {
+		e.push(b)
+	}
+}
+
+func (e *Editor) findAndActivateBuffer(p string) bool {
+	for entry := range e.buffers() {
+		if entry.matches(p) {
+			e.selectBuffer(entry)
+			return true
+		}
+	}
+	return false
+}
 
 func (e *Editor) Post(cmd Command) {
 	e.cmdChannel <- cmd
