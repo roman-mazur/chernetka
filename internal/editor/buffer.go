@@ -3,7 +3,9 @@ package editor
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"unicode/utf8"
 
@@ -44,6 +46,19 @@ func (b *Buffer) ExtensionData(id string) BufferExtData {
 }
 
 func (b *Buffer) Pos() (cx, cy int) { return b.cx, b.cy }
+
+func (b *Buffer) Close() error {
+	allErrors := make([]error, 0, len(b.xData)+1)
+	if closer, ok := b.Content.(io.Closer); ok {
+		allErrors = append(allErrors, closer.Close())
+	}
+	for _, x := range b.xData {
+		if closer, ok := x.(io.Closer); ok {
+			allErrors = append(allErrors, closer.Close())
+		}
+	}
+	return errors.Join(allErrors...)
+}
 
 func (b *Buffer) clampCursor(_ *RenderPrefs) {
 	lines := b.Content.Lines()

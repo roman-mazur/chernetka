@@ -163,6 +163,8 @@ func (e *Editor) pop() (empty bool) {
 		return true
 	}
 
+	_ = e.top.b.Close() // TODO: log/handle the error.
+
 	e.top = e.top.next
 	if e.top == nil {
 		return true
