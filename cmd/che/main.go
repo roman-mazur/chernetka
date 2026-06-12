@@ -8,6 +8,7 @@ import (
 
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/extlsp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/remotectl"
 )
@@ -24,6 +25,7 @@ func main() {
 	delegate := editDelegate{edit: &edit, logf: logf}
 
 	edit.Extend(new(extlsp.Integration))
+	edit.Extend(new(extsyntaxhl.Integration))
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
