@@ -1,5 +1,7 @@
 package editor
 
+import "fmt"
+
 // Extension represents an editor extension.
 type Extension interface {
 	ID() string
@@ -20,7 +22,7 @@ type CodeAssist interface {
 
 // SyntaxHighlighter can be optionally implemented by BufferExtData.
 type SyntaxHighlighter interface {
-	SyntaxSpans(lineNumber int) []SyntaxSpan
+	SyntaxSpans(lineNumber int, line string) []SyntaxSpan
 }
 
 type SyntaxSpan struct {
@@ -29,15 +31,23 @@ type SyntaxSpan struct {
 	TokenType
 }
 
+func (ss SyntaxSpan) String() string {
+	return fmt.Sprintf("%d:%d:%d:%s", ss.LineNumber, ss.Start, ss.End, ss.TokenType)
+}
+
+// TokenType represents a syntax token recognized by SyntaxHighlighter.
 type TokenType int
 
+//go:generate go run golang.org/x/tools/cmd/stringer -type=TokenType
+
 const (
-	TokenTypeKeyword TokenType = iota
-	TokenTypeIdentifier
-	TokenTypeTypeRef
-	TokenTypeImportRef
-	TokenTypeDeclaration
-	TokenTypeCall
-	TokenTypeStringLiteral
-	TokenTypeNumberLiteral
+	TtNothing TokenType = iota
+	TtKeyword
+	TtIdentifier
+	TtTypeRef
+	TtImportRef
+	TtDeclaration
+	TtCall
+	TtStringLiteral
+	TtNumberLiteral
 )

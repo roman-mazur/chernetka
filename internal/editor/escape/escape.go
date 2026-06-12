@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"strings"
 )
 
 func EnableAlternativeBuffer(out io.Writer) (restore func()) {
@@ -31,32 +32,32 @@ func ClearLine(out io.Writer) {
 	_, _ = fmt.Fprint(out, "\x1b[2K")
 }
 
-func ColorText(out io.Writer, text string, color color.Color) {
-	_, _ = fmt.Fprintf(out, colorTemplate(color, colorPurposeForeground), text)
+func ColorText(out io.Writer, text string, fg, bg color.Color) {
+	_, _ = fmt.Fprintf(out, colorTemplate(fg, bg), text)
 }
 
-func ColorBackground(out io.Writer, text string, color color.Color) {
-	_, _ = fmt.Fprintf(out, colorTemplate(color, colorPurposeBackground), text)
-}
-
-func colorTemplate(c color.Color, purpose colorPurpose) string {
-	if c == nil {
+func colorTemplate(fg, bg color.Color) string {
+	if fg == nil && bg == nil {
 		return "%s"
 	}
-	r, g, b, _ := c.RGBA()
-	code := 38 // foreground color
-	if purpose == colorPurposeBackground {
-		code = 48
+
+	var res strings.Builder
+	res.WriteString("\x1b[")
+	if fg != nil {
+		r, g, b, _ := fg.RGBA()
+		_, _ = fmt.Fprintf(&res, "38;2;%d;%d;%d", r, g, b)
+		if bg != nil {
+			res.WriteString(";")
+		}
 	}
-	return fmt.Sprintf("\x1b[%d;2;%d;%d;%dm%%s\x1b[0m", code, r, g, b)
+	if bg != nil {
+		r, g, b, _ := bg.RGBA()
+		_, _ = fmt.Fprintf(&res, "48;2;%d;%d;%d", r, g, b)
+	}
+
+	res.WriteString("m%s\x1b[0m")
+	return res.String()
 }
-
-type colorPurpose byte
-
-const (
-	colorPurposeForeground colorPurpose = iota
-	colorPurposeBackground
-)
 
 func DisableLineWrapping(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?7l", "\x1b[?7h")

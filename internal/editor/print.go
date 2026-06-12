@@ -54,19 +54,17 @@ func (cr *contentPrinter) render(out *bufio.Writer) {
 			if ln == cr.b.cy {
 				nlColor = colors.Selected
 			}
-			escape.ColorText(out, fmt.Sprintf(cr.lnFmt, ln+1), nlColor)
+			escape.ColorText(out, fmt.Sprintf(cr.lnFmt, ln+1), nlColor, nil)
 		}
 
-		if ln == cr.b.cy && !cr.b.noCurrentLineHL {
-			var lineOut strings.Builder
-			cr.renderLine(&lineOut, ln, raw)
-			rightPad := cr.b.w - byteToScreenCol(lineOut.String(), lineOut.Len(), len(cr.tab))
+		lineHL := ln == cr.b.cy && !cr.b.noCurrentLineHL
+		cr.renderLine(out, ln, raw, lineHL)
+
+		if lineHL {
+			rightPad := cr.b.w - byteToScreenCol(raw, len(raw), len(cr.tab))
 			if rightPad > 0 {
-				lineOut.WriteString(strings.Repeat(" ", rightPad))
+				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, colors.SelectedBg)
 			}
-			escape.ColorBackground(out, lineOut.String(), colors.SelectedBg)
-		} else {
-			cr.renderLine(out, ln, raw)
 		}
 
 		out.WriteString("\r\n")
@@ -78,21 +76,35 @@ func (cr *contentPrinter) normalizeText(s string) string {
 	return strings.ReplaceAll(s, "\t", cr.tab)
 }
 
-func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string) {
+func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine bool) {
+	var bgColor color.Color
+	if hlLine {
+		bgColor = colors.SelectedBg
+	}
+
 	if ln == cr.b.cy && cr.suggestion != "" && cr.b.cx <= len(line) {
 		_, _ = fmt.Fprint(out, cr.normalizeText(line[:cr.b.cx]))
-		escape.ColorText(out, cr.suggestion, colors.Suggestion)
+		escape.ColorText(out, cr.suggestion, colors.Suggestion, bgColor)
 		_, _ = fmt.Fprint(out, cr.normalizeText(line[cr.b.cx:]))
 		// TODO: use syntax HL
-	} else {
-		if cr.SyntaxHighlighter != nil {
-			for _, span := range cr.SyntaxSpans(ln) {
-				text := cr.normalizeText(line[span.Start:span.End])
-				escape.ColorText(out, text, colors.ColorForTokenType(span.TokenType))
-			}
-		} else {
-			_, _ = fmt.Fprint(out, cr.normalizeText(line))
+		return
+	}
+	if cr.SyntaxHighlighter == nil {
+		escape.ColorText(out, cr.normalizeText(line), nil, bgColor)
+		return
+	}
+
+	lastIndex := 0
+	for _, span := range cr.SyntaxSpans(ln, line) {
+		if span.Start > lastIndex {
+			escape.ColorText(out, cr.normalizeText(line[lastIndex:span.Start]), nil, bgColor)
 		}
+		text := cr.normalizeText(line[span.Start:span.End])
+		escape.ColorText(out, text, colors.ColorForTokenType(span.TokenType), bgColor)
+		lastIndex = span.End
+	}
+	if lastIndex < len(line) {
+		escape.ColorText(out, cr.normalizeText(line[lastIndex:]), nil, bgColor)
 	}
 }
 
@@ -139,6 +151,8 @@ var colors = ColorTheme{
 	SelectedBg: color.Gray{Y: 70},
 
 	syntaxColors: map[TokenType]color.Color{
-		TokenTypeCall: color.RGBA{R: 0xaa, G: 0xaa, B: 0, A: 0xff},
+		TtKeyword:       color.RGBA{R: 204, G: 120, B: 50, A: 0xff},
+		TtIdentifier:    color.RGBA{R: 255, G: 198, B: 109, A: 0xff},
+		TtStringLiteral: color.RGBA{R: 106, G: 135, B: 89, A: 0xff},
 	},
 }
