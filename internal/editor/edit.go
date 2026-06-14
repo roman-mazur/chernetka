@@ -131,6 +131,14 @@ func (e *Editor) OpenBuffer(b *Buffer) {
 	}
 }
 
+// Top returns the currently active Buffer.
+func (e *Editor) Top() *Buffer {
+	if e.top == nil {
+		return nil
+	}
+	return e.top.b
+}
+
 func (e *Editor) findAndActivateBuffer(p string) bool {
 	for entry := range e.buffers() {
 		if entry.matches(p) {

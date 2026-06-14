@@ -50,4 +50,5 @@ const (
 	TtCall
 	TtStringLiteral
 	TtNumberLiteral
+	TtComment
 )

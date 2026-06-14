@@ -6,10 +6,12 @@ import (
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/logger"
 )
 
 // Integration implements an editor.Extension by integrating with the tree-sitter for syntax highlight.
 type Integration struct {
+	logImpl
 }
 
 func (in *Integration) ID() string { return "syntaxhl" }
@@ -22,37 +24,66 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 		return nil
 	}
 
+	in.logf(false, "parsing for buffer %s", buf.Path)
+	return &syntaxTree{
+		logImpl: in.logImpl,
+		tree:    parseString(buf.Text()),
+	}
+}
+
+func parseString(s string) *treesitter.Tree {
 	p := treesitter.NewParser()
 	defer p.Close()
 	if err := p.SetLanguage(treesitter.NewLanguage(gositter.Language())); err != nil {
 		return nil
 	}
-	tree := p.Parse([]byte(buf.Text()), nil)
-	return &syntaxTree{
-		tree: tree,
-	}
+	return p.Parse([]byte(s), nil)
 }
 
-func (in *Integration) AfterEdit(*editor.Editor, *editor.Buffer) {
-	// TODO: update the syntax tree.
+func (in *Integration) AfterEdit(_ *editor.Editor, b *editor.Buffer) {
+	// TODO: perform incremental update
+
+	in.logf(true, "AfterEdit(_, %q)", b.Path)
+	st := b.ExtensionData(in.ID()).(*syntaxTree)
+	_ = st.Close()
+	st.tree = parseString(b.Text())
 }
 
 func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []byte) (handled, changed bool) {
 	return
 }
 
+type logImpl struct {
+	LogDebug bool
+	LogF     logger.Func
+}
+
+func (li *logImpl) logf(debug bool, fmt string, args ...any) {
+	if li.LogF == nil {
+		return
+	}
+	if debug && !li.LogDebug {
+		return
+	}
+	li.LogF(fmt, args...)
+}
+
 type syntaxTree struct {
-	tree     *treesitter.Tree
+	logImpl
+	tree *treesitter.Tree
+
 	lastNode *treesitter.Node
 }
 
 func (st *syntaxTree) Close() error {
+	st.lastNode = nil
 	st.tree.Close()
 	return nil
 }
 
 func (st *syntaxTree) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
-	//log.Println(ln, line, " <<<<<<<<<<<<<<<<")
+	st.logf(true, "SyntaxSpans(%d, %q)", ln, line)
+
 	node := st.locateFirstNode(ln)
 	if node == nil {
 		// Didn't find anything.
@@ -72,7 +103,7 @@ func (st *syntaxTree) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
 
 	var out []editor.SyntaxSpan
 	for _, n := range toTraverse {
-		collectSpans(n, &out, ln, line)
+		st.collectSpans(n, &out, ln, line)
 	}
 	if len(out) == 0 {
 		return noHighlightSpan(ln, line)
@@ -91,13 +122,14 @@ func appendSpan(out *[]editor.SyntaxSpan, span editor.SyntaxSpan, line string) {
 	*out = append(*out, span)
 }
 
-func collectSpans(node *treesitter.Node, out *[]editor.SyntaxSpan, ln int, line string) {
+func (st *syntaxTree) collectSpans(node *treesitter.Node, out *[]editor.SyntaxSpan, ln int, line string) {
 	if node.StartPosition().Row > uint(ln) {
 		return
 	}
-	//log.Print(node.StartPosition())
-	//log.Print(node.EndPosition())
-	//log.Print(node.GrammarName())
+	st.logf(true, "collectSpans: %s at %d:%d - %d:%d",
+		node.GrammarName(),
+		node.StartPosition().Row, node.StartPosition().Column,
+		node.EndPosition().Row, node.EndPosition().Column)
 
 	switch node.GrammarName() {
 	// See https://go.dev/ref/spec#Keywords
@@ -116,10 +148,15 @@ func collectSpans(node *treesitter.Node, out *[]editor.SyntaxSpan, ln int, line 
 	case "interpreted_string_literal":
 		appendSpan(out, spanFromNode(node, editor.TtStringLiteral), line)
 		return
+
+	case "comment":
+		appendSpan(out, spanFromNode(node, editor.TtComment), line)
+		return
+
 	}
 
 	for i := range node.ChildCount() {
-		collectSpans(node.Child(i), out, ln, line)
+		st.collectSpans(node.Child(i), out, ln, line)
 	}
 }
 
@@ -144,6 +181,10 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 	var node *treesitter.Node
 	for len(stack) > 0 {
 		node, stack = stack[len(stack)-1], stack[:len(stack)-1]
+		st.logf(true, "traverse: %s at %d:%d - %d:%d",
+			node.GrammarName(),
+			node.StartPosition().Row, node.StartPosition().Column,
+			node.EndPosition().Row, node.EndPosition().Column)
 
 		if node.StartPosition().Row == uint(ln) && node.EndPosition().Row == uint(ln) {
 			break
@@ -167,11 +208,14 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 
 	st.lastNode = node
 	if node == nil || node.StartPosition().Row != uint(ln) {
+		if node != nil {
+			st.logf(false, "locateFirstNode(%d) -> FAIL, last node %s at %d:%d",
+				ln, node.GrammarName(), node.StartPosition().Row, node.StartPosition().Column)
+		}
 		return nil
 	}
 
-	//log.Println("next node:")
-	//log.Println(node.StartPosition())
-	//log.Println(node.GrammarName())
+	st.logf(true, "locateFirstNode(%d) -> %s at %d:%d",
+		ln, node.GrammarName(), node.StartPosition().Row, node.StartPosition().Column)
 	return node
 }

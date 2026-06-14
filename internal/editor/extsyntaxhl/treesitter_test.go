@@ -2,6 +2,9 @@ package extsyntaxhl
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -10,20 +13,16 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
-	example := []struct {
-		line   string
-		tokens []string
-	}{
-		{line: "package main", tokens: []string{"0:0:7:TtKeyword", "0:8:12:TtIdentifier"}},
-		{line: "import \"fmt\"", tokens: []string{"1:0:6:TtKeyword", "1:7:12:TtStringLiteral"}},
-		{line: "func main() {", tokens: []string{"2:0:4:TtKeyword", "2:5:9:TtIdentifier"}},
-		{line: "\tfmt.Println(\"Hello World\")", tokens: []string{"3:1:4:TtIdentifier", "3:5:12:TtIdentifier", "3:13:26:TtStringLiteral"}},
-		{line: "}", tokens: []string{"4:0:1:TtNothing"}},
+	example := testExamples{
+		{line: "// Command comment.", tokens: []string{"0:19:TtComment"}},
+		{line: "package main", tokens: []string{"0:7:TtKeyword", "8:12:TtIdentifier"}},
+		{line: "import \"fmt\"", tokens: []string{"0:6:TtKeyword", "7:12:TtStringLiteral"}},
+		{line: "func main() {", tokens: []string{"0:4:TtKeyword", "5:9:TtIdentifier"}},
+		{line: "\tfmt.Println(\"Hello World\")", tokens: []string{"1:4:TtIdentifier", "5:12:TtIdentifier", "13:26:TtStringLiteral"}},
+		{line: "}", tokens: []string{"0:1:TtNothing"}},
 	}
-	lines := make([]string, len(example))
-	for i := range example {
-		lines[i] = example[i].line
-	}
+
+	lines := example.lines()
 
 	prog := strings.Join(lines, "\n")
 	text, err := content.LoadFullText(strings.NewReader(prog))
@@ -36,7 +35,12 @@ func TestIntegration(t *testing.T) {
 		Content: &text,
 	}
 	var edit editor.Editor
-	edit.Extend(new(Integration))
+
+	syntaxHighlighter := new(Integration)
+	syntaxHighlighter.LogDebug = true
+	syntaxHighlighter.LogF = t.Logf
+
+	edit.Extend(syntaxHighlighter)
 
 	edit.OpenBuffer(&buf)
 
@@ -50,10 +54,137 @@ func TestIntegration(t *testing.T) {
 		t.Errorf("rootStart: %d, rootEnd: %d", rootStart, rootEnd)
 	}
 
-	for i, line := range lines {
-		spans := data.SyntaxSpans(i, line)
-		if ss := fmt.Sprint(spans); fmt.Sprint(example[i].tokens) != ss {
-			t.Errorf("line %d: got %s, want %s", i, ss, fmt.Sprint(example[i].tokens))
+	example.match(t, data)
+
+	insertEmptyLine := func(buf *editor.Buffer, hl editor.Extension) int {
+		mut := buf.Content.(content.Mutable)
+		idx := buf.Content.Len() / 2
+		mut.Insert(idx, content.TextLine(""))
+		hl.AfterEdit(&edit, buf)
+		return idx
+	}
+
+	t.Run("edit/insert-empty-line", func(t *testing.T) {
+		syntaxHighlighter.LogF = t.Logf
+		insertEmptyLine(&buf, syntaxHighlighter)
+
+		exampleV2 := example.copy()
+		exampleV2 = slices.Insert(exampleV2, len(example)/2, testCase{tokens: []string{"0:0:TtNothing"}})
+		exampleV2.match(t, buf.ExtensionData(syntaxHighlighter.ID()).(*syntaxTree))
+	})
+
+	t.Run("real-sources", func(t *testing.T) {
+		entries, err := os.ReadDir(".")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() && filepath.Ext(entry.Name()) == ".go" {
+				t.Run(entry.Name(), func(t *testing.T) {
+					var edit editor.Editor
+					syntaxHighlighter := new(Integration)
+					syntaxHighlighter.LogF = t.Logf
+					edit.Extend(syntaxHighlighter)
+
+					f, err := os.Open(entry.Name())
+					must(t, err)
+					t.Cleanup(func() { _ = f.Close() })
+
+					must(t, edit.OpenReader(entry.Name(), f))
+
+					checkHl := func(buf *editor.Buffer, ctxMsg string) {
+						t.Helper()
+						hl := buf.ExtensionData(syntaxHighlighter.ID()).(editor.SyntaxHighlighter)
+						for i, line := range buf.Content.Lines() {
+							textLine := line.String()
+							spans := hl.SyntaxSpans(i, textLine)
+							textLen := len(strings.TrimSpace(textLine))
+							if textLen > 2 && len(spans) < 2 {
+								if len(spans) == 1 && spans[0].TokenType != editor.TtNothing {
+									continue
+								}
+								t.Log("line:", textLine)
+								t.Log("spans:", spans)
+								t.Errorf("%s > line %d: got %d spans, want at least %d",
+									ctxMsg, i, len(spans), 2)
+							}
+						}
+					}
+
+					buf := edit.Top()
+					// TODO: something must be wrong with Buffer Text() implementation.
+
+					t.Log("initial check")
+					checkHl(buf, "initial check")
+
+					oldLen := buf.Content.Len()
+					t.Logf("insert empty line at %d and check", insertEmptyLine(buf, syntaxHighlighter))
+					if buf.Content.Len() == oldLen {
+						t.Error("content Len() didn't change after insert")
+					}
+					if len(buf.Content.Lines()) != buf.Content.Len() {
+						t.Error("inconsistent content length")
+					}
+					checkHl(buf, "after insert")
+				})
+			}
+		}
+	})
+}
+
+func must(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+type testCase struct {
+	line   string
+	tokens []string
+}
+
+func (tc testCase) copy() testCase {
+	res := testCase{
+		line:   tc.line,
+		tokens: make([]string, len(tc.tokens)),
+	}
+	copy(res.tokens, tc.tokens)
+	return res
+}
+
+type testExamples []testCase
+
+func (te testExamples) lines() []string {
+	lines := make([]string, len(te))
+	for i, ex := range te {
+		lines[i] = ex.line
+	}
+	return lines
+}
+
+func (te testExamples) expectedTokens(ln int) []string {
+	res := make([]string, len(te[ln].tokens))
+	for i, suffix := range te[ln].tokens {
+		res[i] = fmt.Sprintf("%d:%s", ln, suffix)
+	}
+	return res
+}
+
+func (te testExamples) match(t *testing.T, data *syntaxTree) {
+	t.Helper()
+	for i, ex := range te {
+		spans := data.SyntaxSpans(i, ex.line)
+		if ss, es := fmt.Sprint(spans), fmt.Sprint(te.expectedTokens(i)); ss != es {
+			t.Errorf("line %d: got %s, want %s", i, ss, es)
 		}
 	}
+}
+
+func (te testExamples) copy() testExamples {
+	res := make(testExamples, len(te))
+	for i := range res {
+		res[i] = te[i].copy()
+	}
+	return res
 }

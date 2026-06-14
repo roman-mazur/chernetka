@@ -17,11 +17,12 @@ func _() {
 	_ = x[TtCall-6]
 	_ = x[TtStringLiteral-7]
 	_ = x[TtNumberLiteral-8]
+	_ = x[TtComment-9]
 }
 
-const _TokenType_name = "TtNothingTtKeywordTtIdentifierTtTypeRefTtImportRefTtDeclarationTtCallTtStringLiteralTtNumberLiteral"
+const _TokenType_name = "TtNothingTtKeywordTtIdentifierTtTypeRefTtImportRefTtDeclarationTtCallTtStringLiteralTtNumberLiteralTtComment"
 
-var _TokenType_index = [...]uint8{0, 9, 18, 30, 39, 50, 63, 69, 84, 99}
+var _TokenType_index = [...]uint8{0, 9, 18, 30, 39, 50, 63, 69, 84, 99, 108}
 
 func (i TokenType) String() string {
 	idx := int(i) - 0
