@@ -10,7 +10,7 @@ import (
 
 func TestLoadFullText(t *testing.T) {
 	entries, err := os.ReadDir("testdata")
-	must(err)
+	must(t, err)
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -32,7 +32,7 @@ func TestLoadFullText(t *testing.T) {
 					_ = f.Close()
 				})
 				ft, err := LoadFullText(f)
-				must(err)
+				must(t, err)
 				if ft.Len() != eln {
 					t.Errorf("wrong number of lines for %s: got %d, want %d", name, ft.Len(), eln)
 				}
@@ -77,8 +77,9 @@ func TestEmpty(t *testing.T) {
 	t.Logf("content: %q", c.Lines()[0].String())
 }
 
-func must(err error) {
+func must(t *testing.T, err error) {
+	t.Helper()
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 }
