@@ -178,9 +178,16 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 	}
 
 	stack := []*treesitter.Node{st.lastNode}
+	visited := make(map[nid]struct{})
+
 	var node *treesitter.Node
 	for len(stack) > 0 {
 		node, stack = stack[len(stack)-1], stack[:len(stack)-1]
+		if _, ok := visited[nodeID(node)]; ok {
+			continue
+		}
+
+		visited[nodeID(node)] = struct{}{}
 		st.logf(true, "traverse: %s at %d:%d - %d:%d",
 			node.GrammarName(),
 			node.StartPosition().Row, node.StartPosition().Column,
@@ -190,11 +197,10 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 			break
 		}
 
-		if node.StartPosition().Row > uint(ln) || node.EndPosition().Row < uint(ln) {
+		if node.StartPosition().Row > uint(ln) || node.EndPosition().Row <= uint(ln) {
 			if p := node.Parent(); p != nil {
 				stack = append(stack, p)
 			}
-			continue
 		}
 
 		n := node.ChildCount()
@@ -218,4 +224,10 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 	st.logf(true, "locateFirstNode(%d) -> %s at %d:%d",
 		ln, node.GrammarName(), node.StartPosition().Row, node.StartPosition().Column)
 	return node
+}
+
+type nid [3]int
+
+func nodeID(node *treesitter.Node) nid {
+	return nid{int(node.GrammarId()), int(node.StartPosition().Row), int(node.StartPosition().Column)}
 }
