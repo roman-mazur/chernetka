@@ -41,10 +41,13 @@ func parseString(s string) *treesitter.Tree {
 }
 
 func (in *Integration) AfterEdit(_ *editor.Editor, b *editor.Buffer) {
-	// TODO: perform incremental update
+	st, ok := b.ExtensionData(in.ID()).(*syntaxTree)
+	if !ok {
+		return
+	}
 
 	in.logf(true, "AfterEdit(_, %q)", b.Path)
-	st := b.ExtensionData(in.ID()).(*syntaxTree)
+	// TODO: perform incremental update
 	_ = st.Close()
 	st.tree = parseString(b.Text())
 }

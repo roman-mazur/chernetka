@@ -12,6 +12,17 @@ import (
 	"rmazur.io/chernetka/internal/editor"
 )
 
+func TestIntegration_AfterEdit(t *testing.T) {
+	t.Run("no syntax highlight", func(t *testing.T) {
+		shl := new(Integration)
+		var (
+			edit editor.Editor
+			buf  editor.Buffer
+		)
+		shl.AfterEdit(&edit, &buf) // should not crash
+	})
+}
+
 func TestIntegration(t *testing.T) {
 	example := testExamples{
 		{line: "// Command comment.", tokens: []string{"0:19:TtComment"}},
