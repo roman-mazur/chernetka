@@ -45,7 +45,7 @@ const (
 	TtIdentifier
 	TtTypeRef
 	TtImportRef
-	TtDeclaration
+	TtFuncDeclaration
 	TtCall
 	TtStringLiteral
 	TtNumberLiteral

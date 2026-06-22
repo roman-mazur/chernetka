@@ -154,8 +154,27 @@ var colors = ColorTheme{
 	SelectedBg: color.Gray{Y: 70},
 
 	syntaxColors: map[TokenType]color.Color{
-		TtKeyword:       color.RGBA{R: 204, G: 120, B: 50, A: 0xff},
-		TtIdentifier:    color.RGBA{R: 255, G: 198, B: 109, A: 0xff},
-		TtStringLiteral: color.RGBA{R: 106, G: 135, B: 89, A: 0xff},
+		TtKeyword:         parseColor("CF8E6D"),
+		TtTypeRef:         parseColor("BCBEC4"),
+		TtStringLiteral:   parseColor("6AAB73"),
+		TtNumberLiteral:   parseColor("2AACB8"),
+		TtFuncDeclaration: parseColor("56A8F5"),
+		TtComment:         parseColor("7A7E85"),
 	},
+}
+
+func parseColor(s string) color.Color {
+	if len(s) != 6 {
+		panic(fmt.Errorf("expected 6 bytes, got %d", len(s)))
+	}
+	r, g, b := hex2i(s[:2]), hex2i(s[2:4]), hex2i(s[4:])
+	return color.RGBA{R: r, G: g, B: b, A: 0xff}
+}
+
+func hex2i(s string) uint8 {
+	res, err := strconv.ParseInt(s, 16, 32)
+	if err != nil {
+		panic(err)
+	}
+	return uint8(res)
 }
