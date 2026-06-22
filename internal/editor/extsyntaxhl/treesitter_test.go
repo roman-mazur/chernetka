@@ -28,8 +28,14 @@ func TestIntegration(t *testing.T) {
 		{line: "// Command comment.", tokens: []string{"0:19:TtComment"}},
 		{line: "package main", tokens: []string{"0:7:TtKeyword", "8:12:TtIdentifier"}},
 		{line: "import \"fmt\"", tokens: []string{"0:6:TtKeyword", "7:12:TtStringLiteral"}},
+		{line: "import \"time\"", tokens: []string{"0:6:TtKeyword", "7:13:TtStringLiteral"}},
 		{line: "func main() {", tokens: []string{"0:4:TtKeyword", "5:9:TtIdentifier"}},
 		{line: "\tfmt.Println(\"Hello World\")", tokens: []string{"1:4:TtIdentifier", "5:12:TtIdentifier", "13:26:TtStringLiteral"}},
+		{line: "\tif time.Now().Day() == time.Sunday {", tokens: []string{"1:3:TtKeyword", "4:8:TtIdentifier", "9:12:TtIdentifier", "15:18:TtIdentifier", "24:28:TtIdentifier", "29:35:TtIdentifier"}},
+		{line: "\t\tfmt.Println(\"It's Sunday!\")", tokens: []string{"2:5:TtIdentifier", "6:13:TtIdentifier", "14:28:TtStringLiteral"}},
+		{line: "\t} else {", tokens: []string{"3:7:TtKeyword"}},
+		{line: "\t\tfmt.Println(\"It's not Sunday!\")", tokens: []string{"2:5:TtIdentifier", "6:13:TtIdentifier", "14:32:TtStringLiteral"}},
+		{line: "\t}", tokens: []string{"0:2:TtNothing"}},
 		{line: "}", tokens: []string{"0:1:TtNothing"}},
 	}
 
