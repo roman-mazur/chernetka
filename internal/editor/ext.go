@@ -12,8 +12,7 @@ type Extension interface {
 }
 
 // BufferExtData represents data associated with a Buffer and managed by an Extension.
-type BufferExtData interface {
-}
+type BufferExtData any
 
 // CodeAssist can be optionally implemented by BufferExtData.
 type CodeAssist interface {
