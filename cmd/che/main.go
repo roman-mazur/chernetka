@@ -66,7 +66,11 @@ func main() {
 		}
 	}
 
-	edit.Run(ttyFile, logf)
+	inOut := editor.InOut{
+		Reader: ttyFile,
+		Writer: os.Stdout,
+	}
+	edit.Run(&inOut, logf)
 }
 
 type editDelegate struct {

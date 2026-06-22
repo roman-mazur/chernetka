@@ -99,6 +99,9 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 		if span.Start > lastIndex {
 			escape.ColorText(out, cr.normalizeText(line[lastIndex:span.Start]), nil, bgColor)
 		}
+		if span.End > len(line) {
+			panic(fmt.Errorf("line %d %q, span %s out of range", ln, line, span))
+		}
 		text := cr.normalizeText(line[span.Start:span.End])
 		escape.ColorText(out, text, colors.ColorForTokenType(span.TokenType), bgColor)
 		lastIndex = span.End

@@ -5,7 +5,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPrefs, b []byte) (handled, changed bool) {
+func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPrefs, b []byte) (handled bool) {
 	data, ok := buf.ExtensionData(le.ID()).(*BufferData)
 	if !ok {
 		return
@@ -40,7 +40,6 @@ func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPre
 		data.ResetSuggestions()
 		buf.AcceptSuggestion(text)
 		handled = true
-		changed = true
 	}
 
 	return

@@ -8,7 +8,7 @@ type Extension interface {
 	MakeBufferData(buf *Buffer) BufferExtData
 
 	AfterEdit(e *Editor, buf *Buffer)
-	HandleInsertInput(buf *Buffer, prefs *RenderPrefs, b []byte) (handled, changed bool)
+	HandleInsertInput(buf *Buffer, prefs *RenderPrefs, b []byte) (handled bool)
 }
 
 // BufferExtData represents data associated with a Buffer and managed by an Extension.

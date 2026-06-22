@@ -69,7 +69,7 @@ func TestIntegration(t *testing.T) {
 
 	insertEmptyLine := func(buf *editor.Buffer, hl editor.Extension) int {
 		mut := buf.Content.(content.Mutable)
-		idx := buf.Content.Len() / 2
+		idx := min(17, buf.Content.Len()/2)
 		mut.Insert(idx, content.TextLine(""))
 		hl.AfterEdit(&edit, buf)
 		return idx

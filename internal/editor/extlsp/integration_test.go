@@ -111,7 +111,7 @@ func newGoBuffer(t *testing.T, le *Integration, fake *fakeLSP, text string) (*ed
 	if err := h.OpenReader("completion_buf.go", strings.NewReader(text)); err != nil {
 		t.Fatalf("OpenReader: %v", err)
 	}
-	buf := h.ActiveBuffer()
+	buf := h.Top()
 	data, _ := buf.ExtensionData(le.ID()).(*BufferData)
 	if data == nil {
 		t.Fatal("buffer has no LSP extension data")

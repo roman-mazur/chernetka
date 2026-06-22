@@ -43,8 +43,12 @@ func (m Mode) String() string {
 	}
 }
 
-// Content represents the data visualized by the editor - the text lines.
-type Content []string
+// InOut exposes Reader and Writer for the Editor.
+// Reader is used to receive user input. Writer is used to show the terminal UI.
+type InOut struct {
+	io.Reader
+	io.Writer
+}
 
 // Editor represents the editor internal state.
 type Editor struct {
@@ -225,7 +229,7 @@ func (be *bufEntry) matches(p string) bool {
 	return be.b.Path == p
 }
 
-func (e *Editor) Run(f *os.File, logf logger.Func) {
+func (e *Editor) Run(t *InOut, logf logger.Func) {
 	start := time.Now()
 	defer func() {
 		logf("session done %s", time.Since(start))
@@ -236,20 +240,10 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 		}
 	}()
 
-	restoreAltBuffer := escape.EnableAlternativeBuffer(f)
-	defer restoreAltBuffer()
-	restoreLineWrapping := escape.DisableLineWrapping(f)
-	defer restoreLineWrapping()
+	termCleanup := e.initTerminal(t, logf)
+	defer termCleanup()
 
 	e.rPrefs = newRenderPrefs()
-
-	e.termFd = int(f.Fd())
-	state, err := term.MakeRaw(e.termFd)
-	if err != nil {
-		logf("cannot initialize terminal (fd %d): %s", e.termFd, err)
-		return
-	}
-	defer term.Restore(e.termFd, state)
 
 	if e.cmdChannel == nil {
 		e.cmdChannel = make(chan Command)
@@ -257,9 +251,9 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 
 	var inputsStop atomic.Bool
 	defer inputsStop.Store(true)
-	go e.readAndHandleInput(f, logf, &inputsStop)
+	go e.readAndHandleInput(t, logf, &inputsStop)
 
-	out := bufio.NewWriter(os.Stdout)
+	out := bufio.NewWriter(t)
 
 	var lastRenderTime time.Time
 	const renderDelay = 10 * time.Millisecond
@@ -279,7 +273,7 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 		if e.layoutRequested {
 			for buf := range e.layout() {
 				buf.clampCursor(&e.rPrefs)
-				buf.render(out, &e.rPrefs)
+				buf.Render(out, &e.rPrefs)
 			}
 			e.layoutRequested = false
 		}
@@ -301,12 +295,41 @@ func (e *Editor) Run(f *os.File, logf logger.Func) {
 	}
 }
 
-func (e *Editor) readAndHandleInput(f *os.File, logf logger.Func, stop *atomic.Bool) {
+func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
+	f, ok := t.Writer.(*os.File)
+	if !ok {
+		logf("not a terminal")
+		return func() {}
+	}
+
+	var cleanupOps []func()
+	cleanup = func() {
+		for i := len(cleanupOps) - 1; i >= 0; i-- {
+			cleanupOps[i]()
+		}
+	}
+
+	cleanupOps = append(cleanupOps, escape.EnableAlternativeBuffer(f))
+	cleanupOps = append(cleanupOps, escape.DisableLineWrapping(f))
+
+	e.termFd = int(f.Fd())
+	state, err := term.MakeRaw(e.termFd)
+	if err != nil {
+		logf("cannot initialize terminal (fd %d): %s", e.termFd, err)
+		return
+	}
+	cleanupOps = append(cleanupOps, func() {
+		_ = term.Restore(e.termFd, state)
+	})
+	return
+}
+
+func (e *Editor) readAndHandleInput(in io.Reader, logf logger.Func, stop *atomic.Bool) {
 	bPool := sync.Pool{New: func() any { return make([]byte, 64) }}
 	var inBuf [64]byte
 	for !stop.Load() {
 		// Get input.
-		n, err := f.Read(inBuf[:])
+		n, err := in.Read(inBuf[:])
 		if err != nil {
 			e.cmdChannel <- commandQuit
 			break
@@ -344,16 +367,22 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 
 	switch buf.mode {
 	case ModeNormal:
-		return normalInput(buf, input, &e.rPrefs)
-	case ModeInsert:
-		handled, changed := e.extHandleInsert(buf, input)
-		if !handled {
-			changed = insertInput(buf, input, &e.rPrefs)
+		quit = normalInput(buf, input, &e.rPrefs)
+		if buf.checkMutated() {
+			e.extAfterEdit(buf)
 		}
-		if changed {
+		return
+
+	case ModeInsert:
+		handled := e.extHandleInsert(buf, input)
+		if !handled {
+			insertInput(buf, input, &e.rPrefs)
+		}
+		if buf.checkMutated() {
 			e.extAfterEdit(buf)
 		}
 		return false
+
 	case ModeCommand:
 		return commandInput(buf, input, &e.rPrefs)
 	default:
@@ -361,9 +390,9 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	}
 }
 
-func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled, changed bool) {
+func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled bool) {
 	for _, ext := range e.x {
-		handled, changed = ext.HandleInsertInput(buf, &e.rPrefs, b)
+		handled = ext.HandleInsertInput(buf, &e.rPrefs, b)
 		if handled {
 			return
 		}
@@ -391,9 +420,17 @@ type layoutState struct {
 	editor *Editor
 }
 
+func (lps *layoutState) resolveWindowSize() (w int, h int) {
+	if lps.editor.termFd == 0 {
+		return 80, 40 // real terminal is not resolved - test/mock environment
+	}
+	w, h, _ = term.GetSize(lps.editor.termFd)
+	return
+}
+
 func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 	done := false
-	w, h, _ := term.GetSize(lps.editor.termFd)
+	w, h := lps.resolveWindowSize()
 	return func(yield func(*Buffer) bool) {
 		if done {
 			return

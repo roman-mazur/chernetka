@@ -46,13 +46,13 @@ func (in *Integration) AfterEdit(_ *editor.Editor, b *editor.Buffer) {
 		return
 	}
 
-	in.logf(true, "AfterEdit(_, %q)", b.Path)
+	in.logf(false, "AfterEdit(_, %q)", b.Path)
 	// TODO: perform incremental update
 	_ = st.Close()
 	st.tree = parseString(b.Text())
 }
 
-func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []byte) (handled, changed bool) {
+func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []byte) (handled bool) {
 	return
 }
 

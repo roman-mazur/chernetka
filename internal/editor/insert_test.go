@@ -15,9 +15,9 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 	buf := Buffer{
 		Content: &data,
 	}
-	changed := insertInput(&buf, []byte{0x1b, '[', 'C'}, &RenderPrefs{TabSize: 2})
-	if changed {
-		t.Errorf("no changes expected after handling cursor keys")
+	insertInput(&buf, []byte{0x1b, '[', 'C'}, &RenderPrefs{TabSize: 2})
+	if buf.checkMutated() {
+		t.Error("unexpected mutation")
 	}
 	if buf.cx != 1 {
 		t.Errorf("cx didn't change after arrow right")

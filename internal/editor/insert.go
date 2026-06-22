@@ -7,15 +7,15 @@ import (
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) (changed bool) {
+func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 	var arrow inputs.CursorArrow
 	if inputs.IsArrow(b, &arrow) {
 		buf.handleCursor(arrow, prefs)
-		return false
+		return
 	}
 
 	if len(b) != 1 {
-		return false
+		return
 	}
 
 	// Esc.
@@ -24,7 +24,7 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) (changed bool) {
 		if buf.cx > 0 {
 			buf.cx-- // Land on the last typed character.
 		}
-		return false
+		return
 	}
 
 	if !buf.canEdit() {
@@ -64,5 +64,5 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) (changed bool) {
 		}
 	}
 
-	return true
+	return
 }

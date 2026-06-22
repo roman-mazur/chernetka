@@ -24,7 +24,6 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 		suggestions []string // assigned before the input; nil leaves the list empty
 		input       []byte
 		wantHandled bool
-		wantChanged bool
 		wantCurrent string // CurrentSuggestion afterwards; "" means none remain
 		wantText    string // buffer contents afterwards
 	}{
@@ -73,7 +72,6 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 			suggestions: s("ntln"),
 			input:       keyTab,
 			wantHandled: true,
-			wantChanged: true,
 			wantText:    "Println",
 		},
 	}
@@ -88,11 +86,10 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 				data.Assign(tc.suggestions)
 			}
 
-			handled, changed := le.HandleInsertInput(buf, &editor.RenderPrefs{}, tc.input)
+			handled := le.HandleInsertInput(buf, &editor.RenderPrefs{}, tc.input)
 
-			if handled != tc.wantHandled || changed != tc.wantChanged {
-				t.Errorf("HandleInsertInput = (handled %t, changed %t), want (%t, %t)",
-					handled, changed, tc.wantHandled, tc.wantChanged)
+			if handled != tc.wantHandled {
+				t.Errorf("HandleInsertInput = (handled %t), want (%t)", handled, tc.wantHandled)
 			}
 			if tc.wantCurrent == "" {
 				if data.HasSuggestions() {
@@ -122,10 +119,10 @@ func TestIntegration_HandleInsertInput_NoBufferData(t *testing.T) {
 	if err := h.OpenReader("notes.txt", strings.NewReader("hello")); err != nil {
 		t.Fatalf("OpenReader: %v", err)
 	}
-	buf := h.ActiveBuffer()
+	buf := h.Top()
 
-	handled, changed := le.HandleInsertInput(buf, &editor.RenderPrefs{}, keyTab)
-	if handled || changed {
-		t.Errorf("HandleInsertInput = (%t, %t), want (false, false)", handled, changed)
+	handled := le.HandleInsertInput(buf, &editor.RenderPrefs{}, keyTab)
+	if handled {
+		t.Errorf("HandleInsertInput = (%t), want (false)", handled)
 	}
 }

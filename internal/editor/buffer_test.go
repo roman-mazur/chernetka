@@ -135,7 +135,7 @@ func TestBuffer_Render(t *testing.T) {
 
 			var out bytes.Buffer
 			bw := bufio.NewWriter(&out)
-			tc.buf.render(bw, &tc.prefs)
+			tc.buf.Render(bw, &tc.prefs)
 			got := ansiRE.ReplaceAllString(out.String(), "")
 
 			for _, want := range tc.contains {

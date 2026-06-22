@@ -24,6 +24,7 @@ type Buffer struct {
 	mode    Mode
 	dirty   bool
 	cmdline string // Text typed after ':' while in ModeCommand
+	mutated bool   // if Buffer was mutated since the last check
 
 	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
@@ -112,7 +113,7 @@ func byteToScreenCol(line string, byteIdx, tabSize int) int {
 // viewHeight is the number of text rows (terminal height minus the status bar).
 func (b *Buffer) viewHeight() int { return b.h - 1 }
 
-func (b *Buffer) render(out *bufio.Writer, prefs *RenderPrefs) {
+func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	showCursor := escape.HideCursor(out)
 	escape.MoveTopLeft(out)
 
@@ -221,6 +222,17 @@ func (b *Buffer) mutate() content.Mutable {
 	}
 }
 
+func (b *Buffer) setMutated(m bool) {
+	b.dirty = true
+	b.mutated = true
+}
+
+func (b *Buffer) checkMutated() (res bool) {
+	res = b.mutated
+	b.mutated = false
+	return
+}
+
 type bufMutator struct {
 	content.Mutable
 	*Buffer
@@ -231,19 +243,19 @@ func (bm bufMutator) Insert(pos int, line content.Line) {
 		return
 	}
 	bm.Mutable.Insert(pos, line)
-	bm.dirty = true
+	bm.setMutated(true)
 }
 func (bm bufMutator) Update(pos int, line content.Line) {
 	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Update(pos, line)
-	bm.dirty = true
+	bm.setMutated(true)
 }
 func (bm bufMutator) Delete(pos int) {
 	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Delete(pos)
-	bm.dirty = true
+	bm.setMutated(true)
 }
