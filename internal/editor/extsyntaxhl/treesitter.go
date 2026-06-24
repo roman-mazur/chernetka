@@ -2,6 +2,8 @@ package extsyntaxhl
 
 import (
 	"path/filepath"
+	"slices"
+	"sort"
 
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
@@ -26,7 +28,7 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 
 	in.logf(false, "parsing for buffer %s", buf.Path)
 	return &syntaxTree{
-		logImpl: in.logImpl,
+		logImpl: &in.logImpl,
 		tree:    parseString(buf.Text()),
 	}
 }
@@ -72,7 +74,7 @@ func (li *logImpl) logf(debug bool, fmt string, args ...any) {
 }
 
 type syntaxTree struct {
-	logImpl
+	*logImpl
 	tree *treesitter.Tree
 
 	lastNode *treesitter.Node
@@ -122,7 +124,8 @@ func appendSpan(out *[]editor.SyntaxSpan, span editor.SyntaxSpan, line string) {
 	if span.Start >= len(line) {
 		return
 	}
-	*out = append(*out, span)
+	i := sort.Search(len(*out), func(i int) bool { return (*out)[i].Start > span.Start })
+	*out = slices.Insert(*out, i, span)
 }
 
 func (st *syntaxTree) collectSpans(node *treesitter.Node, out *[]editor.SyntaxSpan, ln int, line string) {
