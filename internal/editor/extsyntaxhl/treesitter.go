@@ -199,7 +199,7 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 			node.StartPosition().Row, node.StartPosition().Column,
 			node.EndPosition().Row, node.EndPosition().Column)
 
-		if node.StartPosition().Row == uint(ln) && node.EndPosition().Row == uint(ln) {
+		if node.StartPosition().Row == uint(ln) && node.EndPosition().Row == uint(ln) && len(node.GrammarName()) > 3 {
 			break
 		}
 
