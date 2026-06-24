@@ -114,7 +114,10 @@ func byteToScreenCol(line string, byteIdx, tabSize int) int {
 func (b *Buffer) viewHeight() int { return b.h - 1 }
 
 func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
-	showCursor := escape.HideCursor(out)
+	defer out.Flush()
+
+	showCursor := escape.HideCursor(out, b.mode != ModeNormal)
+	defer showCursor()
 	escape.MoveTopLeft(out)
 
 	lines := b.Content.Lines()
@@ -137,6 +140,7 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	// Status bar (reverse colors).
 	restoreColors := escape.ReverseVideo(out)
+	defer restoreColors()
 
 	if b.mode == ModeCommand {
 		// In command mode, the status bar becomes the command line.
@@ -144,9 +148,6 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 		out.WriteString(":")
 		out.WriteString(b.cmdline)
 		escape.SetCursorPosition(out, b.h, len(b.cmdline)+2)
-		showCursor()
-		restoreColors()
-		_ = out.Flush()
 		return
 	}
 
@@ -167,12 +168,9 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	screenRow := b.cy - b.offset + 1
 	var numDisplayWidth int
 	if !b.hideLineNumbers {
-		numDisplayWidth = nlDigitsLen(b.Content.Len()) + 1
+		numDisplayWidth = nlDigitsLen(b.offset+printableCount) + 1
 	}
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
-	showCursor()
-
-	_ = out.Flush()
 }
 
 // AcceptSuggestion inserts the active inline suggestion at the cursor and

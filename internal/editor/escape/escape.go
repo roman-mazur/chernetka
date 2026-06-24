@@ -16,8 +16,13 @@ func ReverseVideo(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[7m", "\x1b[0m")
 }
 
-func HideCursor(out io.Writer) (restore func()) {
-	return applyPair(out, "\x1b[?25l", "\x1b[?25h")
+func HideCursor(out io.Writer, thinCursor bool) (restore func()) {
+	styleCode := 1
+	if thinCursor {
+		styleCode = 5
+	}
+	restoreSeq := fmt.Sprintf("\x1b[%d q\x1b[?25h", styleCode)
+	return applyPair(out, "\x1b[?25l", restoreSeq)
 }
 
 func MoveTopLeft(out io.Writer) {
