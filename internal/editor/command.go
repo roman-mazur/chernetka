@@ -40,16 +40,21 @@ func commandInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 }
 
 func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
-	if cmd == "q" {
-		return true
-	}
+	for len(cmd) > 0 {
+		key := cmd[0:1]
+		cmd = cmd[1:]
 
-	if strings.HasPrefix(cmd, "w") {
-		dstPath := buf.Path
-		if len(cmd) > 2 {
-			_, dstPath, _ = strings.Cut(cmd, " ")
+		switch key {
+		case "q":
+			return true
+
+		case "w":
+			dstPath := buf.Path
+			if len(cmd) > 2 {
+				cmd, dstPath, _ = strings.Cut(cmd, " ")
+			}
+			(&Save{DstPath: dstPath}).DoOnBuffer(buf, *prefs)
 		}
-		(&Save{DstPath: dstPath}).DoOnBuffer(buf, *prefs)
 	}
 	return false
 }
