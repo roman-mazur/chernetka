@@ -14,16 +14,16 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 		return
 	}
 
-	if len(b) != 1 {
-		return
-	}
-
 	// Esc.
-	if b[0] == 0x1b {
+	if inputs.IsEscape(b) {
 		buf.mode = ModeNormal
 		if buf.cx > 0 {
 			buf.cx-- // Land on the last typed character.
 		}
+		return
+	}
+
+	if len(b) != 1 {
 		return
 	}
 
@@ -58,7 +58,7 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 
 	// Printable ASCII.
 	default:
-		if ch >= 0x20 {
+		if inputs.IsTab(b) || ch >= 0x20 {
 			mut.Update(buf.cy, content.TextLine(line[:buf.cx]+string(ch)+line[buf.cx:]))
 			buf.cx++
 		}
