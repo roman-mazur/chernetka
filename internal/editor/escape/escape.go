@@ -26,7 +26,7 @@ func HideCursor(out io.Writer, thinCursor bool) (restore func()) {
 }
 
 func MoveTopLeft(out io.Writer) {
-	_, _ = fmt.Fprint(out, "\x1b[H")
+	_, _ = io.WriteString(out, "\x1b[H")
 }
 
 func SetCursorPosition(out io.Writer, row, col int) {
@@ -34,7 +34,7 @@ func SetCursorPosition(out io.Writer, row, col int) {
 }
 
 func ClearLine(out io.Writer) {
-	_, _ = fmt.Fprint(out, "\x1b[2K")
+	_, _ = io.WriteString(out, "\x1b[2K")
 }
 
 func ColorText(out io.Writer, text string, fg, bg color.Color) {
@@ -74,10 +74,10 @@ func DisableLineWrapping(out io.Writer) (restore func()) {
 }
 
 func applyPair(out io.Writer, action, revert string) (restore func()) {
-	_, err := fmt.Fprint(out, action)
+	_, err := io.WriteString(out, action)
 	if err == nil {
 		return func() {
-			_, _ = fmt.Fprint(out, revert)
+			_, _ = io.WriteString(out, revert)
 		}
 	}
 	return noop
