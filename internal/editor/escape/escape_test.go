@@ -53,3 +53,10 @@ func TestColorText(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkColorText(b *testing.B) {
+	var buf bytes.Buffer
+	for b.Loop() {
+		ColorText(&buf, "some text examples", color.White, color.Gray{Y: 50})
+	}
+}
