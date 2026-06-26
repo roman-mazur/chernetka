@@ -50,14 +50,14 @@ func colorTemplate(fg, bg color.Color) string {
 	res.WriteString("\x1b[")
 	if fg != nil {
 		r, g, b, _ := fg.RGBA()
-		_, _ = fmt.Fprintf(&res, "38;2;%d;%d;%d", r, g, b)
+		_, _ = fmt.Fprintf(&res, "38;2;%d;%d;%d", r>>8, g>>8, b>>8)
 		if bg != nil {
 			res.WriteString(";")
 		}
 	}
 	if bg != nil {
 		r, g, b, _ := bg.RGBA()
-		_, _ = fmt.Fprintf(&res, "48;2;%d;%d;%d", r, g, b)
+		_, _ = fmt.Fprintf(&res, "48;2;%d;%d;%d", r>>8, g>>8, b>>8)
 	}
 
 	res.WriteString("m%s\x1b[0m")
