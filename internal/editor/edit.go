@@ -3,13 +3,13 @@ package editor
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"iter"
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"golang.org/x/term"
@@ -48,6 +48,8 @@ func (m Mode) String() string {
 type InOut struct {
 	io.Reader
 	io.Writer
+
+	WindowChangeSignal <-chan struct{}
 }
 
 // Editor represents the editor internal state.
@@ -249,9 +251,10 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 		e.cmdChannel = make(chan Command)
 	}
 
-	var inputsStop atomic.Bool
-	defer inputsStop.Store(true)
-	go e.readAndHandleInput(t, logf, &inputsStop)
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	go e.readAndHandleInput(ctx, t, logf)
+	go e.handleWindowChange(ctx, t.WindowChangeSignal)
 
 	out := bufio.NewWriter(t)
 
@@ -324,10 +327,43 @@ func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
 	return
 }
 
-func (e *Editor) readAndHandleInput(in io.Reader, logf logger.Func, stop *atomic.Bool) {
+// handleWindowChange reads signals typically wired to SIGWINCH and propagates a layout request.
+// It ensures these signals are propagated at most every 10ms.
+func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
+	const maxFrequency = 10 * time.Millisecond
+	var (
+		lastTime  time.Time
+		timerChan <-chan time.Time
+		timer     time.Timer
+	)
+	for {
+		select {
+		case _, ok := <-s:
+			if !ok {
+				return
+			}
+			if time.Since(lastTime) > maxFrequency {
+				lastTime = time.Now()
+				e.Post(commandRequestLayout)
+			} else if timerChan == nil {
+				timer.Reset(maxFrequency)
+				timerChan = timer.C
+			}
+
+		case <-timerChan:
+			e.Post(commandRequestLayout)
+			timerChan = nil
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (e *Editor) readAndHandleInput(ctx context.Context, in io.Reader, logf logger.Func) {
 	bPool := sync.Pool{New: func() any { return make([]byte, 64) }}
 	var inBuf [64]byte
-	for !stop.Load() {
+	for ctx.Err() == nil {
 		// Get input.
 		n, err := in.Read(inBuf[:])
 		if err != nil {

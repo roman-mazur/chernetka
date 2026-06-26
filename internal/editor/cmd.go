@@ -105,7 +105,8 @@ type CommandFunc func(e *Editor)
 func (f CommandFunc) DoOnEditor(e *Editor) { f(e) }
 
 var (
-	commandQuit = CommandFunc(func(e *Editor) { e.quitRequested = true })
+	commandQuit          = CommandFunc(func(e *Editor) { e.quitRequested = true })
+	commandRequestLayout = CommandFunc(func(e *Editor) { e.layoutRequested = true })
 )
 
 type SwitchMode Mode
