@@ -8,6 +8,10 @@ import (
 	"strconv"
 )
 
+func SyncOutput(out io.Writer) (restore func()) {
+	return applyPair(out, "\x1b[?2026h", "\x1b[?2026l")
+}
+
 func EnableAlternativeBuffer(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?1049h", "\x1b[?1049l")
 }

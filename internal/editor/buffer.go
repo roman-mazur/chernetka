@@ -127,6 +127,9 @@ func (b *Buffer) viewHeight() int { return b.h - 1 }
 func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	defer out.Flush()
 
+	resetSyncOutput := escape.SyncOutput(out)
+	defer resetSyncOutput()
+
 	showCursor := escape.HideCursor(out, b.mode != ModeNormal)
 	defer showCursor()
 	escape.MoveTopLeft(out)
