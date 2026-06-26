@@ -20,7 +20,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		switch b[0] {
 		// Quit.
 		case 'q':
-			return true
+			return !buf.dirty
 
 		// Tab size.
 		case '+', '=':
