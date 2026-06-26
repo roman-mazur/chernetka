@@ -31,14 +31,28 @@
 //	x        delete the character under the cursor
 //	+ / =    increase tab width
 //	-        decrease tab width
+//	:        enter command mode
 //	q        quit
 //
 // # Insert mode
 //
 //	Esc        return to normal mode
 //	(any)      insert printable ASCII character at the cursor
+//	Tab        insert a tab character
 //	Backspace  delete the character before the cursor;
 //	           if at column 0, join the line with the one above
 //	Enter      split the line at the cursor
 //	← → ↑ ↓   move the cursor without leaving insert mode
+//	Ctrl+S     save the current buffer
+//
+// # Command mode
+//
+// Entered by pressing : in normal mode. Type a command and press Enter to run it.
+// Backspace removes the last character; an empty command line returns to normal mode.
+//
+//	:q       quit
+//	:w       save the current buffer
+//	:w path  save the current buffer to path
+//	:wq      save and quit
+//	Esc      cancel and return to normal mode
 package main

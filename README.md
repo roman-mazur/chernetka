@@ -1,7 +1,7 @@
 # chernetka 
 
-An opinionated text editor.
-See package docs for more details (`doc.go`)
+An opinionated text editor with normal, insert, and command (`:`) modes.
+See package docs for keybinding details (`doc.go`).
 
 ### Development
 
@@ -20,4 +20,9 @@ go install rmazur.io/chernetka/cmd/che
 Then start with opening your project directory
 ```
 che .
+```
+
+To use it as a default text editor in your shell:
+```
+export EDITOR="che"
 ```
