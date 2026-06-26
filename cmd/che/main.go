@@ -5,6 +5,8 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/extlsp"
@@ -67,10 +69,24 @@ func main() {
 	}
 
 	inOut := editor.InOut{
-		Reader: ttyFile,
-		Writer: os.Stdout,
+		Reader:             ttyFile,
+		Writer:             os.Stdout,
+		WindowChangeSignal: windowChangeSignal(),
 	}
 	edit.Run(&inOut, logf)
+}
+
+func windowChangeSignal() <-chan struct{} {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		s := make(chan os.Signal, 1)
+		signal.Notify(s, syscall.SIGWINCH)
+		for range s {
+			c <- struct{}{}
+		}
+	}()
+	return c
 }
 
 type editDelegate struct {
