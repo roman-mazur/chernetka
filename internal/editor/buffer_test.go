@@ -3,6 +3,8 @@ package editor
 import (
 	"bufio"
 	"bytes"
+	"io"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -174,4 +176,53 @@ func TestBuffer_AcceptSuggestion(t *testing.T) {
 	if buf.cx != 7 {
 		t.Errorf("cx = %d, want 7", buf.cx)
 	}
+}
+
+func TestBuffer_Text(t *testing.T) {
+	buf := &Buffer{
+		Content: &content.FullText{content.TextLine("Hello")},
+	}
+	doubleCheckBufferText(t, buf, "Hello")
+	buf.Mutate().Insert(1, content.TextLine("World"))
+	doubleCheckBufferText(t, buf, "Hello\nWorld")
+}
+
+func BenchmarkBuffer_Text(b *testing.B) {
+	f, err := os.Open("buffer_test.go")
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() {
+		_ = f.Close()
+	})
+	data, err := io.ReadAll(f)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	cnt, err := content.LoadFullText(bytes.NewReader(data))
+	if err != nil {
+		b.Fatal(err)
+	}
+	buf := Buffer{Content: &cnt}
+
+	for b.Loop() {
+		doubleCheckBufferText(b, &buf, string(data))
+	}
+}
+
+func doubleCheckBufferText[T TB](t T, buf *Buffer, want string) {
+	t.Helper()
+	for i := range 2 {
+		if res := buf.Text(); res != want {
+			t.Errorf("check %d: text = %q, want %q", i, res, want)
+		}
+	}
+}
+
+type TB interface {
+	*testing.T | *testing.B
+
+	Helper()
+	Errorf(string, ...any)
 }

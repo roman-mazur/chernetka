@@ -32,7 +32,7 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 	}
 	lines := buf.Content.Lines()
 	line := lines[buf.cy].String()
-	mut := buf.mutate()
+	mut := buf.Mutate()
 
 	switch ch := b[0]; ch {
 	// Backspace.

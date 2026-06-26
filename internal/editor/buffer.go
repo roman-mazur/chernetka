@@ -22,23 +22,28 @@ type Buffer struct {
 	noCurrentLineHL bool
 
 	mode    Mode
-	dirty   bool
+	dirty   bool   // if buffer content is different from the source file
 	cmdline string // Text typed after ':' while in ModeCommand
-	mutated bool   // if Buffer was mutated since the last check
 
 	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
 	w, h   int // terminal window dimensions
 
-	xData map[string]BufferExtData
+	xData map[string]BufferExtData // data associated with the extensions
+
+	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
+	_textCache string // cached result for Text()
 }
 
+// NewScratchBuffer constructs a new Buffer with empty content.
 func NewScratchBuffer() *Buffer {
 	return &Buffer{
 		Content: content.Empty(),
 	}
 }
 
+// ExtensionData returns an object managed by the Extension with the provided id.
+// Can be nil if such object of Extension does not exist.
 func (b *Buffer) ExtensionData(id string) BufferExtData {
 	if b.xData == nil {
 		return nil
@@ -46,8 +51,12 @@ func (b *Buffer) ExtensionData(id string) BufferExtData {
 	return b.xData[id]
 }
 
+// Pos provides a pair of coordinates pointing to the current cursor location.
+// cx is the symbol offset within the content line.
+// cy is the line index in the Content.
 func (b *Buffer) Pos() (cx, cy int) { return b.cx, b.cy }
 
+// Close propagates the call to the Content and extension objects if they implement io.Closer.
 func (b *Buffer) Close() error {
 	allErrors := make([]error, 0, len(b.xData)+1)
 	if closer, ok := b.Content.(io.Closer); ok {
@@ -90,15 +99,15 @@ func (b *Buffer) clampCursor(_ *RenderPrefs) {
 	}
 }
 
-// byteToScreenCol returns the visual column at the given byte index, expanding
+// runeToScreenCol returns the visual column at the given byte index, expanding
 // tabs by tabSize. Used once per render to project cx onto the terminal.
-func byteToScreenCol(line string, byteIdx, tabSize int) int {
-	if byteIdx > len(line) {
-		byteIdx = len(line)
+func runeToScreenCol(line string, runeIdx, tabSize int) int {
+	if runeIdx > len(line) {
+		runeIdx = len(line)
 	}
 	col := 0
 	for i, r := range line {
-		if i >= byteIdx {
+		if i >= runeIdx {
 			break
 		}
 		if r == '\t' {
@@ -113,6 +122,8 @@ func byteToScreenCol(line string, byteIdx, tabSize int) int {
 // viewHeight is the number of text rows (terminal height minus the status bar).
 func (b *Buffer) viewHeight() int { return b.h - 1 }
 
+// Render visualizes the buffer UI content writing to the provided output.
+// This includes presenting the visible part of the content, the status line and the command line at the bottom.
 func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	defer out.Flush()
 
@@ -136,7 +147,7 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	if len(lines) > 0 {
 		cursorLine = lines[b.cy].String()
 	}
-	screenCol := byteToScreenCol(cursorLine, b.cx, prefs.TabSize)
+	screenCol := runeToScreenCol(cursorLine, b.cx, prefs.TabSize)
 
 	// Status bar (reverse colors).
 	restoreColors := escape.ReverseVideo(out)
@@ -184,7 +195,7 @@ func (b *Buffer) AcceptSuggestion(sug string) {
 	if b.cx > len(line) {
 		b.cx = len(line)
 	}
-	b.mutate().Update(b.cy, content.TextLine(line[:b.cx]+sug+line[b.cx:]))
+	b.Mutate().Update(b.cy, content.TextLine(line[:b.cx]+sug+line[b.cx:]))
 	b.cx += len(sug)
 }
 
@@ -206,13 +217,22 @@ func (b *Buffer) handleCursor(arrow inputs.CursorArrow, prefs *RenderPrefs) {
 	}
 }
 
+// Text returns a string representation of the full buffer content.
+// It can be used, for example, to send the buffer content to an LSP server.
 func (b *Buffer) Text() string {
+	if b._textCache != "" {
+		return b._textCache
+	}
+
 	var buf bytes.Buffer
 	_ = content.SaveToWriter(b.Content, &buf)
-	return buf.String()
+	b._textCache = buf.String()
+	return b._textCache
 }
 
-func (b *Buffer) mutate() content.Mutable {
+// Mutate is used to start changing the buffer content.
+// If underlying Content is not mutable, the returned implementation is a noop.
+func (b *Buffer) Mutate() content.Mutable {
 	m, _ := b.Content.(content.Mutable)
 	return bufMutator{
 		Mutable: m,
@@ -220,14 +240,15 @@ func (b *Buffer) mutate() content.Mutable {
 	}
 }
 
-func (b *Buffer) setMutated(m bool) {
+func (b *Buffer) setMutated() {
 	b.dirty = true
-	b.mutated = true
+	b._mutated = true
+	b._textCache = ""
 }
 
-func (b *Buffer) checkMutated() (res bool) {
-	res = b.mutated
-	b.mutated = false
+func (b *Buffer) resetMutated() (prev bool) {
+	prev = b._mutated
+	b._mutated = false
 	return
 }
 
@@ -241,19 +262,19 @@ func (bm bufMutator) Insert(pos int, line content.Line) {
 		return
 	}
 	bm.Mutable.Insert(pos, line)
-	bm.setMutated(true)
+	bm.setMutated()
 }
 func (bm bufMutator) Update(pos int, line content.Line) {
 	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Update(pos, line)
-	bm.setMutated(true)
+	bm.setMutated()
 }
 func (bm bufMutator) Delete(pos int) {
 	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Delete(pos)
-	bm.setMutated(true)
+	bm.setMutated()
 }

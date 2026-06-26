@@ -368,9 +368,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	switch buf.mode {
 	case ModeNormal:
 		quit = normalInput(buf, input, &e.rPrefs)
-		if buf.checkMutated() {
-			e.extAfterEdit(buf)
-		}
+		e.handleAfterEdit(buf)
 		return
 
 	case ModeInsert:
@@ -378,9 +376,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		if !handled {
 			insertInput(buf, input, &e.rPrefs)
 		}
-		if buf.checkMutated() {
-			e.extAfterEdit(buf)
-		}
+		e.handleAfterEdit(buf)
 		return false
 
 	case ModeCommand:
@@ -400,7 +396,11 @@ func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled bool) {
 	return
 }
 
-func (e *Editor) extAfterEdit(buf *Buffer) {
+func (e *Editor) handleAfterEdit(buf *Buffer) {
+	if !buf.resetMutated() {
+		// No edits since the last time.
+		return
+	}
 	for _, ext := range e.x {
 		ext.AfterEdit(e, buf)
 	}

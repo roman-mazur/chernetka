@@ -16,7 +16,7 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 		Content: &data,
 	}
 	insertInput(&buf, []byte{0x1b, '[', 'C'}, &RenderPrefs{TabSize: 2})
-	if buf.checkMutated() {
+	if buf.resetMutated() {
 		t.Error("unexpected mutation")
 	}
 	if buf.cx != 1 {

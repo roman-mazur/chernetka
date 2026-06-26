@@ -61,7 +61,7 @@ func (cr *contentPrinter) render(out *bufio.Writer) {
 		cr.renderLine(out, ln, raw, lineHL)
 
 		if lineHL {
-			rightPad := cr.b.w - byteToScreenCol(raw, len(raw), len(cr.tab))
+			rightPad := cr.b.w - runeToScreenCol(raw, len(raw), len(cr.tab))
 			if rightPad > 0 {
 				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, colors.SelectedBg)
 			}

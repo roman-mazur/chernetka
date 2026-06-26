@@ -46,7 +46,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 				return false
 			}
 			buf.cy++
-			buf.mutate().Insert(buf.cy, content.TextLine(""))
+			buf.Mutate().Insert(buf.cy, content.TextLine(""))
 			buf.cx = 0
 			buf.mode = ModeInsert
 
@@ -71,7 +71,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			line := lines[buf.cy].String()
 			if buf.cx < len(line) {
 				_, sz := utf8.DecodeRuneInString(line[buf.cx:])
-				buf.mutate().Update(buf.cy, content.TextLine(line[:buf.cx]+line[buf.cx+sz:]))
+				buf.Mutate().Update(buf.cy, content.TextLine(line[:buf.cx]+line[buf.cx+sz:]))
 			}
 
 		// Commands.

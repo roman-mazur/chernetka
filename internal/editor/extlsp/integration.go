@@ -76,6 +76,9 @@ func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
 	if lines := buf.Content.Lines(); cy < len(lines) {
 		line = lines[cy].String()
 	}
+	if strings.TrimSpace(line) == "" {
+		return
+	}
 	cx = min(cx, len(line))
 	le.askForNewSuggestion(line, cx, cy, e, data)
 }
