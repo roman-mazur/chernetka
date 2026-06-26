@@ -6,11 +6,14 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
 )
+
+var thousandLines = slices.Repeat(content.FullText{content.TextLine("test")}, 1000)
 
 func TestBuffer_Render(t *testing.T) {
 	cases := []struct {
@@ -125,6 +128,39 @@ func TestBuffer_Render(t *testing.T) {
 			prefs:    RenderPrefs{TabSize: 4},
 			contains: []string{":wq"},
 			absent:   []string{"NORMAL", "COMMAND", "test.txt"},
+		},
+		{
+			name: "2 digits line numbers",
+			buf: &Buffer{
+				Path:    "test.txt",
+				Content: &thousandLines,
+				w:       40,
+				h:       10,
+				offset:  5,
+			},
+			contains: []string{" 9 test", "10 test"},
+		},
+		{
+			name: "3 digits line numbers",
+			buf: &Buffer{
+				Path:    "test.txt",
+				Content: &thousandLines,
+				w:       40,
+				h:       10,
+				offset:  95,
+			},
+			contains: []string{" 99 test", "100 test"},
+		},
+		{
+			name: "4 digits line numbers",
+			buf: &Buffer{
+				Path:    "test.txt",
+				Content: &thousandLines,
+				w:       40,
+				h:       10,
+				offset:  995,
+			},
+			contains: []string{" 999 test", "1000 test"},
 		},
 	}
 

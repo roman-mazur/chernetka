@@ -23,8 +23,9 @@ type contentPrinter struct {
 
 	suggestion string
 
-	lnFmt string // format to render line numbers
-	tab   string // what to render for \t
+	lnDigits int      // number of digits for line numbers
+	lnBuf    [10]byte // buffer for line numbers
+	tab      string   // what to render for \t
 }
 
 func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
@@ -33,8 +34,7 @@ func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
 	_ = cr.lines[i:j] // boundary check
 	cr.i, cr.j = i, j
 	cr.tab = strings.Repeat(" ", prefs.TabSize)
-	nl := nlDigitsLen(j)
-	cr.lnFmt = "%" + strconv.Itoa(nl) + "d "
+	cr.lnDigits = nlDigitsLen(j)
 
 	findExtData(b, &cr.CodeAssist)
 	findExtData(b, &cr.SyntaxHighlighter)
@@ -42,6 +42,20 @@ func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
 	if cr.CodeAssist != nil {
 		cr.suggestion = cr.TextSuggestion()
 	}
+}
+
+func (cr *contentPrinter) lineNumber(n int) string {
+	if cr.lnDigits > len(cr.lnBuf)-1 {
+		return fmt.Sprintf("%"+strconv.Itoa(cr.lnDigits)+"d", n)
+	}
+	i := 0
+	for range cr.lnDigits - nlDigitsLen(n) {
+		cr.lnBuf[i] = ' '
+		i++
+	}
+	strconv.AppendInt(cr.lnBuf[i:i], int64(n), 10)
+	cr.lnBuf[cr.lnDigits] = ' '
+	return string(cr.lnBuf[:cr.lnDigits+1])
 }
 
 func (cr *contentPrinter) render(out *bufio.Writer) {
@@ -54,7 +68,7 @@ func (cr *contentPrinter) render(out *bufio.Writer) {
 			if ln == cr.b.cy {
 				nlColor = colors.Selected
 			}
-			escape.ColorText(out, fmt.Sprintf(cr.lnFmt, ln+1), nlColor, nil)
+			escape.ColorText(out, cr.lineNumber(ln+1), nlColor, nil)
 		}
 
 		lineHL := ln == cr.b.cy && !cr.b.noCurrentLineHL
