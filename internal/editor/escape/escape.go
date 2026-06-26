@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
-	"strings"
+	"strconv"
 )
 
 func EnableAlternativeBuffer(out io.Writer) (restore func()) {
@@ -38,30 +38,35 @@ func ClearLine(out io.Writer) {
 }
 
 func ColorText(out io.Writer, text string, fg, bg color.Color) {
-	_, _ = fmt.Fprintf(out, colorTemplate(fg, bg), text)
-}
-
-func colorTemplate(fg, bg color.Color) string {
 	if fg == nil && bg == nil {
-		return "%s"
+		_, _ = io.WriteString(out, text)
+		return
 	}
 
-	var res strings.Builder
-	res.WriteString("\x1b[")
+	_, _ = io.WriteString(out, "\x1b[")
 	if fg != nil {
-		r, g, b, _ := fg.RGBA()
-		_, _ = fmt.Fprintf(&res, "38;2;%d;%d;%d", r>>8, g>>8, b>>8)
+		_, _ = io.WriteString(out, "38;2;")
+		write8bitColor(out, fg)
 		if bg != nil {
-			res.WriteString(";")
+			_, _ = io.WriteString(out, ";")
 		}
 	}
 	if bg != nil {
-		r, g, b, _ := bg.RGBA()
-		_, _ = fmt.Fprintf(&res, "48;2;%d;%d;%d", r>>8, g>>8, b>>8)
+		_, _ = io.WriteString(out, "48;2;")
+		write8bitColor(out, bg)
 	}
+	_, _ = io.WriteString(out, "m")
+	_, _ = io.WriteString(out, text)
+	_, _ = io.WriteString(out, "\x1b[0m")
+}
 
-	res.WriteString("m%s\x1b[0m")
-	return res.String()
+func write8bitColor(out io.Writer, c color.Color) {
+	r, g, b, _ := c.RGBA()
+	_, _ = io.WriteString(out, strconv.Itoa(int(r>>8)))
+	_, _ = io.WriteString(out, ";")
+	_, _ = io.WriteString(out, strconv.Itoa(int(g>>8)))
+	_, _ = io.WriteString(out, ";")
+	_, _ = io.WriteString(out, strconv.Itoa(int(b>>8)))
 }
 
 func DisableLineWrapping(out io.Writer) (restore func()) {
