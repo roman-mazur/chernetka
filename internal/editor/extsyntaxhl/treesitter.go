@@ -30,6 +30,8 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	return &syntaxTree{
 		logImpl: &in.logImpl,
 		tree:    parseString(buf.Text()),
+		visited: make(map[nid]struct{}, 10),
+		stack:   make([]*treesitter.Node, 0, 10),
 	}
 }
 
@@ -78,6 +80,8 @@ type syntaxTree struct {
 	tree *treesitter.Tree
 
 	lastNode *treesitter.Node
+	visited  map[nid]struct{}
+	stack    []*treesitter.Node
 }
 
 func (st *syntaxTree) Close() error {
@@ -183,17 +187,18 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 		st.lastNode = st.tree.RootNode()
 	}
 
-	stack := []*treesitter.Node{st.lastNode}
-	visited := make(map[nid]struct{})
+	clear(st.visited)
+	st.stack = st.stack[:0]
+	st.stack = append(st.stack, st.lastNode)
 
 	var node *treesitter.Node
-	for len(stack) > 0 {
-		node, stack = stack[len(stack)-1], stack[:len(stack)-1]
-		if _, ok := visited[nodeID(node)]; ok {
+	for len(st.stack) > 0 {
+		node, st.stack = st.stack[len(st.stack)-1], st.stack[:len(st.stack)-1]
+		if _, ok := st.visited[nodeID(node)]; ok {
 			continue
 		}
 
-		visited[nodeID(node)] = struct{}{}
+		st.visited[nodeID(node)] = struct{}{}
 		st.logf(true, "traverse: %s at %d:%d - %d:%d",
 			node.GrammarName(),
 			node.StartPosition().Row, node.StartPosition().Column,
@@ -205,7 +210,7 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 
 		if node.StartPosition().Row > uint(ln) || node.EndPosition().Row <= uint(ln) {
 			if p := node.Parent(); p != nil {
-				stack = append(stack, p)
+				st.stack = append(st.stack, p)
 			}
 		}
 
@@ -213,7 +218,7 @@ func (st *syntaxTree) locateFirstNode(ln int) *treesitter.Node {
 		for i := n - 1; i >= 0 && i < n; i-- {
 			ch := node.Child(i)
 			if ch.StartPosition().Row <= uint(ln) && ch.EndPosition().Row >= uint(ln) {
-				stack = append(stack, ch)
+				st.stack = append(st.stack, ch)
 			}
 		}
 	}
