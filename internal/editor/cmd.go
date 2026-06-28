@@ -73,7 +73,13 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 
 	buf.offset = max(0, min(buf.offset+dy, contentLen-1))
 	buf.cy = max(0, min(buf.cy+dy, contentLen-1))
-	buf.cx = min(buf.cx, buf.Content.Lines()[buf.cy].Len()-1)
+	clampBufferCx(buf)
+}
+
+func clampBufferCx(buf *Buffer) {
+	if buf.Content.Len() > 0 {
+		buf.cx = min(buf.cx, buf.Content.Lines()[buf.cy].Len()-1)
+	}
 }
 
 type BufferCommandFunc func(b *Buffer, prefs RenderPrefs)
@@ -81,10 +87,26 @@ type BufferCommandFunc func(b *Buffer, prefs RenderPrefs)
 func (f BufferCommandFunc) DoOnBuffer(buf *Buffer, prefs RenderPrefs) { f(buf, prefs) }
 
 var (
-	// MoveHome moves the cursor the beginning of the line.
+	// MoveHome moves the cursor to the beginning of the line.
 	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = 0 })
-	// MoveEnd moves the cursor the end of the line.
+	// MoveEnd moves the cursor to the end of the line.
 	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = b.Content.Lines()[b.cy].Len() })
+	// MoveContentStart moves the cursor to the first line.
+	MoveContentStart = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		b.cy = 0
+		b.offset = 0
+		clampBufferCx(b)
+	})
+	// MoveContentEnd moves the cursor to the last line.
+	MoveContentEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		linesCnt := b.Content.Len()
+		if linesCnt == 0 {
+			return
+		}
+		b.cy = linesCnt - 1
+		b.offset = max(0, b.cy-b.viewHeight())
+		clampBufferCx(b)
+	})
 )
 
 // Save stores the boffer content in the destination path.
@@ -116,7 +138,7 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 		of.handleError(e, err)
 		return
 	}
-	defer f.Close() // TODO: Delegate to the editor.
+	defer func() { _ = f.Close() }()
 
 	if err := e.OpenReader(of.Path, f); err != nil {
 		of.handleError(e, err)
