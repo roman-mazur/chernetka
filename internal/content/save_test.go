@@ -62,4 +62,12 @@ func TestSave(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("empty", func(t *testing.T) {
+		var out bytes.Buffer
+		must(t, SaveToWriter(Empty(), &out))
+		if out.Len() != 0 {
+			t.Errorf("content size mismatch: got %d, want 0", out.Len())
+		}
+	})
 }
