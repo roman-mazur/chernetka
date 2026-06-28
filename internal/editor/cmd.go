@@ -46,6 +46,36 @@ func (r RelMove) moveDx(b *Buffer) {
 	}
 }
 
+// ScreenMove adjusts Buffer offset and cursor position to scroll by the screen height.
+// ScreenD configured the number screen to scroll (buffer offset will be capped by the content length).
+// Offset calculation also does not change the buffer if the content end is already visible.
+// It also tries to keep the bottom or top line visible when scrolling by one screen.
+type ScreenMove struct {
+	ScreenD int
+}
+
+func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
+	screenH := buf.viewHeight()
+	if screenH <= 0 {
+		return
+	}
+	contentLen := buf.Content.Len()
+
+	keepVisibleLineOffset := -1
+	if sm.ScreenD < 0 {
+		keepVisibleLineOffset = 1
+	}
+	dy := screenH*sm.ScreenD + keepVisibleLineOffset
+
+	if sm.ScreenD == 1 && buf.offset+dy >= contentLen {
+		return
+	}
+
+	buf.offset = max(0, min(buf.offset+dy, contentLen-1))
+	buf.cy = max(0, min(buf.cy+dy, contentLen-1))
+	buf.cx = min(buf.cx, buf.Content.Lines()[buf.cy].Len()-1)
+}
+
 type BufferCommandFunc func(b *Buffer, prefs RenderPrefs)
 
 func (f BufferCommandFunc) DoOnBuffer(buf *Buffer, prefs RenderPrefs) { f(buf, prefs) }

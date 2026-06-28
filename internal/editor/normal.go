@@ -22,6 +22,12 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		case 'q':
 			return !buf.dirty
 
+		// Page scrolling forward and backward. This will keep top or bottom line visible.
+		case ' ':
+			ScreenMove{ScreenD: 1}.DoOnBuffer(buf, *prefs)
+		case 'b':
+			ScreenMove{ScreenD: -1}.DoOnBuffer(buf, *prefs)
+
 		// Tab size.
 		case '+', '=':
 			prefs.tabsScaleUp()

@@ -1,8 +1,10 @@
 package editor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -63,6 +65,70 @@ func TestRelMove_Dx(t *testing.T) {
 			if buf.cx != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d)",
 					buf.cx, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
+			}
+		})
+	}
+}
+
+func TestScreenMove_DoOnBuffer(t *testing.T) {
+	tenLines := slices.Repeat(content.FullText{content.TextLine("line")}, 10)
+	hundredLines := slices.Repeat(content.FullText{content.TextLine("line")}, 100)
+
+	for _, tc := range []struct {
+		dy  int // input
+		buf Buffer
+		// Expected buffer state.
+		cx, cy, offset int
+	}{
+		{
+			dy:     1,
+			buf:    Buffer{Content: &tenLines, w: 80, h: 40},
+			cx:     0,
+			cy:     0,
+			offset: 0,
+		},
+		{
+			dy:     1,
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 2},
+			cx:     2,
+			cy:     38,
+			offset: 38,
+		},
+		{
+			dy:     2,
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 3, cy: 5},
+			cx:     3,
+			cy:     82,
+			offset: 77,
+		},
+		{
+			dy:     -1,
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 1, cy: 60, offset: 40},
+			cx:     1,
+			cy:     22,
+			offset: 2,
+		},
+		{
+			dy:     -2,
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 1, cy: 60, offset: 40},
+			cx:     1,
+			cy:     0,
+			offset: 0,
+		},
+	} {
+		name := fmt.Sprintf("content=%d/w=%d/h=%d/cx=%d/cy=%d/offset=%d",
+			tc.buf.Content.Len(), tc.buf.w, tc.buf.h, tc.cx, tc.cx, tc.offset)
+		t.Run(name, func(t *testing.T) {
+			cmd := ScreenMove{ScreenD: tc.dy}
+			cmd.DoOnBuffer(&tc.buf, RenderPrefs{TabSize: 4})
+			if tc.buf.cx != tc.cx {
+				t.Errorf("buf.cx = %d, want %d", tc.buf.cx, tc.cx)
+			}
+			if tc.buf.cy != tc.cy {
+				t.Errorf("buf.cy = %d, want %d", tc.buf.cy, tc.cy)
+			}
+			if tc.buf.offset != tc.offset {
+				t.Errorf("buf.offset = %d, want %d", tc.buf.offset, tc.offset)
 			}
 		})
 	}
