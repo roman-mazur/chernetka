@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/extlsp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
@@ -116,11 +117,30 @@ func (ed *editDelegate) OpenFile(path string) {
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		ed.logf("starting main editor")
-		err := openMainEditor(path)
+		err := openMainEditor(ed.edit, path)
 		if err != nil {
 			ed.logf("error with main editor: %s", err)
+			ed.openFileInNewBuffer(path)
 		}
 	}
+}
+
+func (ed *editDelegate) openFileInNewBuffer(path string) {
+	f, err := os.Open(path)
+
+	defer func() {
+		if err != nil {
+			ed.edit.OpenBuffer(&editor.Buffer{
+				Content: &content.ErrorContent{Error: err},
+			})
+		}
+	}()
+
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	err = ed.edit.OpenReader(path, f)
 }
 
 func (ed *editDelegate) sendOpenCommand(path string) error {

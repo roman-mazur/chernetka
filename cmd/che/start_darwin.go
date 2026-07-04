@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"rmazur.io/chernetka/internal/editor"
 )
 
 // openMainEditor interacts with the terminal to launch the main editor process in a new pane.
-func openMainEditor(path string) error {
+func openMainEditor(_ *editor.Editor, path string) error {
 	const appleScript = `
 tell application "Ghostty"
     activate

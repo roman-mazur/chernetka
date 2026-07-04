@@ -2,5 +2,13 @@
 
 package main
 
-// openMainEditor does nothing 
-func openMainEditor(path string) error { return nil }
+import (
+	"rmazur.io/chernetka/internal/editor"
+)
+
+var errorTerminalNotSupported = errors.New("terminal not supported")
+
+// openMainEditor does nothing
+func openMainEditor(_ *editor.Editor, _ string) error {
+	return errorTerminalNotSupported
+}
