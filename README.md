@@ -26,3 +26,7 @@ To use it as a default text editor in your shell:
 ```
 export EDITOR="che"
 ```
+
+### Idea: terminal is my IDE
+
+![demo](./demo.png)
