@@ -1,7 +1,7 @@
 # chernetka 
 
 An opinionated text editor with normal, insert, and command (`:`) modes.
-See package docs for keybinding details (`doc.go`).
+See docs of the `cmd/che` command for keybinding details (`cmd/che/doc.go`).
 
 ### Development
 
