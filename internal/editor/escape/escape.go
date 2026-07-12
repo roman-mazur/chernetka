@@ -16,6 +16,10 @@ func EnableAlternativeBuffer(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?1049h", "\x1b[?1049l")
 }
 
+func EnableMouse(out io.Writer) (restore func()) {
+	return applyPair(out, "\x1b[?1002h\x1b[?1006h", "\x1b[?1002l\x1b[?1006l")
+}
+
 func ReverseVideo(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[7m", "\x1b[0m")
 }

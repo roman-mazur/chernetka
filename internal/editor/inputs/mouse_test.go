@@ -84,6 +84,31 @@ func TestReadMouse(t *testing.T) {
 			want:    Mouse{Button: MouseButtonLeft, X: 1, Y: 2, Pressed: true},
 			restTxt: "hello",
 		},
+		{
+			name:  "left button with shift",
+			input: "\x1b[<4;10;20M",
+			want:  Mouse{Button: MouseButtonLeft, X: 10, Y: 20, Pressed: true, Mod: 1},
+		},
+		{
+			name:  "right button with alt",
+			input: "\x1b[<10;10;20M",
+			want:  Mouse{Button: MouseButtonRight, X: 10, Y: 20, Pressed: true, Mod: 2},
+		},
+		{
+			name:  "left button with ctrl",
+			input: "\x1b[<16;10;20M",
+			want:  Mouse{Button: MouseButtonLeft, X: 10, Y: 20, Pressed: true, Mod: 4},
+		},
+		{
+			name:  "middle button with motion",
+			input: "\x1b[<33;10;20M",
+			want:  Mouse{Button: MouseButtonMiddle, X: 10, Y: 20, Pressed: true, Mod: 8},
+		},
+		{
+			name:  "hover with everything",
+			input: "\x1b[<63;1000;2000m",
+			want:  Mouse{Button: MouseButtonNone, X: 1000, Y: 2000, Mod: 0xf},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := bufio.NewReader(strings.NewReader(tc.input))

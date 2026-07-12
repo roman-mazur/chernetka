@@ -10,7 +10,7 @@ const (
 )
 
 func IsArrow(b []byte, arrowType *CursorArrow) bool {
-	if len(b) != 3 || b[0] != 0x1b || b[1] != '[' {
+	if len(b) != 3 || b[0] != Escape || b[1] != '[' {
 		return false
 	}
 	switch b[2] {
@@ -28,6 +28,8 @@ func IsArrow(b []byte, arrowType *CursorArrow) bool {
 	return true
 }
 
-func IsEscape(b []byte) bool { return len(b) == 1 && b[0] == 0x1b }
+const Escape = 0x1b
+
+func IsEscape(b []byte) bool { return len(b) == 1 && b[0] == Escape }
 
 func IsTab(b []byte) bool { return len(b) == 1 && b[0] == '\t' }

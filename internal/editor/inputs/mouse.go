@@ -12,7 +12,7 @@ func IsMouseInput(b []byte) bool {
 	if len(b) < 3 {
 		return false
 	}
-	return b[0] == 0x1b && b[1] == '[' && b[2] == '<'
+	return b[0] == Escape && b[1] == '[' && b[2] == '<'
 }
 
 // Mouse click info.
@@ -20,6 +20,7 @@ type Mouse struct {
 	Button  MouseButton
 	X, Y    int
 	Pressed bool // False means button is released.
+	Mod     MouseModifier
 }
 
 type MouseButton byte
@@ -28,17 +29,39 @@ const (
 	MouseButtonLeft MouseButton = iota
 	MouseButtonMiddle
 	MouseButtonRight
+	MouseButtonNone // used for hover
 )
+
+// MouseModifier is a bit mask giving more context about the Mouse event.
+// bit	meaning
+// 0	Shift
+// 1	Alt
+// 2	Ctrl
+// 3	Motion
+type MouseModifier byte
+
+func (mm MouseModifier) HasShift() bool  { return mm&1 != 0 }
+func (mm MouseModifier) HasAlt() bool    { return mm&2 != 0 }
+func (mm MouseModifier) HasCtrl() bool   { return mm&4 != 0 }
+func (mm MouseModifier) HasMotion() bool { return mm&8 != 0 }
 
 var ErrorNotMouse = errors.New("not a mouse input")
 
 func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
-	prefix, prefixErr := in.Peek(3)
-	if prefixErr != nil {
-		err = prefixErr
+	var prefix []byte
+	prefix, err = in.Peek(1)
+	if err != nil {
+		return
+	}
+	if !IsEscape(prefix) {
+		err = ErrorNotMouse
 		return
 	}
 
+	prefix, err = in.Peek(3)
+	if err != nil {
+		return
+	}
 	if !IsMouseInput(prefix[:]) {
 		err = ErrorNotMouse
 		return
@@ -49,11 +72,11 @@ func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
 	}
 
 	var (
-		mouseBtn int
-		sep      byte
+		B   int
+		sep byte
 	)
 
-	mouseBtn, sep, err = mouseParseNextInt(in)
+	B, sep, err = mouseParseNextInt(in)
 	if err != nil {
 		return
 	}
@@ -61,7 +84,8 @@ func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
 		err = fmt.Errorf("expected ';', got '%c'", sep)
 		return
 	}
-	data.Button = MouseButton(mouseBtn)
+	data.Button = MouseButton(B & 3)
+	data.Mod = MouseModifier((B >> 2) & 0xf)
 
 	data.X, sep, err = mouseParseNextInt(in)
 	if err != nil {

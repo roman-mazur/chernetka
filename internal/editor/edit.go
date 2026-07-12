@@ -4,6 +4,7 @@ package editor
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/term"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/watch/dirwatch"
 )
@@ -28,7 +30,7 @@ const (
 	ModeCommand
 )
 
-const debugInput = false
+const debugInput = true
 
 func (m Mode) String() string {
 	switch m {
@@ -253,7 +255,8 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
-	go e.readAndHandleInput(ctx, t, logf)
+
+	go e.readAndHandleInput(ctx, bufio.NewReader(t), logf)
 	go e.handleWindowChange(ctx, t.WindowChangeSignal)
 
 	out := bufio.NewWriter(t)
@@ -324,6 +327,8 @@ func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
 	cleanupOps = append(cleanupOps, func() {
 		_ = term.Restore(e.termFd, state)
 	})
+
+	cleanupOps = append(cleanupOps, escape.EnableMouse(f))
 	return
 }
 
@@ -360,10 +365,20 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 	}
 }
 
-func (e *Editor) readAndHandleInput(ctx context.Context, in io.Reader, logf logger.Func) {
+func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf logger.Func) {
 	bPool := sync.Pool{New: func() any { return make([]byte, 64) }}
 	var inBuf [64]byte
 	for ctx.Err() == nil {
+		// Check for mouse input.
+		handled, err := e.readAndHandleMouse(in, logf)
+		if handled {
+			continue
+		}
+		if err != nil {
+			e.cmdChannel <- commandQuit
+			break
+		}
+
 		// Get input.
 		n, err := in.Read(inBuf[:])
 		if err != nil {
@@ -390,6 +405,40 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in io.Reader, logf logg
 			bPool.Put(input)
 		})
 	}
+}
+
+func (e *Editor) readAndHandleMouse(in *bufio.Reader, logf logger.Func) (handled bool, err error) {
+	var data inputs.Mouse
+	data, err = inputs.ReadMouse(in)
+
+	if err != nil {
+		if errors.Is(err, inputs.ErrorNotMouse) {
+			err = nil
+		}
+		return
+	}
+
+	handled = true
+	if debugInput {
+		logf("mouse: %v", data)
+	}
+	e.cmdChannel <- CommandFunc(func(e *Editor) { e.handleMouse(data) })
+	return
+}
+
+func (e *Editor) handleMouse(data inputs.Mouse) {
+	if data.Button != inputs.MouseButtonLeft || !data.Pressed {
+		return
+	}
+	buf := e.Top()
+	if buf == nil {
+		return
+	}
+
+	buf.cx = data.X - 1
+	buf.cy = buf.offset + data.Y - 1
+
+	e.layoutRequested = true
 }
 
 func (e *Editor) handleInput(input []byte) (quit bool) {
