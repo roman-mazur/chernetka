@@ -23,6 +23,10 @@ type Mouse struct {
 	Mod     MouseModifier
 }
 
+func (m *Mouse) String() string {
+	return fmt.Sprintf("{b:%d, coords:(%d,%d), p:%t, m:%s}", m.Button, m.X, m.Y, m.Pressed, m.Mod)
+}
+
 type MouseButton byte
 
 const (
@@ -44,6 +48,8 @@ func (mm MouseModifier) HasShift() bool  { return mm&1 != 0 }
 func (mm MouseModifier) HasAlt() bool    { return mm&2 != 0 }
 func (mm MouseModifier) HasCtrl() bool   { return mm&4 != 0 }
 func (mm MouseModifier) HasMotion() bool { return mm&8 != 0 }
+
+func (mm MouseModifier) String() string { return strconv.FormatUint(uint64(mm), 2) }
 
 var ErrorNotMouse = errors.New("not a mouse input")
 

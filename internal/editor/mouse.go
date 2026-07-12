@@ -13,8 +13,14 @@ type mouseEvent struct {
 	event mouseEventType
 }
 
+func (e mouseEvent) String() string {
+	return fmt.Sprintf("%s/%s", e.event, e.Mouse.String())
+}
+
 // mouseEventType indicates an event derived from the manipulations with a mouse like click, double-click, etc.
 type mouseEventType byte
+
+//go:generate stringer -type=mouseEventType
 
 const (
 	mouseEventTypeRaw         mouseEventType = iota // transmitting the raw press/release input
@@ -25,31 +31,12 @@ const (
 	mouseEventTypeDragEnd                           // release after a long press and move
 )
 
-func (et mouseEventType) String() string {
-	switch et {
-	case mouseEventTypeRaw:
-		return "Raw"
-	case mouseEventTypeClick:
-		return "Click"
-	case mouseEventTypeDoubleClick:
-		return "DoubleClick"
-	case mouseEventTypeTripleClick:
-		return "TripleClick"
-	case mouseEventTypeDragStart:
-		return "DragStart"
-	case mouseEventTypeDragEnd:
-		return "DragEnd"
-	default:
-		return fmt.Sprintf("mouseEventType(%d)", byte(et))
-	}
-}
-
 type mouseHandler struct {
-	now         func() time.Time
-	lastButton  inputs.MouseButton
-	lastPressAt time.Time
-	clickCount  int
-	isDragging  bool
+	now           func() time.Time
+	lastPressData inputs.Mouse
+	lastPressAt   time.Time
+	clickCount    int
+	isDragging    bool
 }
 
 func (mh *mouseHandler) currentTime() time.Time {
@@ -63,7 +50,7 @@ func (mh *mouseHandler) transformInput(in inputs.Mouse) mouseEvent {
 	if in.Mod.HasMotion() {
 		if in.Pressed && !mh.isDragging {
 			mh.isDragging = true
-			return mouseEvent{Mouse: in, event: mouseEventTypeDragStart}
+			return mouseEvent{Mouse: mh.lastPressData, event: mouseEventTypeDragStart}
 		}
 		return mouseEvent{Mouse: in, event: mouseEventTypeRaw}
 	}
@@ -71,13 +58,13 @@ func (mh *mouseHandler) transformInput(in inputs.Mouse) mouseEvent {
 	if in.Pressed {
 		now := mh.currentTime()
 		withinDelay := !mh.lastPressAt.IsZero() && now.Sub(mh.lastPressAt) <= mouseDelayDoubleClick
-		if in.Button == mh.lastButton && withinDelay {
+		if in.Button == mh.lastPressData.Button && withinDelay {
 			mh.clickCount++
 		} else {
 			mh.clickCount = 1
 			mh.isDragging = false
 		}
-		mh.lastButton = in.Button
+		mh.lastPressData = in
 		mh.lastPressAt = now
 		return mouseEvent{Mouse: in, event: mouseEventTypeRaw}
 	}

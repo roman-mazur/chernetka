@@ -56,6 +56,8 @@ type InOut struct {
 
 // Editor represents the editor internal state.
 type Editor struct {
+	mouseHandler
+
 	top *bufEntry // stack of open buffers
 
 	layoutRequested bool
@@ -419,15 +421,16 @@ func (e *Editor) readAndHandleMouse(in *bufio.Reader, logf logger.Func) (handled
 	}
 
 	handled = true
-	if debugInput {
-		logf("mouse: %v", data)
-	}
-	e.cmdChannel <- CommandFunc(func(e *Editor) { e.handleMouse(data) })
+	e.cmdChannel <- CommandFunc(func(e *Editor) { e.handleMouse(data, logf) })
 	return
 }
 
-func (e *Editor) handleMouse(data inputs.Mouse) {
-	if data.Button != inputs.MouseButtonLeft || !data.Pressed {
+func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
+	event := e.transformInput(data)
+	if debugInput {
+		logf("mouse: %s", event)
+	}
+	if event.event != mouseEventTypeRaw || event.Button != inputs.MouseButtonLeft || !event.Pressed {
 		return
 	}
 	buf := e.Top()
