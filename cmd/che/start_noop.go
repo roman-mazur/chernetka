@@ -3,6 +3,8 @@
 package main
 
 import (
+	"errors"
+
 	"rmazur.io/chernetka/internal/editor"
 )
 
