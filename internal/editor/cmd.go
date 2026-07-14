@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 // BufferCommand performs some action on a Buffer.
@@ -74,6 +75,18 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	buf.offset = max(0, min(buf.offset+dy, contentLen-1))
 	buf.cy = max(0, min(buf.cy+dy, contentLen-1))
 	clampBufferCx(buf)
+}
+
+type Scroll inputs.ScrollDirection
+
+func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
+	switch inputs.ScrollDirection(s) {
+	case inputs.ScrollDirectionUp:
+		buf.offset++
+	case inputs.ScrollDirectionDown:
+		buf.offset--
+	}
+	buf.offset = max(0, min(buf.offset, buf.Content.Len()-buf.viewHeight()-1))
 }
 
 func clampBufferCx(buf *Buffer) {

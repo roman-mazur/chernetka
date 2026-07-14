@@ -430,18 +430,30 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 	if debugInput {
 		logf("mouse: %s", event)
 	}
-	if event.event != mouseEventTypeRaw || event.Button != inputs.MouseButtonLeft || !event.Pressed {
-		return
-	}
+
 	buf := e.Top()
 	if buf == nil {
 		return
 	}
 
-	buf.cx = data.X - 1
-	buf.cy = buf.offset + data.Y - 1
+	switch event.eventType {
+	case mouseEventTypeScroll:
+		dir := event.Mod.SrollDirection(event.Mouse)
+		Scroll(dir).DoOnBuffer(buf, e.rPrefs)
+		logf("offset: %d, dir: %d", buf.offset, dir)
+		e.layoutRequested = true
+		return
 
-	e.layoutRequested = true
+	case mouseEventTypeRaw:
+		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
+			return
+		}
+		buf.cx = data.X - 1
+		buf.cy = buf.offset + data.Y - 1
+		e.layoutRequested = true
+		return
+	}
+
 }
 
 func (e *Editor) handleInput(input []byte) (quit bool) {

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 func TestRelMove_Dx(t *testing.T) {
@@ -167,5 +168,33 @@ func TestSave(t *testing.T) {
 	t.Logf("saved content (len=%d): %s", outContent.Len(), outContent)
 	if outContent.Len() != ftContent.Len() {
 		t.Errorf("wanted %d, got %d lines", ftContent.Len(), outContent.Len())
+	}
+}
+
+func TestScroll(t *testing.T) {
+	ftContent, err := content.LoadFullText(strings.NewReader("test content\nline 2\nline 3\nline 4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := &Buffer{
+		Content: &ftContent,
+		w:       10,
+		h:       2,
+	}
+
+	prefs := RenderPrefs{TabSize: 4}
+
+	Scroll(inputs.ScrollDirectionUp).DoOnBuffer(buf, prefs)
+	if buf.offset != 1 {
+		t.Errorf("scroll not applied, buf.offset=%d", buf.offset)
+	}
+	Scroll(inputs.ScrollDirectionUp).DoOnBuffer(buf, prefs)
+	if buf.offset != 2 {
+		t.Errorf("second scroll not applied, buf.offset=%d", buf.offset)
+	}
+	Scroll(inputs.ScrollDirectionUp).DoOnBuffer(buf, prefs)
+	if buf.offset != 2 {
+		t.Errorf("third scroll should be skipped, buf.offset=%d", buf.offset)
 	}
 }

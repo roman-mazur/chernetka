@@ -42,14 +42,49 @@ const (
 // 1	Alt
 // 2	Ctrl
 // 3	Motion
+// 4	Scroll wheel
 type MouseModifier byte
 
 func (mm MouseModifier) HasShift() bool  { return mm&1 != 0 }
 func (mm MouseModifier) HasAlt() bool    { return mm&2 != 0 }
 func (mm MouseModifier) HasCtrl() bool   { return mm&4 != 0 }
 func (mm MouseModifier) HasMotion() bool { return mm&8 != 0 }
+func (mm MouseModifier) HasWheel() bool  { return mm&16 != 0 }
 
-func (mm MouseModifier) String() string { return strconv.FormatUint(uint64(mm), 2) }
+func (mm MouseModifier) SrollDirection(m Mouse) ScrollDirection { return ScrollDirection(m.Button) }
+
+func (mm MouseModifier) String() string {
+	var data [5]byte
+	for i := range data {
+		data[i] = '-'
+	}
+	if mm.HasShift() {
+		data[0] = 's'
+	}
+	if mm.HasAlt() {
+		data[1] = 'a'
+	}
+	if mm.HasCtrl() {
+		data[2] = 'c'
+	}
+	if mm.HasMotion() {
+		data[3] = 'm'
+	}
+	if mm.HasWheel() {
+		data[4] = 'w'
+	}
+	return string(data[:])
+}
+
+type ScrollDirection byte
+
+const (
+	ScrollDirectionUp ScrollDirection = iota
+	ScrollDirectionDown
+	S
+	ScrollDirectionLeft
+	ScrollDirectionRight
+)
 
 var ErrorNotMouse = errors.New("not a mouse input")
 
@@ -91,7 +126,7 @@ func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
 		return
 	}
 	data.Button = MouseButton(B & 3)
-	data.Mod = MouseModifier((B >> 2) & 0xf)
+	data.Mod = MouseModifier((B >> 2) & 0xff)
 
 	data.X, sep, err = mouseParseNextInt(in)
 	if err != nil {

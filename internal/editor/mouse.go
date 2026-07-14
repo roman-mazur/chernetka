@@ -10,17 +10,17 @@ import (
 // mouseEvent wraps the raw mouse input extending it with the event type derived from the saved state.
 type mouseEvent struct {
 	inputs.Mouse
-	event mouseEventType
+	eventType mouseEventType
 }
 
 func (e mouseEvent) String() string {
-	return fmt.Sprintf("%s/%s", e.event, e.Mouse.String())
+	return fmt.Sprintf("%s/%s", e.eventType, e.Mouse.String())
 }
 
 // mouseEventType indicates an event derived from the manipulations with a mouse like click, double-click, etc.
 type mouseEventType byte
 
-//go:generate stringer -type=mouseEventType
+//go:generate stringer -type=mouseEventType -trimprefix=mouseEventType
 
 const (
 	mouseEventTypeRaw         mouseEventType = iota // transmitting the raw press/release input
@@ -29,6 +29,7 @@ const (
 	mouseEventTypeTripleClick                       // three press/release cycles
 	mouseEventTypeDragStart                         // long press and start moving
 	mouseEventTypeDragEnd                           // release after a long press and move
+	mouseEventTypeScroll
 )
 
 type mouseHandler struct {
@@ -50,12 +51,18 @@ func (mh *mouseHandler) transformInput(in inputs.Mouse) mouseEvent {
 	if in.Mod.HasMotion() {
 		if in.Pressed && !mh.isDragging {
 			mh.isDragging = true
-			return mouseEvent{Mouse: mh.lastPressData, event: mouseEventTypeDragStart}
+			return mouseEvent{Mouse: mh.lastPressData, eventType: mouseEventTypeDragStart}
 		}
-		return mouseEvent{Mouse: in, event: mouseEventTypeRaw}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeRaw}
 	}
 
 	if in.Pressed {
+		if in.Mod.HasWheel() {
+			mh.clickCount = 0
+			mh.isDragging = false
+			return mouseEvent{Mouse: in, eventType: mouseEventTypeScroll}
+		}
+
 		now := mh.currentTime()
 		withinDelay := !mh.lastPressAt.IsZero() && now.Sub(mh.lastPressAt) <= mouseDelayDoubleClick
 		if in.Button == mh.lastPressData.Button && withinDelay {
@@ -66,26 +73,26 @@ func (mh *mouseHandler) transformInput(in inputs.Mouse) mouseEvent {
 		}
 		mh.lastPressData = in
 		mh.lastPressAt = now
-		return mouseEvent{Mouse: in, event: mouseEventTypeRaw}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeRaw}
 	}
 
 	// Button release.
 	if mh.isDragging {
 		mh.isDragging = false
 		mh.clickCount = 0
-		return mouseEvent{Mouse: in, event: mouseEventTypeDragEnd}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeDragEnd}
 	}
 
 	switch mh.clickCount {
 	case 0:
-		return mouseEvent{Mouse: in, event: mouseEventTypeRaw}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeRaw}
 	case 1:
-		return mouseEvent{Mouse: in, event: mouseEventTypeClick}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeClick}
 	case 2:
-		return mouseEvent{Mouse: in, event: mouseEventTypeDoubleClick}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeDoubleClick}
 	default:
 		mh.clickCount = 0
-		return mouseEvent{Mouse: in, event: mouseEventTypeTripleClick}
+		return mouseEvent{Mouse: in, eventType: mouseEventTypeTripleClick}
 	}
 }
 

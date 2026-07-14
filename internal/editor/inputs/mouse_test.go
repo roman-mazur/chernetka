@@ -105,9 +105,14 @@ func TestReadMouse(t *testing.T) {
 			want:  Mouse{Button: MouseButtonMiddle, X: 10, Y: 20, Pressed: true, Mod: 8},
 		},
 		{
-			name:  "hover with everything",
+			name:  "hover with other modifiers",
 			input: "\x1b[<63;1000;2000m",
 			want:  Mouse{Button: MouseButtonNone, X: 1000, Y: 2000, Mod: 0xf},
+		},
+		{
+			name:  "scroll up",
+			input: "\x1b[<64;1000;2000m",
+			want:  Mouse{Button: MouseButtonLeft, X: 1000, Y: 2000, Mod: 0x10},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

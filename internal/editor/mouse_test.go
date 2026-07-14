@@ -31,6 +31,9 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 	hover := func() inputs.Mouse {
 		return inputs.Mouse{Button: inputs.MouseButtonNone, Mod: inputs.MouseModifier(8)}
 	}
+	scroll := func(direction inputs.ScrollDirection) inputs.Mouse {
+		return inputs.Mouse{Button: inputs.MouseButton(direction), Pressed: true, Mod: inputs.MouseModifier(16)}
+	}
 
 	left := inputs.MouseButtonLeft
 	right := inputs.MouseButtonRight
@@ -115,6 +118,16 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 				{in: release(left), want: mouseEventTypeRaw},
 			},
 		},
+		{
+			name: "scrolling",
+			steps: []step{
+				{in: scroll(inputs.ScrollDirectionUp), want: mouseEventTypeScroll},
+				{in: scroll(inputs.ScrollDirectionUp), want: mouseEventTypeScroll},
+				{in: scroll(inputs.ScrollDirectionDown), want: mouseEventTypeScroll},
+				{in: scroll(inputs.ScrollDirectionLeft), want: mouseEventTypeScroll},
+				{in: scroll(inputs.ScrollDirectionRight), want: mouseEventTypeScroll},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			now := time.Date(2022, 2, 24, 3, 55, 0, 0, time.UTC)
@@ -123,8 +136,8 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 			for i, s := range tc.steps {
 				now = now.Add(s.advance)
 				got := mh.transformInput(s.in)
-				if got.event != s.want {
-					t.Errorf("step %d: transformInput() = %v, want %v", i, got.event, s.want)
+				if got.eventType != s.want {
+					t.Errorf("step %d: transformInput() = %v, want %v", i, got.eventType, s.want)
 				}
 			}
 		})
