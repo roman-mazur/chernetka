@@ -185,15 +185,15 @@ func TestScroll(t *testing.T) {
 
 	prefs := RenderPrefs{TabSize: 4}
 
-	Scroll(inputs.ScrollDirectionUp).DoOnBuffer(buf, prefs)
+	Scroll(inputs.ScrollDirectionDown).DoOnBuffer(buf, prefs)
 	if buf.offset != 1 {
 		t.Errorf("scroll not applied, buf.offset=%d", buf.offset)
 	}
-	Scroll(inputs.ScrollDirectionUp).DoOnBuffer(buf, prefs)
+	Scroll(inputs.ScrollDirectionDown).DoOnBuffer(buf, prefs)
 	if buf.offset != 2 {
 		t.Errorf("second scroll not applied, buf.offset=%d", buf.offset)
 	}
-	Scroll(inputs.ScrollDirectionUp).DoOnBuffer(buf, prefs)
+	Scroll(inputs.ScrollDirectionDown).DoOnBuffer(buf, prefs)
 	if buf.offset != 2 {
 		t.Errorf("third scroll should be skipped, buf.offset=%d", buf.offset)
 	}

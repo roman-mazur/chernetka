@@ -282,6 +282,7 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 			for buf := range e.layout() {
 				buf.clampCursor(&e.rPrefs)
 				buf.Render(out, &e.rPrefs)
+				buf.noKeyboard = false
 			}
 			e.layoutRequested = false
 		}
@@ -435,6 +436,7 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 	if buf == nil {
 		return
 	}
+	buf.noKeyboard = true
 
 	switch event.eventType {
 	case mouseEventTypeScroll:

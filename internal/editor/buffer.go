@@ -21,9 +21,10 @@ type Buffer struct {
 	hideLineNumbers bool
 	noCurrentLineHL bool
 
-	mode    Mode
-	dirty   bool   // if buffer content is different from the source file
-	cmdline string // Text typed after ':' while in ModeCommand
+	mode       Mode
+	dirty      bool   // if buffer content is different from the source file
+	noKeyboard bool   // a flag that indicates that the last input was not from the keyboard
+	cmdline    string // Text typed after ':' while in ModeCommand
 
 	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
 	offset int // first visible row (scroll)
@@ -91,11 +92,13 @@ func (b *Buffer) clampCursor(_ *RenderPrefs) {
 	}
 
 	// Adjust scroll so cursor is visible.
-	if b.cy < b.offset {
-		b.offset = b.cy
-	}
-	if b.cy >= b.offset+b.viewHeight() {
-		b.offset = b.cy - b.viewHeight() + 1
+	if !b.noKeyboard {
+		if b.cy < b.offset {
+			b.offset = b.cy
+		}
+		if b.cy >= b.offset+b.viewHeight() {
+			b.offset = b.cy - b.viewHeight() + 1
+		}
 	}
 }
 

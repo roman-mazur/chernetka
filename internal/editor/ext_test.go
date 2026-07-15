@@ -137,7 +137,7 @@ func TestEditor_InputHandle(t *testing.T) {
 			}
 
 			editorText := make(chan string, 1)
-			h.Post(editor.CommandFunc(func(e *editor.Editor) {
+			h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
 				editorText <- e.Top().Text()
 			}))
 			if got := checkData(t, editorText); got != tc.wantText {

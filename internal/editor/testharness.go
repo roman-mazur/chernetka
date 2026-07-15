@@ -3,6 +3,7 @@ package editor
 import (
 	"io"
 	"testing"
+	"time"
 
 	"rmazur.io/chernetka/internal/logger"
 )
@@ -28,6 +29,7 @@ func NewTestHarness() *TestHarness {
 	return &TestHarness{Editor: edit, pipeReader: r, pipeWriter: w}
 }
 
+// Run initializes the test IO and launches the Editor UI loop in a new go routine, then exits.
 func (h *TestHarness) Run(t *testing.T) {
 	inOut := InOut{
 		Writer: io.Discard,
@@ -44,6 +46,24 @@ func (h *TestHarness) Run(t *testing.T) {
 		defer close(runFinished)
 		h.Editor.Run(&inOut, logger.Prefix(t.Logf, "editor: "))
 	}()
+}
+
+// Post sends a command to the Editor queue and blocks until it's executed.
+func (h *TestHarness) Post(t *testing.T, cmd Command) {
+	t.Helper()
+
+	done := make(chan struct{})
+	h.Editor.Post(CommandFunc(func(e *Editor) {
+		cmd.DoOnEditor(e)
+		close(done)
+	}))
+
+	select {
+	case <-done:
+		return
+	case <-time.After(time.Second):
+		t.Fatalf("Post timed out")
+	}
 }
 
 // Commands returns the channel onto which Post delivers commands. Receiving from
@@ -73,4 +93,7 @@ func (h *TestHarness) SendInput(t *testing.T, b []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Wait for commands to drain after this.
+	h.Post(t, CommandFunc(func(e *Editor) {}))
 }

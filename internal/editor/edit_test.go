@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -77,4 +78,40 @@ func assertBufferCount(t *testing.T, e *Editor, want int) {
 	if n != want {
 		t.Errorf("buffer count = %d, want %d", n, want)
 	}
+}
+
+func TestEditor_Run(t *testing.T) {
+	input, err := os.Open("edit.go")
+	if err != nil {
+		t.Fatalf("cannot open test input: %s", err)
+	}
+	t.Cleanup(func() { _ = input.Close() })
+
+	te := NewTestHarness()
+	if err := te.OpenReader("test.txt", input); err != nil {
+		t.Fatalf("OpenReader: %s", err)
+	}
+	te.Run(t)
+
+	t.Run("scrolling", func(t *testing.T) {
+		te.SendInput(t, []byte("\x1b[B")) // Cursor down.
+		var cursorY int
+		te.Post(t, CommandFunc(func(e *Editor) {
+			cursorY = e.Top().cy
+		}))
+		if cursorY != 1 {
+			t.Errorf("cursor y = %d, want 1 after cursor down", cursorY)
+		}
+
+		for range 5 {
+			te.SendInput(t, []byte("\x1b[<65;10;20M")) // Scroll down.
+		}
+		var offset int
+		te.Post(t, CommandFunc(func(e *Editor) {
+			offset = e.Top().offset
+		}))
+		if offset != 5 {
+			t.Errorf("offset = %d, some scroll down events seem to be ignored", offset)
+		}
+	})
 }

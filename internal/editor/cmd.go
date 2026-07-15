@@ -82,9 +82,9 @@ type Scroll inputs.ScrollDirection
 func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	switch inputs.ScrollDirection(s) {
 	case inputs.ScrollDirectionUp:
-		buf.offset++
-	case inputs.ScrollDirectionDown:
 		buf.offset--
+	case inputs.ScrollDirectionDown:
+		buf.offset++
 	}
 	buf.offset = max(0, min(buf.offset, buf.Content.Len()-buf.viewHeight()-1))
 }

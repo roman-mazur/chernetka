@@ -111,8 +111,8 @@ func TestReadMouse(t *testing.T) {
 		},
 		{
 			name:  "scroll up",
-			input: "\x1b[<64;1000;2000m",
-			want:  Mouse{Button: MouseButtonLeft, X: 1000, Y: 2000, Mod: 0x10},
+			input: "\x1b[<64;1000;2000M",
+			want:  Mouse{Button: MouseButtonLeft, X: 1000, Y: 2000, Pressed: true, Mod: 0x10},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
