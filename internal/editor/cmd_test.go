@@ -61,11 +61,11 @@ func TestRelMove_Dx(t *testing.T) {
 			for i, l := range tc.lines {
 				ft[i] = content.TextLine(l)
 			}
-			buf := &Buffer{Content: &ft, cy: tc.cy, cx: tc.cx}
+			buf := &Buffer{Content: &ft, c: position{tc.cx, tc.cy}}
 			RelMove{Dx: tc.d}.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
-			if buf.cx != tc.wantCx {
+			if buf.c.x != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d)",
-					buf.cx, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
+					buf.c.x, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
 			}
 		})
 	}
@@ -90,28 +90,28 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 		},
 		{
 			dy:     1,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 2},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: position{2, 0}},
 			cx:     2,
 			cy:     38,
 			offset: 38,
 		},
 		{
 			dy:     2,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 3, cy: 5},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: position{3, 5}},
 			cx:     3,
 			cy:     82,
 			offset: 77,
 		},
 		{
 			dy:     -1,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 1, cy: 60, offset: 40},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: position{1, 60}, offset: 40},
 			cx:     1,
 			cy:     22,
 			offset: 2,
 		},
 		{
 			dy:     -2,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, cx: 1, cy: 60, offset: 40},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: position{1, 60}, offset: 40},
 			cx:     1,
 			cy:     0,
 			offset: 0,
@@ -122,11 +122,11 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cmd := ScreenMove{ScreenD: tc.dy}
 			cmd.DoOnBuffer(&tc.buf, RenderPrefs{TabSize: 4})
-			if tc.buf.cx != tc.cx {
-				t.Errorf("buf.cx = %d, want %d", tc.buf.cx, tc.cx)
+			if tc.buf.c.x != tc.cx {
+				t.Errorf("buf.cx = %d, want %d", tc.buf.c.x, tc.cx)
 			}
-			if tc.buf.cy != tc.cy {
-				t.Errorf("buf.cy = %d, want %d", tc.buf.cy, tc.cy)
+			if tc.buf.c.y != tc.cy {
+				t.Errorf("buf.cy = %d, want %d", tc.buf.c.y, tc.cy)
 			}
 			if tc.buf.offset != tc.offset {
 				t.Errorf("buf.offset = %d, want %d", tc.buf.offset, tc.offset)

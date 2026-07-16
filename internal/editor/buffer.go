@@ -26,14 +26,24 @@ type Buffer struct {
 	noKeyboard bool   // a flag that indicates that the last input was not from the keyboard
 	cmdline    string // Text typed after ':' while in ModeCommand
 
-	cx, cy int // cursor position: cy is the line index, cx is the byte offset within that line
-	offset int // first visible row (scroll)
-	w, h   int // terminal window dimensions
+	c      position // cursor position
+	offset int      // first visible row (scroll)
+	w, h   int      // terminal window dimensions
+
+	sel []span // selected text
 
 	xData map[string]BufferExtData // data associated with the extensions
 
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
+}
+
+type span struct {
+	start, end position
+}
+
+type position struct {
+	x, y int // x is a symbol offset in the line, y is a line index in the content.
 }
 
 // NewScratchBuffer constructs a new Buffer with empty content.
@@ -55,7 +65,7 @@ func (b *Buffer) ExtensionData(id string) BufferExtData {
 // Pos provides a pair of coordinates pointing to the current cursor location.
 // cx is the symbol offset within the content line.
 // cy is the line index in the Content.
-func (b *Buffer) Pos() (cx, cy int) { return b.cx, b.cy }
+func (b *Buffer) Pos() (cx, cy int) { return b.c.x, b.c.y }
 
 // Close propagates the call to the Content and extension objects if they implement io.Closer.
 func (b *Buffer) Close() error {
@@ -74,30 +84,30 @@ func (b *Buffer) Close() error {
 func (b *Buffer) clampCursor(_ *RenderPrefs) {
 	lines := b.Content.Lines()
 
-	b.cy = max(0, min(b.cy, len(lines)-1))
+	b.c.y = max(0, min(b.c.y, len(lines)-1))
 
 	var line string
 	if len(lines) > 0 {
-		line = lines[b.cy].String()
+		line = lines[b.c.y].String()
 	}
 	maxX := len(line)
 	if b.mode == ModeNormal && maxX > 0 {
 		_, sz := utf8.DecodeLastRuneInString(line)
 		maxX -= sz // Normal mode: cursor sits on a character, not past the last one.
 	}
-	b.cx = max(0, min(b.cx, maxX))
+	b.c.x = max(0, min(b.c.x, maxX))
 	// Vertical movement may land cx mid-rune; snap back to the rune start.
-	for b.cx > 0 && b.cx < len(line) && !utf8.RuneStart(line[b.cx]) {
-		b.cx--
+	for b.c.x > 0 && b.c.x < len(line) && !utf8.RuneStart(line[b.c.x]) {
+		b.c.x--
 	}
 
 	// Adjust scroll so cursor is visible.
 	if !b.noKeyboard {
-		if b.cy < b.offset {
-			b.offset = b.cy
+		if b.c.y < b.offset {
+			b.offset = b.c.y
 		}
-		if b.cy >= b.offset+b.viewHeight() {
-			b.offset = b.cy - b.viewHeight() + 1
+		if b.c.y >= b.offset+b.viewHeight() {
+			b.offset = b.c.y - b.viewHeight() + 1
 		}
 	}
 }
@@ -151,9 +161,9 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 
 	var cursorLine string
 	if len(lines) > 0 {
-		cursorLine = lines[b.cy].String()
+		cursorLine = lines[b.c.y].String()
 	}
-	screenCol := runeToScreenCol(cursorLine, b.cx, prefs.TabSize)
+	screenCol := runeToScreenCol(cursorLine, b.c.x, prefs.TabSize)
 
 	// Status bar (reverse colors).
 	restoreColors := escape.ReverseVideo(out)
@@ -174,7 +184,7 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 		dirtyMark = " [*]"
 	}
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.Path, dirtyMark)
-	pos := fmt.Sprintf("%d:%d ", b.cy+1, screenCol+1)
+	pos := fmt.Sprintf("%d:%d ", b.c.y+1, screenCol+1)
 	padding := max(b.w-len(status)-len(pos), 0)
 	out.WriteString(status)
 	out.WriteString(strings.Repeat(" ", padding))
@@ -182,7 +192,7 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	restoreColors()
 
 	// Reposition and show cursor.
-	screenRow := b.cy - b.offset + 1
+	screenRow := b.c.y - b.offset + 1
 	var numDisplayWidth int
 	if !b.hideLineNumbers {
 		numDisplayWidth = nlDigitsLen(b.offset+printableCount) + 1
@@ -197,12 +207,12 @@ func (b *Buffer) AcceptSuggestion(sug string) {
 	if sug == "" || !b.canEdit() {
 		return
 	}
-	line := b.Content.Lines()[b.cy].String()
-	if b.cx > len(line) {
-		b.cx = len(line)
+	line := b.Content.Lines()[b.c.y].String()
+	if b.c.x > len(line) {
+		b.c.x = len(line)
 	}
-	b.Mutate().Update(b.cy, content.TextLine(line[:b.cx]+sug+line[b.cx:]))
-	b.cx += len(sug)
+	b.Mutate().Update(b.c.y, content.TextLine(line[:b.c.x]+sug+line[b.c.x:]))
+	b.c.x += len(sug)
 }
 
 func (b *Buffer) canEdit() bool {

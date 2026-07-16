@@ -28,21 +28,21 @@ func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 		r.moveDx(buf)
 	}
 	if r.Dy != 0 {
-		buf.cy += r.Dy
+		buf.c.y += r.Dy
 	}
 }
 
 func (r RelMove) moveDx(b *Buffer) {
-	line := b.Content.Lines()[b.cy].String()
+	line := b.Content.Lines()[b.c.y].String()
 	d := r.Dx
-	for d > 0 && b.cx < len(line) {
-		_, sz := utf8.DecodeRuneInString(line[b.cx:])
-		b.cx += sz
+	for d > 0 && b.c.x < len(line) {
+		_, sz := utf8.DecodeRuneInString(line[b.c.x:])
+		b.c.x += sz
 		d--
 	}
-	for d < 0 && b.cx > 0 {
-		_, sz := utf8.DecodeLastRuneInString(line[:b.cx])
-		b.cx -= sz
+	for d < 0 && b.c.x > 0 {
+		_, sz := utf8.DecodeLastRuneInString(line[:b.c.x])
+		b.c.x -= sz
 		d++
 	}
 }
@@ -73,7 +73,7 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	}
 
 	buf.offset = max(0, min(buf.offset+dy, contentLen-1))
-	buf.cy = max(0, min(buf.cy+dy, contentLen-1))
+	buf.c.y = max(0, min(buf.c.y+dy, contentLen-1))
 	clampBufferCx(buf)
 }
 
@@ -91,7 +91,7 @@ func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 
 func clampBufferCx(buf *Buffer) {
 	if buf.Content.Len() > 0 {
-		buf.cx = min(buf.cx, buf.Content.Lines()[buf.cy].Len()-1)
+		buf.c.x = min(buf.c.x, buf.Content.Lines()[buf.c.y].Len()-1)
 	}
 }
 
@@ -101,12 +101,12 @@ func (f BufferCommandFunc) DoOnBuffer(buf *Buffer, prefs RenderPrefs) { f(buf, p
 
 var (
 	// MoveHome moves the cursor to the beginning of the line.
-	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = 0 })
+	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.c.x = 0 })
 	// MoveEnd moves the cursor to the end of the line.
-	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.cx = b.Content.Lines()[b.cy].Len() })
+	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.c.x = b.Content.Lines()[b.c.y].Len() })
 	// MoveContentStart moves the cursor to the first line.
 	MoveContentStart = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
-		b.cy = 0
+		b.c.y = 0
 		b.offset = 0
 		clampBufferCx(b)
 	})
@@ -116,8 +116,8 @@ var (
 		if linesCnt == 0 {
 			return
 		}
-		b.cy = linesCnt - 1
-		b.offset = max(0, b.cy-b.viewHeight())
+		b.c.y = linesCnt - 1
+		b.offset = max(0, b.c.y-b.viewHeight())
 		clampBufferCx(b)
 	})
 )

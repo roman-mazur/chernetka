@@ -19,7 +19,7 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 	if buf.resetMutated() {
 		t.Error("unexpected mutation")
 	}
-	if buf.cx != 1 {
+	if buf.c.x != 1 {
 		t.Errorf("cx didn't change after arrow right")
 	}
 }

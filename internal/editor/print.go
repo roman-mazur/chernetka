@@ -65,13 +65,13 @@ func (cr *contentPrinter) render(out *bufio.Writer) {
 
 		if !cr.b.hideLineNumbers {
 			nlColor := colors.Suggestion
-			if ln == cr.b.cy {
+			if ln == cr.b.c.y {
 				nlColor = colors.Selected
 			}
 			escape.ColorText(out, cr.lineNumber(ln+1), nlColor, nil)
 		}
 
-		lineHL := ln == cr.b.cy && !cr.b.noCurrentLineHL
+		lineHL := ln == cr.b.c.y && !cr.b.noCurrentLineHL
 		cr.renderLine(out, ln, raw, lineHL)
 
 		if lineHL {
@@ -96,10 +96,10 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 		bgColor = colors.SelectedBg
 	}
 
-	if ln == cr.b.cy && cr.suggestion != "" && cr.b.cx <= len(line) {
-		_, _ = fmt.Fprint(out, cr.normalizeText(line[:cr.b.cx]))
+	if ln == cr.b.c.y && cr.suggestion != "" && cr.b.c.x <= len(line) {
+		_, _ = fmt.Fprint(out, cr.normalizeText(line[:cr.b.c.x]))
 		escape.ColorText(out, cr.suggestion, colors.Suggestion, bgColor)
-		_, _ = fmt.Fprint(out, cr.normalizeText(line[cr.b.cx:]))
+		_, _ = fmt.Fprint(out, cr.normalizeText(line[cr.b.c.x:]))
 		// TODO: use syntax HL
 		return
 	}

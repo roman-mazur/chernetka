@@ -81,8 +81,7 @@ func TestBuffer_Render(t *testing.T) {
 					content.TextLine("third"),
 				},
 				mode: ModeNormal,
-				cy:   1,
-				cx:   3,
+				c:    position{3, 1},
 				w:    40,
 				h:    5,
 			},
@@ -107,7 +106,7 @@ func TestBuffer_Render(t *testing.T) {
 				Path:    "test.go",
 				Content: &content.FullText{content.TextLine("Pri")},
 				mode:    ModeInsert,
-				cx:      3,
+				c:       position{3, 0},
 				w:       40,
 				h:       3,
 			},
@@ -202,15 +201,15 @@ func (tse testSuggestionExt) TextSuggestion() string {
 func TestBuffer_AcceptSuggestion(t *testing.T) {
 	buf := &Buffer{
 		Content: &content.FullText{content.TextLine("Pri")},
-		cx:      3,
+		c:       position{3, 0},
 	}
 
 	buf.AcceptSuggestion("ntln")
 	if got := buf.Content.Lines()[0].String(); got != "Println" {
 		t.Errorf("line = %q, want %q", got, "Println")
 	}
-	if buf.cx != 7 {
-		t.Errorf("cx = %d, want 7", buf.cx)
+	if buf.c.x != 7 {
+		t.Errorf("cx = %d, want 7", buf.c.x)
 	}
 }
 

@@ -450,8 +450,8 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
 			return
 		}
-		buf.cx = data.X - 1
-		buf.cy = buf.offset + data.Y - 1
+		buf.c.x = data.X - 1
+		buf.c.y = buf.offset + data.Y - 1
 		e.layoutRequested = true
 		return
 	}
