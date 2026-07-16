@@ -25,18 +25,18 @@ func TestIntegration_AfterEdit(t *testing.T) {
 
 func TestIntegration(t *testing.T) {
 	example := testExamples{
-		{line: "// Command comment.", tokens: []string{"0:19:TtComment"}},
-		{line: "package main", tokens: []string{"0:7:TtKeyword", "8:12:TtIdentifier"}},
-		{line: "import \"fmt\"", tokens: []string{"0:6:TtKeyword", "7:12:TtStringLiteral"}},
-		{line: "import \"time\"", tokens: []string{"0:6:TtKeyword", "7:13:TtStringLiteral"}},
-		{line: "func main() {", tokens: []string{"0:4:TtKeyword", "5:9:TtIdentifier"}},
-		{line: "\tfmt.Println(\"Hello World\")", tokens: []string{"1:4:TtIdentifier", "5:12:TtIdentifier", "13:26:TtStringLiteral"}},
-		{line: "\tif time.Now().Day() == time.Sunday {", tokens: []string{"1:3:TtKeyword", "4:8:TtIdentifier", "9:12:TtIdentifier", "15:18:TtIdentifier", "24:28:TtIdentifier", "29:35:TtIdentifier"}},
-		{line: "\t\tfmt.Println(\"It's Sunday!\")", tokens: []string{"2:5:TtIdentifier", "6:13:TtIdentifier", "14:28:TtStringLiteral"}},
-		{line: "\t} else {", tokens: []string{"3:7:TtKeyword"}},
-		{line: "\t\tfmt.Println(\"It's not Sunday!\")", tokens: []string{"2:5:TtIdentifier", "6:13:TtIdentifier", "14:32:TtStringLiteral"}},
-		{line: "\t}", tokens: []string{"0:2:TtNothing"}},
-		{line: "}", tokens: []string{"0:1:TtNothing"}},
+		{line: "// Command comment.", tokens: []string{"0:19:Comment"}},
+		{line: "package main", tokens: []string{"0:7:Keyword", "8:12:Identifier"}},
+		{line: "import \"fmt\"", tokens: []string{"0:6:Keyword", "7:12:StringLiteral"}},
+		{line: "import \"time\"", tokens: []string{"0:6:Keyword", "7:13:StringLiteral"}},
+		{line: "func main() {", tokens: []string{"0:4:Keyword", "5:9:Identifier"}},
+		{line: "\tfmt.Println(\"Hello World\")", tokens: []string{"1:4:Identifier", "5:12:Identifier", "13:26:StringLiteral"}},
+		{line: "\tif time.Now().Day() == time.Sunday {", tokens: []string{"1:3:Keyword", "4:8:Identifier", "9:12:Identifier", "15:18:Identifier", "24:28:Identifier", "29:35:Identifier"}},
+		{line: "\t\tfmt.Println(\"It's Sunday!\")", tokens: []string{"2:5:Identifier", "6:13:Identifier", "14:28:StringLiteral"}},
+		{line: "\t} else {", tokens: []string{"3:7:Keyword"}},
+		{line: "\t\tfmt.Println(\"It's not Sunday!\")", tokens: []string{"2:5:Identifier", "6:13:Identifier", "14:32:StringLiteral"}},
+		{line: "\t}", tokens: []string{"0:2:Nothing"}},
+		{line: "}", tokens: []string{"0:1:Nothing"}},
 	}
 
 	lines := example.lines()
@@ -86,7 +86,7 @@ func TestIntegration(t *testing.T) {
 		insertEmptyLine(&buf, syntaxHighlighter)
 
 		exampleV2 := example.copy()
-		exampleV2 = slices.Insert(exampleV2, len(example)/2, testCase{tokens: []string{"0:0:TtNothing"}})
+		exampleV2 = slices.Insert(exampleV2, len(example)/2, testCase{tokens: []string{"0:0:Nothing"}})
 		exampleV2.match(t, buf.ExtensionData(syntaxHighlighter.ID()).(*syntaxTree))
 	})
 

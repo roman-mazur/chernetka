@@ -37,7 +37,7 @@ func (ss SyntaxSpan) String() string {
 // TokenType represents a syntax token recognized by SyntaxHighlighter.
 type TokenType int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=TokenType
+//go:generate go run golang.org/x/tools/cmd/stringer -type=TokenType -trimprefix=Tt
 
 const (
 	TtNothing TokenType = iota
