@@ -60,7 +60,7 @@ type Editor struct {
 
 	top *bufEntry // stack of open buffers
 
-	layoutRequested bool
+	renderRequested bool
 	cmdChannel      chan Command
 	quitRequested   bool
 
@@ -125,7 +125,7 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 			folder.SyncState(buf.Content.(*content.FsContent))
 			e.Post(CommandFunc(func(e *Editor) {
 				buf.Content = folder
-				e.layoutRequested = true
+				e.renderRequested = true
 			}))
 		}
 	}()
@@ -266,7 +266,7 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 	var lastRenderTime time.Time
 	const renderDelay = 10 * time.Millisecond
 
-	e.layoutRequested = true
+	e.renderRequested = true
 	for {
 		// Close the current buffer if necessary.
 		if e.quitRequested {
@@ -274,17 +274,17 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 				break // All done.
 			}
 			e.quitRequested = false
-			e.layoutRequested = true
+			e.renderRequested = true
 		}
 
 		// Render.
-		if e.layoutRequested {
+		if e.renderRequested {
 			for buf := range e.layout() {
-				buf.clampCursor(&e.rPrefs)
+				buf.clampCursor()
 				buf.Render(out, &e.rPrefs)
 				buf.noKeyboard = false
 			}
-			e.layoutRequested = false
+			e.renderRequested = false
 		}
 		lastRenderTime = time.Now()
 
@@ -403,7 +403,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 			if quit {
 				commandQuit(e)
 			} else {
-				e.layoutRequested = true
+				e.renderRequested = true
 			}
 			bPool.Put(input)
 		})
@@ -443,7 +443,7 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		dir := event.Mod.SrollDirection(event.Mouse)
 		Scroll(dir).DoOnBuffer(buf, e.rPrefs)
 		logf("offset: %d, dir: %d", buf.offset, dir)
-		e.layoutRequested = true
+		e.renderRequested = true
 		return
 
 	case mouseEventTypeRaw:
@@ -452,7 +452,7 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		}
 		buf.c.x = data.X - 1
 		buf.c.y = buf.offset + data.Y - 1
-		e.layoutRequested = true
+		e.renderRequested = true
 		return
 	}
 
@@ -509,7 +509,7 @@ func (e *Editor) handleAfterEdit(buf *Buffer) {
 }
 
 func (e *Editor) RequestLayout() {
-	e.layoutRequested = true
+	e.renderRequested = true
 }
 
 // layout selects the next buffer to render configuring its dimensions.

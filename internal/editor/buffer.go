@@ -81,7 +81,7 @@ func (b *Buffer) Close() error {
 	return errors.Join(allErrors...)
 }
 
-func (b *Buffer) clampCursor(_ *RenderPrefs) {
+func (b *Buffer) clampCursor() {
 	lines := b.Content.Lines()
 
 	b.c.y = max(0, min(b.c.y, len(lines)-1))
