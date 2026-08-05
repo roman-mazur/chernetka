@@ -1,25 +1,49 @@
-# This workflow lets you compile your Go project using a SLSA3 compliant builder.
-# This workflow will generate a so-called "provenance" file describing the steps
-# that were performed to generate the final binary.
-# The project is an initiative of the OpenSSF (openssf.org) and is developed at
-# https://github.com/slsa-framework/slsa-github-generator.
-# The provenance file can be verified using https://github.com/slsa-framework/slsa-verifier.
-# For more information about SLSA and how it improves the supply-chain, visit slsa.dev.
-
-name: SLSA Go releaser
+name: Release Binaries
 on:
   workflow_dispatch:
   release:
     types: [created]
 
-permissions: read-all
-
 jobs:
-  build:
+  build-and-upload:
+    runs-on: ubuntu-latest
     permissions:
-      id-token: write # To sign.
-      contents: write # To upload release assets.
-      actions: read   # To read workflow path.
-    uses: slsa-framework/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v2.1.0
-    with:
-      go-version: 1.26
+      id-token: write
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.26
+
+      - name: Print go env
+        run: |
+          go version
+          go env
+
+      - name: Download modules
+        run: |
+          go mod download
+
+      - name: Build
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 1
+        run: |
+          mkdir -p ./out
+          go build -trimpath -tags=netgo -o ./out/che-linux-amd64 ./cmd/che
+
+      - name: Upload release asset
+          uses: actions/upload-release-asset@v1
+          with:
+            upload_url: ${{ github.event.release.upload_url }}
+            asset_path: ./out/chernetka-linux-amd64
+            asset_name: chernetka-linux-amd64
+            asset_content_type: application/octet-stream
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
