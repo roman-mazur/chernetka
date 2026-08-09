@@ -147,9 +147,7 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	defer showCursor()
 	escape.MoveTopLeft(out)
 
-	lines := b.Content.Lines()
-
-	printableCount := min(b.viewHeight(), len(lines)-b.offset)
+	printableCount := b.printableLinesCount()
 	var cr contentPrinter
 	cr.prepare(b, b.offset, b.offset+printableCount, prefs)
 	cr.render(out)
@@ -159,11 +157,11 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 		out.WriteString("\r\n")
 	}
 
+	lines := b.Content.Lines()
 	var cursorLine string
 	if len(lines) > 0 {
 		cursorLine = lines[b.c.y].String()
 	}
-	screenCol := runeToScreenCol(cursorLine, b.c.x, prefs.TabSize)
 
 	// Status bar (reverse colors).
 	restoreColors := escape.ReverseVideo(out)
@@ -184,7 +182,7 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 		dirtyMark = " [*]"
 	}
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.Path, dirtyMark)
-	pos := fmt.Sprintf("%d:%d ", b.c.y+1, screenCol+1)
+	pos := fmt.Sprintf("%d:%d ", b.c.y+1, b.c.x+1)
 	padding := max(b.w-len(status)-len(pos), 0)
 	out.WriteString(status)
 	out.WriteString(strings.Repeat(" ", padding))
@@ -192,12 +190,24 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	restoreColors()
 
 	// Reposition and show cursor.
+	screenCol := runeToScreenCol(cursorLine, b.c.x, prefs.TabSize)
 	screenRow := b.c.y - b.offset + 1
-	var numDisplayWidth int
-	if !b.hideLineNumbers {
-		numDisplayWidth = nlDigitsLen(b.offset+printableCount) + 1
-	}
+	numDisplayWidth := b.lineNumberPrefixWidth(printableCount)
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
+}
+
+// printableLinesCount calculates how many lines of content can be visualized given current offset
+func (b *Buffer) printableLinesCount() int {
+	return min(b.viewHeight(), len(b.Content.Lines())-b.offset)
+}
+
+// lineNumberPrefixWidth returns the length of line numbers presented on the left.
+// Use with printableLinesCount.
+func (b *Buffer) lineNumberPrefixWidth(linesToPrint int) int {
+	if b.hideLineNumbers {
+		return 0
+	}
+	return nlDigitsLen(b.offset+linesToPrint) + 1
 }
 
 // AcceptSuggestion inserts the active inline suggestion at the cursor and

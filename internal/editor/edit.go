@@ -455,7 +455,7 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
 			return
 		}
-		buf.c.x = data.X - 1
+		buf.c.x = data.X - 1 - buf.lineNumberPrefixWidth(buf.printableLinesCount())
 		buf.c.y = buf.offset + data.Y - 1
 		e.renderRequested = true
 		return
