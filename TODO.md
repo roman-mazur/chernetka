@@ -7,4 +7,4 @@
 - SQL, CUE, JSON syntax highlight
 - Windows and Linux support for spawning the main editor in a new pane
 
-- Fix ESC not working to exit insert mode
+- Address race issues in the Editor/Run test

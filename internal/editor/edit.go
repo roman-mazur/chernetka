@@ -369,19 +369,11 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 }
 
 func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf logger.Func) {
-	bPool := sync.Pool{New: func() any { return make([]byte, 64) }}
-	var inBuf [64]byte
-	for ctx.Err() == nil {
-		// Check for mouse input.
-		handled, err := e.readAndHandleMouse(in, logf)
-		if handled {
-			continue
-		}
-		if err != nil {
-			e.cmdChannel <- commandQuit
-			break
-		}
+	const bufSize = 64
+	bPool := sync.Pool{New: func() any { return make([]byte, bufSize) }}
+	var inBuf [bufSize]byte
 
+	for ctx.Err() == nil {
 		// Get input.
 		n, err := in.Read(inBuf[:])
 		if err != nil {
@@ -391,28 +383,41 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		if n == 0 {
 			continue
 		}
-
-		input := bPool.Get().([]byte)
-		copy(input, inBuf[:n])
+		buf := bPool.Get().([]byte)
+		copy(buf, inBuf[:n])
+		input := buf[:n]
 		if debugInput {
-			logf("input: %v", input[:n])
+			logf("input: %v", input)
 		}
+
+		// Check for mouse input.
+		_, k, err := e.readAndHandleMouse(input, logf)
+		if err != nil {
+			e.cmdChannel <- commandQuit
+			break
+		}
+		input = input[k:]
+		if len(input) == 0 {
+			bPool.Put(buf)
+			continue
+		}
+
 		// Handle input.
 		e.cmdChannel <- CommandFunc(func(e *Editor) {
-			quit := e.handleInput(input[:n])
+			quit := e.handleInput(input)
 			if quit {
 				commandQuit(e)
 			} else {
 				e.renderRequested = true
 			}
-			bPool.Put(input)
+			bPool.Put(buf)
 		})
 	}
 }
 
-func (e *Editor) readAndHandleMouse(in *bufio.Reader, logf logger.Func) (handled bool, err error) {
+func (e *Editor) readAndHandleMouse(input []byte, logf logger.Func) (handled bool, n int, err error) {
 	var data inputs.Mouse
-	data, err = inputs.ReadMouse(in)
+	data, n, err = inputs.ReadMouse(input)
 
 	if err != nil {
 		if errors.Is(err, inputs.ErrorNotMouse) {

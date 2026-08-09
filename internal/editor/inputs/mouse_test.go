@@ -1,8 +1,6 @@
 package inputs
 
 import (
-	"bufio"
-	"io"
 	"strings"
 	"testing"
 )
@@ -116,9 +114,7 @@ func TestReadMouse(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			reader := bufio.NewReader(strings.NewReader(tc.input))
-
-			data, err := ReadMouse(reader)
+			data, n, err := ReadMouse([]byte(tc.input))
 			if (err != nil) != (tc.wantErr != "") {
 				t.Fatalf("ReadMouse() error = %q, wantErr %q", err, tc.wantErr)
 			}
@@ -129,9 +125,9 @@ func TestReadMouse(t *testing.T) {
 				t.Errorf("ReadMouse() = %v, want %v", data, tc.want)
 			}
 
-			remainingData, _ := io.ReadAll(reader)
-			if string(remainingData) != tc.restTxt {
-				t.Errorf("remaining text = %q, want %q", string(remainingData), tc.restTxt)
+			remainingData := tc.input[n:]
+			if remainingData != tc.restTxt {
+				t.Errorf("remaining text = %q, want %q", remainingData, tc.restTxt)
 			}
 		})
 	}

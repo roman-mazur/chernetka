@@ -2,6 +2,7 @@ package inputs
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"strconv"
 
@@ -88,36 +89,22 @@ const (
 
 var ErrorNotMouse = errors.New("not a mouse input")
 
-func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
-	var prefix []byte
-	prefix, err = in.Peek(1)
-	if err != nil {
-		return
-	}
-	if !IsEscape(prefix) {
+func ReadMouse(inData []byte) (data Mouse, n int, err error) {
+	if !IsMouseInput(inData) {
 		err = ErrorNotMouse
 		return
 	}
-
-	prefix, err = in.Peek(3)
-	if err != nil {
-		return
-	}
-	if !IsMouseInput(prefix[:]) {
-		err = ErrorNotMouse
-		return
-	}
-	err = discard(in, 3)
-	if err != nil {
-		return
-	}
+	n = 3
+	in := bufio.NewReader(bytes.NewReader(inData[n:]))
 
 	var (
 		B   int
 		sep byte
+		k   int
 	)
 
-	B, sep, err = mouseParseNextInt(in)
+	B, sep, k, err = mouseParseNextInt(in)
+	n += k
 	if err != nil {
 		return
 	}
@@ -128,7 +115,8 @@ func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
 	data.Button = MouseButton(B & 3)
 	data.Mod = MouseModifier((B >> 2) & 0xff)
 
-	data.X, sep, err = mouseParseNextInt(in)
+	data.X, sep, k, err = mouseParseNextInt(in)
+	n += k
 	if err != nil {
 		return
 	}
@@ -137,7 +125,8 @@ func ReadMouse(in *bufio.Reader) (data Mouse, err error) {
 		return
 	}
 
-	data.Y, sep, err = mouseParseNextInt(in)
+	data.Y, sep, k, err = mouseParseNextInt(in)
+	n += k
 	if err != nil {
 		return
 	}
@@ -162,16 +151,16 @@ func discard(in *bufio.Reader, x int) (err error) {
 	return
 }
 
-func mouseParseNextInt(in *bufio.Reader) (int, byte, error) {
+func mouseParseNextInt(in *bufio.Reader) (int, byte, int, error) {
 	var digits []byte
 	for {
 		b, err := in.ReadByte()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		if b < '0' || b > '9' {
 			n, err := strconv.Atoi(string(digits))
-			return n, b, err
+			return n, b, len(digits) + 1, err
 		}
 		digits = append(digits, b)
 	}
