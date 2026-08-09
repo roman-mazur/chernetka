@@ -1,3 +1,5 @@
+- Text selection and operations on it
+
 - Markdown syntax highlight
 - Commit description syntax highlight
 - Better logic for triggering LSP calls
