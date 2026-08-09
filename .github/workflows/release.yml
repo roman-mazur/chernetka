@@ -42,8 +42,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./out/chernetka-linux-amd64
-          asset_name: chernetka-linux-amd64
+          asset_path: ./out/che-linux-amd64
+          asset_name: che-linux-amd64
           asset_content_type: application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
