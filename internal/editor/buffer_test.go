@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -174,8 +173,7 @@ func TestBuffer_Render(t *testing.T) {
 			tc.buf.xData["lsp"] = testSuggestionExt(tc.suggestions)
 
 			var out bytes.Buffer
-			bw := bufio.NewWriter(&out)
-			tc.buf.Render(bw, &tc.prefs)
+			tc.buf.Render(&out, &tc.prefs)
 			got := ansiRE.ReplaceAllString(out.String(), "")
 
 			for _, want := range tc.contains {
@@ -248,7 +246,7 @@ func TestBuffer_Render(t *testing.T) {
 				buf.noCurrentLineHL = !tc.enableCurrentHighlight
 
 				var out bytes.Buffer
-				buf.Render(bufio.NewWriter(&out), &RenderPrefs{TabSize: 2})
+				buf.Render(&out, &RenderPrefs{TabSize: 2})
 				sOut := out.String()
 				t.Log("output:\n" + sOut)
 

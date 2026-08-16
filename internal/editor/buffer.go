@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -151,30 +150,17 @@ func (b *Buffer) viewHeight() int { return b.h - 1 }
 
 // Render visualizes the buffer UI content writing to the provided output.
 // This includes presenting the visible part of the content, the status line and the command line at the bottom.
-func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
-	defer out.Flush()
-
-	resetSyncOutput := escape.SyncOutput(out)
-	defer resetSyncOutput()
-
-	showCursor := escape.HideCursor(out, b.mode != ModeNormal)
-	defer showCursor()
-	escape.MoveTopLeft(out)
-
+func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
+	// Main content first.
 	printableCount := b.printableLinesCount()
 	var cr contentPrinter
 	cr.prepare(b, b.offset, b.offset+printableCount, prefs)
 	cr.render(out)
 
+	// Empty space.
 	for row := printableCount; row < b.viewHeight(); row++ {
 		escape.ClearLine(out)
-		out.WriteString("\r\n")
-	}
-
-	lines := b.Content.Lines()
-	var cursorLine string
-	if len(lines) > 0 {
-		cursorLine = lines[b.c.y].String()
+		printLineEnding(out)
 	}
 
 	// Status bar (reverse colors).
@@ -184,9 +170,8 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	if b.mode == ModeCommand {
 		// In command mode, the status bar becomes the command line.
 		escape.ClearLine(out)
-		out.WriteString(":")
-		out.WriteString(b.cmdline)
-		escape.SetCursorPosition(out, b.h, len(b.cmdline)+2)
+		_, _ = io.WriteString(out, ":")
+		_, _ = io.WriteString(out, b.cmdline)
 		return
 	}
 
@@ -198,15 +183,29 @@ func (b *Buffer) Render(out *bufio.Writer, prefs *RenderPrefs) {
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.Path, dirtyMark)
 	pos := fmt.Sprintf("%d:%d ", b.c.y+1, b.c.x+1)
 	padding := max(b.w-len(status)-len(pos), 0)
-	out.WriteString(status)
-	out.WriteString(strings.Repeat(" ", padding))
-	out.WriteString(pos)
+	_, _ = io.WriteString(out, status)
+	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
+	_, _ = io.WriteString(out, pos)
 	restoreColors()
+}
 
-	// Reposition and show cursor.
+// RenderCursorPosition asks the Buffer to instruct the terminal to position the cursor
+// to allow input for this buffer. Usually called on the top buffer of the Editor.
+func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
+	if b.mode == ModeCommand {
+		escape.SetCursorPosition(out, b.h, len(b.cmdline)+2)
+		return
+	}
+
+	lines := b.Content.Lines()
+	var cursorLine string
+	if len(lines) > 0 {
+		cursorLine = lines[b.c.y].String()
+	}
+
 	screenCol := runeToScreenCol(cursorLine, b.c.x, prefs.TabSize)
 	screenRow := b.c.y - b.offset + 1
-	numDisplayWidth := b.lineNumberPrefixWidth(printableCount)
+	numDisplayWidth := b.lineNumberPrefixWidth()
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 }
 
@@ -216,12 +215,11 @@ func (b *Buffer) printableLinesCount() int {
 }
 
 // lineNumberPrefixWidth returns the length of line numbers presented on the left.
-// Use with printableLinesCount.
-func (b *Buffer) lineNumberPrefixWidth(linesToPrint int) int {
+func (b *Buffer) lineNumberPrefixWidth() int {
 	if b.hideLineNumbers {
 		return 0
 	}
-	return nlDigitsLen(b.offset+linesToPrint) + 1
+	return nlDigitsLen(b.offset+b.printableLinesCount()) + 1
 }
 
 // AcceptSuggestion inserts the active inline suggestion at the cursor and

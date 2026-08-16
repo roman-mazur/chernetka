@@ -279,11 +279,7 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 
 		// Render.
 		if e.renderRequested {
-			for buf := range e.layout() {
-				buf.clampCursor()
-				buf.Render(out, &e.rPrefs)
-				buf.noKeyboard = false
-			}
+			e.render(out)
 			e.renderRequested = false
 		}
 		lastRenderTime = time.Now()
@@ -302,6 +298,28 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 			}
 		}
 	}
+}
+
+func (e *Editor) render(out *bufio.Writer) {
+	topBuf := e.Top()
+	if topBuf == nil {
+		return
+	}
+	defer out.Flush()
+
+	resetSyncOutput := escape.SyncOutput(out)
+	defer resetSyncOutput()
+
+	showCursor := escape.HideCursor(out, topBuf.mode != ModeNormal)
+	defer showCursor()
+
+	for buf := range e.layout() {
+		buf.clampCursor()
+		escape.MoveTopLeft(out) // TODO: this works with one active buffer on top.
+		buf.Render(out, &e.rPrefs)
+		buf.noKeyboard = false
+	}
+	topBuf.RenderCursorPosition(out, &e.rPrefs)
 }
 
 func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
@@ -455,7 +473,7 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
 			return
 		}
-		buf.c.x = data.X - 1 - buf.lineNumberPrefixWidth(buf.printableLinesCount())
+		buf.c.x = data.X - 1 - buf.lineNumberPrefixWidth()
 		buf.c.y = buf.offset + data.Y - 1
 		e.renderRequested = true
 		return

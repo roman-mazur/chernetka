@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"bufio"
 	"fmt"
 	"image/color"
 	"io"
@@ -58,7 +57,7 @@ func (cr *contentPrinter) lineNumber(n int) string {
 	return string(cr.lnBuf[:cr.lnDigits+1])
 }
 
-func (cr *contentPrinter) render(out *bufio.Writer) {
+func (cr *contentPrinter) render(out io.Writer) {
 	for ln := cr.i; ln < cr.j; ln++ {
 		raw := cr.lines[ln].String()
 		escape.ClearLine(out)
@@ -81,7 +80,7 @@ func (cr *contentPrinter) render(out *bufio.Writer) {
 			}
 		}
 
-		out.WriteString("\r\n")
+		printLineEnding(out)
 	}
 
 }
@@ -191,4 +190,8 @@ func hex2i(s string) uint8 {
 		panic(err)
 	}
 	return uint8(res)
+}
+
+func printLineEnding(out io.Writer) {
+	_, _ = io.WriteString(out, "\r\n")
 }
