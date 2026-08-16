@@ -6,6 +6,7 @@ tool golang.org/x/tools/cmd/stringer
 
 require (
 	github.com/go-errors/errors v1.5.1
+	github.com/google/go-cmp v0.7.0
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-go v0.25.0
 	go.lsp.dev/jsonrpc2 v0.10.0

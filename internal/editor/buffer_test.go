@@ -3,6 +3,7 @@ package editor
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -10,7 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/escape"
 )
 
 var thousandLines = slices.Repeat(content.FullText{content.TextLine("test")}, 1000)
@@ -187,7 +190,87 @@ func TestBuffer_Render(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("selections", func(t *testing.T) {
+		for n, tc := range []struct {
+			name       string
+			content    string
+			selections []span
+			render     []escape.Span
+
+			enableCurrentHighlight bool
+		}{
+			{
+				name:    "one line",
+				content: "line 1",
+				selections: []span{
+					{position{1, 0}, position{3, 0}},
+				},
+			},
+			{
+				name:    "one line with hl",
+				content: "line 1",
+				selections: []span{
+					{position{1, 0}, position{3, 0}},
+				},
+				render: []escape.Span{
+					{escape.Position{Line: 0, Offset: 0}, escape.Position{Line: 0, Offset: 6}},
+					{escape.Position{Line: 0, Offset: 9}, escape.Position{Line: 0, Offset: 11}},
+					{escape.Position{Line: 0, Offset: 14}, escape.Position{Line: 0, Offset: 48}},
+				},
+				enableCurrentHighlight: true,
+			},
+			{
+				name:    "multiple lines",
+				content: "line 1\nline 2\nline 3",
+				selections: []span{
+					{position{1, 0}, position{3, 2}},
+				},
+				render: []escape.Span{
+					{escape.Position{Line: 0, Offset: 1}, escape.Position{Line: 0, Offset: 6}},
+					{escape.Position{Line: 1, Offset: 0}, escape.Position{Line: 1, Offset: 6}},
+					{escape.Position{Line: 2, Offset: 0}, escape.Position{Line: 2, Offset: 4}},
+				},
+			},
+		} {
+			t.Run(fmt.Sprintf("%d/%s", n, tc.name), func(t *testing.T) {
+				var buf Buffer
+				testContent, err := content.LoadFullText(strings.NewReader(tc.content))
+				if err != nil {
+					t.Fatal(err)
+				}
+				buf.Content = &testContent
+
+				buf.sel = tc.selections
+				buf.w = 40                    // not too long for the test output
+				buf.h = testContent.Len() + 1 // print all test input
+				buf.hideLineNumbers = true
+				buf.noCurrentLineHL = !tc.enableCurrentHighlight
+
+				var out bytes.Buffer
+				buf.Render(bufio.NewWriter(&out), &RenderPrefs{TabSize: 2})
+				sOut := out.String()
+				t.Log("output:\n" + sOut)
+
+				actuals := escape.ScanPositions(sOut, "48;2;", "0")
+				expected := tc.render
+				if expected == nil {
+					expected = make([]escape.Span, len(tc.selections))
+					for i := range expected {
+						expected[i] = makeSpan(tc.selections[i])
+					}
+				}
+
+				if diff := cmp.Diff(expected, actuals); diff != "" {
+					t.Errorf("rendering mismatch (-want +got):\n%s", diff)
+				}
+			})
+		}
+	})
 }
+
+func makePos(p position) escape.Position { return escape.Position{Line: p.y, Offset: p.x} }
+func makeSpan(s span) escape.Span        { return escape.Span{makePos(s.start), makePos(s.end)} }
 
 type testSuggestionExt []string
 

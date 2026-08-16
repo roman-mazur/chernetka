@@ -42,6 +42,20 @@ type span struct {
 	start, end position
 }
 
+func (s *span) min() position {
+	if s.start.y <= s.end.y {
+		return position{min(s.start.x, s.end.x), s.start.y}
+	}
+	return s.end
+}
+
+func (s *span) max() position {
+	if s.end.y >= s.start.y {
+		return position{max(s.start.x, s.end.x), s.end.y}
+	}
+	return s.start
+}
+
 type position struct {
 	x, y int // x is a symbol offset in the line, y is a line index in the content.
 }

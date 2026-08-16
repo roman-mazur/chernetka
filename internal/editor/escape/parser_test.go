@@ -57,6 +57,14 @@ func TestScanPositions(t *testing.T) {
 			start: "123", end: "0",
 			expected: nil,
 		},
+		{
+			name:  "span over lines",
+			input: "line \x1b[123m1\nline 2\nline\x1b[0m 3",
+			start: "123", end: "0",
+			expected: []Span{
+				{Start: Position{0, 5}, End: Position{2, 4}},
+			},
+		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			res := ScanPositions(testCase.input, testCase.start, testCase.end)
