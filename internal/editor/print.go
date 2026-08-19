@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -65,7 +66,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 		if !cr.b.hideLineNumbers {
 			nlColor := colors.Suggestion
 			if ln == cr.b.c.y {
-				nlColor = colors.Selected
+				nlColor = colors.LineSelected
 			}
 			escape.ColorText(out, cr.lineNumber(ln+1), nlColor, nil)
 		}
@@ -76,7 +77,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 		if lineHL {
 			rightPad := cr.b.w - runeToScreenCol(raw, len(raw), len(cr.tab))
 			if rightPad > 0 {
-				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, colors.SelectedBg)
+				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, colors.LineSelectedBg)
 			}
 		}
 
@@ -85,43 +86,153 @@ func (cr *contentPrinter) render(out io.Writer) {
 
 }
 
-func (cr *contentPrinter) normalizeText(s string) string {
-	return strings.ReplaceAll(s, "\t", cr.tab)
-}
-
 func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine bool) {
-	var bgColor color.Color
-	if hlLine {
-		bgColor = colors.SelectedBg
+	p := colorLinePrinter{
+		out:  out,
+		tab:  cr.tab,
+		line: line,
+		ln:   ln,
+		bg:   cr.buildBgSpans(ln, len(line), hlLine),
 	}
 
 	if ln == cr.b.c.y && cr.suggestion != "" && cr.b.c.x <= len(line) {
-		_, _ = fmt.Fprint(out, cr.normalizeText(line[:cr.b.c.x]))
-		escape.ColorText(out, cr.suggestion, colors.Suggestion, bgColor)
-		_, _ = fmt.Fprint(out, cr.normalizeText(line[cr.b.c.x:]))
+		p.print(line[:cr.b.c.x], nil)
+		p.printSuggestion(cr.suggestion, colors.Suggestion)
+		p.print(line[cr.b.c.x:], nil)
 		// TODO: use syntax HL
 		return
 	}
+
 	if cr.SyntaxHighlighter == nil {
-		escape.ColorText(out, cr.normalizeText(line), nil, bgColor)
+		p.print(line, nil)
 		return
 	}
 
 	lastIndex := 0
 	for _, span := range cr.SyntaxSpans(ln, line) {
 		if span.Start > lastIndex {
-			escape.ColorText(out, cr.normalizeText(line[lastIndex:span.Start]), nil, bgColor)
+			p.print(line[lastIndex:span.Start], nil)
 		}
 		if span.End > len(line) {
 			panic(fmt.Errorf("line %d %q, span %s out of range", ln, line, span))
 		}
-		text := cr.normalizeText(line[span.Start:span.End])
-		escape.ColorText(out, text, colors.ColorForTokenType(span.TokenType), bgColor)
+		p.print(line[span.Start:span.End], colors.ColorForTokenType(span.TokenType))
 		lastIndex = span.End
 	}
 	if lastIndex < len(line) {
-		escape.ColorText(out, cr.normalizeText(line[lastIndex:]), nil, bgColor)
+		p.print(line[lastIndex:], nil)
 	}
+}
+
+func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []colorSpan {
+	spans := cr.b.selectionsOnLine(line)
+	if len(spans) == 0 {
+		if !hlLine {
+			return nil
+		}
+		cs := colorSpan{color: colors.LineSelectedBg}
+		cs.start = position{x: 0, y: line}
+		cs.end = position{x: lineLen, y: line}
+		return []colorSpan{cs}
+	}
+
+	defBg := func() color.Color {
+		if hlLine {
+			return colors.LineSelectedBg
+		}
+		return nil
+	}
+
+	res := make([]colorSpan, 0, len(spans)+2)
+
+	if spans[0].start.x != 0 {
+		res = append(res, colorSpan{
+			span: span{
+				start: position{0, line},
+				end:   position{spans[0].start.x, line},
+			},
+			color: defBg(),
+		})
+	}
+
+	for i, selSpan := range spans {
+		res = append(res, colorSpan{
+			span:  selSpan,
+			color: colors.TextSelectedBg,
+		})
+		if i < len(spans)-1 && selSpan.end.x != spans[i+1].start.x {
+			res = append(res, colorSpan{
+				span: span{
+					start: position{selSpan.end.x, line},
+					end:   position{spans[i+1].start.x, line},
+				},
+				color: defBg(),
+			})
+		}
+	}
+
+	if spans[len(spans)-1].end.x != lineLen {
+		res = append(res, colorSpan{
+			span: span{
+				start: position{spans[len(spans)-1].end.x, line},
+				end:   position{lineLen, line},
+			},
+			color: defBg(),
+		})
+	}
+
+	return res
+}
+
+type colorSpan struct {
+	span
+	color color.Color
+}
+
+type colorLinePrinter struct {
+	out  io.Writer
+	tab  string
+	line string
+	ln   int
+	bg   []colorSpan
+
+	li int // what part of the line text has been printed
+}
+
+func (clp *colorLinePrinter) printedText(s string) string {
+	return strings.ReplaceAll(s, "\t", clp.tab)
+}
+
+func (clp *colorLinePrinter) currentBgIdx() int {
+	return slices.IndexFunc(clp.bg, func(cs colorSpan) bool {
+		return cs.start.x <= clp.li && cs.end.x >= clp.li
+	})
+}
+
+func (clp *colorLinePrinter) print(s string, fg color.Color) {
+	bgIdx := clp.currentBgIdx()
+	if bgIdx == -1 {
+		escape.ColorText(clp.out, clp.printedText(s), fg, nil)
+		return
+	}
+	for start := 0; start < len(s); {
+		bg := clp.bg[bgIdx]
+		end := min(len(s), bg.end.x-clp.li)
+		escape.ColorText(clp.out, clp.printedText(s[start:end]), fg, bg.color)
+		start = end
+		if clp.li+start >= bg.end.x {
+			bgIdx++
+		}
+	}
+	clp.li += len(s)
+}
+
+func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
+	var bgColor color.Color
+	if bgIdx := clp.currentBgIdx(); bgIdx != -1 {
+		bgColor = clp.bg[bgIdx].color
+	}
+	escape.ColorText(clp.out, clp.printedText(txt), fg, bgColor)
 }
 
 func findExtData[T BufferExtData](b *Buffer, out *T) {
@@ -147,9 +258,11 @@ func nlDigitsLen(x int) int {
 }
 
 type ColorTheme struct {
-	Suggestion color.Color
-	Selected   color.Color
-	SelectedBg color.Color
+	Suggestion     color.Color
+	LineSelected   color.Color
+	LineSelectedBg color.Color
+	TextSelected   color.Color
+	TextSelectedBg color.Color
 
 	syntaxColors map[TokenType]color.Color
 }
@@ -162,9 +275,11 @@ func (ct *ColorTheme) ColorForTokenType(t TokenType) color.Color {
 }
 
 var colors = ColorTheme{
-	Suggestion: color.Gray{Y: 100},
-	Selected:   color.Gray{Y: 200},
-	SelectedBg: color.Gray{Y: 70},
+	Suggestion:     color.Gray{Y: 100},
+	LineSelected:   color.Gray{Y: 200},
+	LineSelectedBg: color.Gray{Y: 70},
+	TextSelected:   color.Gray{Y: 200},
+	TextSelectedBg: parseColor("1010FF"),
 
 	syntaxColors: map[TokenType]color.Color{
 		TtKeyword:         parseColor("CF8E6D"),

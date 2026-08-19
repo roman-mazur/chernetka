@@ -55,6 +55,21 @@ func (s *span) max() position {
 	return s.start
 }
 
+func (s *span) containsLine(line int) bool {
+	return s.min().y <= line && line <= s.max().y
+}
+
+func (s *span) lineProjection(idx int, lineLen int) span {
+	res := span{s.min(), s.max()}
+	if res.start.y < idx {
+		res.start = position{0, idx}
+	}
+	if res.end.y > idx {
+		res.end = position{lineLen - 1, idx}
+	}
+	return res
+}
+
 type position struct {
 	x, y int // x is a symbol offset in the line, y is a line index in the content.
 }
@@ -220,6 +235,16 @@ func (b *Buffer) lineNumberPrefixWidth() int {
 		return 0
 	}
 	return nlDigitsLen(b.offset+b.printableLinesCount()) + 1
+}
+
+func (b *Buffer) selectionsOnLine(line int) (res []span) {
+	for i := range b.sel {
+		if b.sel[i].containsLine(line) {
+			lineLen := b.Content.Lines()[line].Len()
+			res = append(res, b.sel[i].lineProjection(line, lineLen))
+		}
+	}
+	return
 }
 
 // AcceptSuggestion inserts the active inline suggestion at the cursor and
