@@ -35,8 +35,9 @@ func ScanPositions(input string, startTag, endTag string) (res []Span) {
 type scanner struct {
 	lines []string
 
-	cursor  Position
-	lastPos Position
+	cursor    Position
+	lastPos   Position
+	escapeLen int // length of escape sequences in the current line
 }
 
 func (s *scanner) Next(tag string) bool {
@@ -50,8 +51,11 @@ func (s *scanner) Next(tag string) bool {
 		if !ok {
 			return false
 		}
+		escapeOffset := s.escapeLen
+		s.escapeLen += s.cursor.Offset - lastPos.Offset + 1
+
 		if found {
-			s.lastPos = lastPos
+			s.lastPos = Position{Line: lastPos.Line, Offset: lastPos.Offset - escapeOffset}
 			return true
 		}
 	}
@@ -76,6 +80,7 @@ func (s *scanner) advance(delim, search string) (ok, found bool) {
 
 		s.cursor.Line++
 		s.cursor.Offset = 0
+		s.escapeLen = 0
 	}
 	return
 }

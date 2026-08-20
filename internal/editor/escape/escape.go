@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"regexp"
 	"strconv"
 )
 
@@ -91,4 +92,13 @@ func applyPair(out io.Writer, action, revert string) (restore func()) {
 	return noop
 }
 
-var noop = func() {}
+var (
+	noop = func() {}
+
+	ansiEscRE = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
+)
+
+// Clean removes escape symbols from the input string.
+func Clean(s string) string {
+	return ansiEscRE.ReplaceAllString(s, "")
+}

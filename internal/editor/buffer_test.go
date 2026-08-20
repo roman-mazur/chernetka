@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -165,8 +164,6 @@ func TestBuffer_Render(t *testing.T) {
 		},
 	}
 
-	var ansiRE = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
-
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.buf.xData = make(map[string]BufferExtData)
@@ -174,7 +171,7 @@ func TestBuffer_Render(t *testing.T) {
 
 			var out bytes.Buffer
 			tc.buf.Render(&out, &tc.prefs)
-			got := ansiRE.ReplaceAllString(out.String(), "")
+			got := escape.Clean(out.String())
 
 			for _, want := range tc.contains {
 				if !strings.Contains(got, want) {
@@ -212,9 +209,10 @@ func TestBuffer_Render(t *testing.T) {
 					{position{1, 0}, position{3, 0}},
 				},
 				render: []escape.Span{
-					{escape.Position{Line: 0, Offset: 0}, escape.Position{Line: 0, Offset: 6}},
-					{escape.Position{Line: 0, Offset: 9}, escape.Position{Line: 0, Offset: 11}},
-					{escape.Position{Line: 0, Offset: 14}, escape.Position{Line: 0, Offset: 48}},
+					{escape.Position{Line: 0, Offset: 0}, escape.Position{Line: 0, Offset: 1}},
+					{escape.Position{Line: 0, Offset: 1}, escape.Position{Line: 0, Offset: 4}},
+					{escape.Position{Line: 0, Offset: 4}, escape.Position{Line: 0, Offset: 6}},
+					{escape.Position{Line: 0, Offset: 6}, escape.Position{Line: 0, Offset: 40}},
 				},
 				enableCurrentHighlight: true,
 			},
