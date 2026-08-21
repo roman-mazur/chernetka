@@ -5,8 +5,6 @@ import (
 	"flag"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
@@ -77,19 +75,6 @@ func main() {
 	edit.Run(&inOut, logf)
 }
 
-func windowChangeSignal() <-chan struct{} {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		s := make(chan os.Signal, 1)
-		signal.Notify(s, syscall.SIGWINCH)
-		for range s {
-			c <- struct{}{}
-		}
-	}()
-	return c
-}
-
 type editDelegate struct {
 	edit *editor.Editor
 	logf logger.Func
@@ -122,6 +107,9 @@ func (ed *editDelegate) OpenFile(path string) {
 			ed.logf("error with main editor: %s", err)
 			ed.openFileInNewBuffer(path)
 		}
+	} else {
+		ed.logf("cannot send a command: %s", err)
+		ed.openFileInNewBuffer(path)
 	}
 }
 

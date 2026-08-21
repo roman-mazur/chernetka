@@ -323,7 +323,7 @@ func (e *Editor) render(out *bufio.Writer) {
 }
 
 func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
-	f, ok := t.Writer.(*os.File)
+	f, ok := t.Reader.(*os.File)
 	if !ok {
 		logf("not a terminal")
 		return func() {}
@@ -550,6 +550,9 @@ func (lps *layoutState) resolveWindowSize() (w int, h int) {
 		return 80, 40 // real terminal is not resolved - test/mock environment
 	}
 	w, h, _ = term.GetSize(lps.editor.termFd)
+	if w == 0 && h == 0 {
+		return 80, 42 // TODO: Resolve window size issues on Windows.
+	}
 	return
 }
 
