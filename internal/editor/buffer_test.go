@@ -206,7 +206,7 @@ func TestBuffer_Render(t *testing.T) {
 				name:    "one line with hl",
 				content: "line 1",
 				selections: []span{
-					{position{1, 0}, position{3, 0}},
+					{position{1, 0}, position{4, 0}},
 				},
 				render: []escape.Span{
 					{escape.Position{Line: 0, Offset: 0}, escape.Position{Line: 0, Offset: 1}},
@@ -225,7 +225,7 @@ func TestBuffer_Render(t *testing.T) {
 				render: []escape.Span{
 					{escape.Position{Line: 0, Offset: 1}, escape.Position{Line: 0, Offset: 6}},
 					{escape.Position{Line: 1, Offset: 0}, escape.Position{Line: 1, Offset: 6}},
-					{escape.Position{Line: 2, Offset: 0}, escape.Position{Line: 2, Offset: 4}},
+					{escape.Position{Line: 2, Offset: 0}, escape.Position{Line: 2, Offset: 3}},
 				},
 			},
 		} {
@@ -247,6 +247,7 @@ func TestBuffer_Render(t *testing.T) {
 				buf.Render(&out, &RenderPrefs{TabSize: 2})
 				sOut := out.String()
 				t.Log("output:\n" + sOut)
+				t.Log("raw:\n" + strings.ReplaceAll(sOut, "\x1b", "^"))
 
 				actuals := escape.ScanPositions(sOut, "48;2;", "0")
 				expected := tc.render

@@ -65,7 +65,7 @@ func (s *span) lineProjection(idx int, lineLen int) span {
 		res.start = position{0, idx}
 	}
 	if res.end.y > idx {
-		res.end = position{lineLen - 1, idx}
+		res.end = position{lineLen, idx}
 	}
 	return res
 }

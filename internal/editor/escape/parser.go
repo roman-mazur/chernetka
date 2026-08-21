@@ -14,8 +14,12 @@ type Span struct {
 
 // ScanPositions searches the input string the occurrences of the defined matching tags.
 func ScanPositions(input string, startTag, endTag string) (res []Span) {
-	s := scanner{
-		lines: strings.Split(input, "\n"),
+	allLines := strings.Split(input, "\n")
+	var s scanner
+	s.lines = make([]string, len(allLines))
+	for i := range s.lines {
+		// Remove "clear line" sequence before parsing.
+		s.lines[i] = strings.TrimPrefix(allLines[i], "\x1b[2K")
 	}
 	for {
 		if !s.Next(startTag) {
