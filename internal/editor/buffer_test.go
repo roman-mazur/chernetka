@@ -196,6 +196,13 @@ func TestBuffer_Render(t *testing.T) {
 			enableCurrentHighlight bool
 		}{
 			{
+				name:    "selection start",
+				content: "line 1",
+				selections: []span{
+					{position{1, 0}, position{1, 0}},
+				},
+			},
+			{
 				name:    "one line",
 				content: "line 1",
 				selections: []span{

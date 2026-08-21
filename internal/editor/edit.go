@@ -522,6 +522,9 @@ func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled bool) {
 }
 
 func (e *Editor) handleAfterEdit(buf *Buffer) {
+	if buf.selecting {
+		e.renderRequested = true
+	}
 	if !buf.resetMutated() {
 		// No edits since the last time.
 		return

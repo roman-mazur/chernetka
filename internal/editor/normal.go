@@ -8,9 +8,12 @@ import (
 )
 
 func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
-	var arrow inputs.CursorArrow
-	if inputs.IsArrow(b, &arrow) {
-		buf.handleCursor(arrow, prefs)
+	var (
+		arrow inputs.CursorArrow
+		mod   inputs.Modifier
+	)
+	if inputs.IsArrow(b, &arrow, &mod) {
+		buf.handleCursor(arrow, mod, prefs)
 		return false
 	}
 

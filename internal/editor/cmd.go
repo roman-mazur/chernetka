@@ -30,6 +30,9 @@ func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	if r.Dy != 0 {
 		buf.c.y += r.Dy
 	}
+	if buf.selecting {
+		buf.sel[len(buf.sel)-1].end = buf.c
+	}
 }
 
 func (r RelMove) moveDx(b *Buffer) {
@@ -119,6 +122,22 @@ var (
 		b.c.y = linesCnt - 1
 		b.offset = max(0, b.c.y-b.viewHeight())
 		clampBufferCx(b)
+	})
+	// StartTextSelection begins selecting text at the current cursor position.
+	StartTextSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		if b.selecting {
+			return
+		}
+		b.selecting = true
+		b.sel = []span{{b.c, b.c}}
+	})
+	// StopTextSelection finishes selecting text at the current cursor position.
+	StopTextSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		if !b.selecting {
+			return
+		}
+		b.selecting = false
+		b.sel[len(b.sel)-1].end = b.c
 	})
 )
 

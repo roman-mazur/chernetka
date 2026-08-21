@@ -15,8 +15,11 @@ func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPre
 		return
 	}
 
-	var arrow inputs.CursorArrow
-	if inputs.IsArrow(b, &arrow) {
+	var (
+		arrow inputs.CursorArrow
+		mod   inputs.Modifier
+	)
+	if inputs.IsArrow(b, &arrow, &mod) {
 		switch arrow {
 		case inputs.CursorArrowUp:
 			data.SuggestPrev()

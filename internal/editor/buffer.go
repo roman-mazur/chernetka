@@ -29,7 +29,8 @@ type Buffer struct {
 	offset int      // first visible row (scroll)
 	w, h   int      // terminal window dimensions
 
-	sel []span // selected text
+	sel       []span // selected text
+	selecting bool
 
 	xData map[string]BufferExtData // data associated with the extensions
 
@@ -267,7 +268,13 @@ func (b *Buffer) canEdit() bool {
 	return ok
 }
 
-func (b *Buffer) handleCursor(arrow inputs.CursorArrow, prefs *RenderPrefs) {
+func (b *Buffer) handleCursor(arrow inputs.CursorArrow, mod inputs.Modifier, prefs *RenderPrefs) {
+	if !b.selecting && mod.HasShift() {
+		StartTextSelection.DoOnBuffer(b, *prefs)
+	}
+	if b.selecting && !mod.HasShift() {
+		StopTextSelection.DoOnBuffer(b, *prefs)
+	}
 	switch arrow {
 	case inputs.CursorArrowUp:
 		RelMove{Dy: -1}.DoOnBuffer(b, *prefs)
@@ -277,6 +284,9 @@ func (b *Buffer) handleCursor(arrow inputs.CursorArrow, prefs *RenderPrefs) {
 		RelMove{Dx: 1}.DoOnBuffer(b, *prefs)
 	case inputs.CursorArrowLeft:
 		RelMove{Dx: -1}.DoOnBuffer(b, *prefs)
+	}
+	if !b.selecting {
+		b.sel = nil
 	}
 }
 

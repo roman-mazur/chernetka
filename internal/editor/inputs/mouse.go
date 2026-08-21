@@ -21,7 +21,7 @@ type Mouse struct {
 	Button  MouseButton
 	X, Y    int
 	Pressed bool // False means button is released.
-	Mod     MouseModifier
+	Mod     Modifier
 }
 
 func (m *Mouse) String() string {
@@ -36,46 +36,6 @@ const (
 	MouseButtonRight
 	MouseButtonNone // used for hover
 )
-
-// MouseModifier is a bit mask giving more context about the Mouse event.
-// bit	meaning
-// 0	Shift
-// 1	Alt
-// 2	Ctrl
-// 3	Motion
-// 4	Scroll wheel
-type MouseModifier byte
-
-func (mm MouseModifier) HasShift() bool  { return mm&1 != 0 }
-func (mm MouseModifier) HasAlt() bool    { return mm&2 != 0 }
-func (mm MouseModifier) HasCtrl() bool   { return mm&4 != 0 }
-func (mm MouseModifier) HasMotion() bool { return mm&8 != 0 }
-func (mm MouseModifier) HasWheel() bool  { return mm&16 != 0 }
-
-func (mm MouseModifier) SrollDirection(m Mouse) ScrollDirection { return ScrollDirection(m.Button) }
-
-func (mm MouseModifier) String() string {
-	var data [5]byte
-	for i := range data {
-		data[i] = '-'
-	}
-	if mm.HasShift() {
-		data[0] = 's'
-	}
-	if mm.HasAlt() {
-		data[1] = 'a'
-	}
-	if mm.HasCtrl() {
-		data[2] = 'c'
-	}
-	if mm.HasMotion() {
-		data[3] = 'm'
-	}
-	if mm.HasWheel() {
-		data[4] = 'w'
-	}
-	return string(data[:])
-}
 
 type ScrollDirection byte
 
@@ -113,7 +73,7 @@ func ReadMouse(inData []byte) (data Mouse, n int, err error) {
 		return
 	}
 	data.Button = MouseButton(B & 3)
-	data.Mod = MouseModifier((B >> 2) & 0xff)
+	data.Mod = Modifier((B >> 2) & 0xff)
 
 	data.X, sep, k, err = mouseParseNextInt(in)
 	n += k

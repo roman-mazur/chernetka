@@ -26,13 +26,13 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 		return inputs.Mouse{Button: btn}
 	}
 	drag := func(btn inputs.MouseButton) inputs.Mouse {
-		return inputs.Mouse{Button: btn, Pressed: true, Mod: inputs.MouseModifier(8)}
+		return inputs.Mouse{Button: btn, Pressed: true, Mod: inputs.Modifier(8)}
 	}
 	hover := func() inputs.Mouse {
-		return inputs.Mouse{Button: inputs.MouseButtonNone, Mod: inputs.MouseModifier(8)}
+		return inputs.Mouse{Button: inputs.MouseButtonNone, Mod: inputs.Modifier(8)}
 	}
 	scroll := func(direction inputs.ScrollDirection) inputs.Mouse {
-		return inputs.Mouse{Button: inputs.MouseButton(direction), Pressed: true, Mod: inputs.MouseModifier(16)}
+		return inputs.Mouse{Button: inputs.MouseButton(direction), Pressed: true, Mod: inputs.Modifier(16)}
 	}
 
 	left := inputs.MouseButtonLeft
