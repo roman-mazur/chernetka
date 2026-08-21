@@ -203,6 +203,16 @@ func TestBuffer_Render(t *testing.T) {
 				},
 			},
 			{
+				name:    "one line reversed",
+				content: "line 1",
+				selections: []span{
+					{position{3, 0}, position{1, 0}},
+				},
+				render: []escape.Span{
+					{escape.Position{Offset: 1}, escape.Position{Offset: 3}},
+				},
+			},
+			{
 				name:    "one line with hl",
 				content: "line 1",
 				selections: []span{
@@ -218,6 +228,18 @@ func TestBuffer_Render(t *testing.T) {
 			},
 			{
 				name:    "multiple lines",
+				content: "line 1\nline 2\nline 3",
+				selections: []span{
+					{position{3, 2}, position{1, 0}},
+				},
+				render: []escape.Span{
+					{escape.Position{Line: 0, Offset: 1}, escape.Position{Line: 0, Offset: 6}},
+					{escape.Position{Line: 1, Offset: 0}, escape.Position{Line: 1, Offset: 6}},
+					{escape.Position{Line: 2, Offset: 0}, escape.Position{Line: 2, Offset: 3}},
+				},
+			},
+			{
+				name:    "multiple lines reversed",
 				content: "line 1\nline 2\nline 3",
 				selections: []span{
 					{position{1, 0}, position{3, 2}},
