@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func windowChangeSignal() <-chan struct{} {
