@@ -290,6 +290,24 @@ func (b *Buffer) handleCursor(arrow inputs.CursorArrow, mod inputs.Modifier, pre
 	}
 }
 
+// CheckContentCoordinates returns true if on-screen coordinates are part of the displayed content.
+func (b *Buffer) CheckContentCoordinates(row, col int) bool {
+	// Check buffer bounds.
+	if row < 0 || row >= b.viewHeight() || col < 0 || col >= b.w {
+		return false
+	}
+
+	// Check visible content length.
+	if row+b.offset >= b.Content.Len() {
+		return false
+	}
+	if col < b.lineNumberPrefixWidth() {
+		return false
+	}
+
+	return true
+}
+
 // Text returns a string representation of the full buffer content.
 // It can be used, for example, to send the buffer content to an LSP server.
 func (b *Buffer) Text() string {

@@ -467,7 +467,16 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		Scroll(dir).DoOnBuffer(buf, e.rPrefs)
 		logf("offset: %d, dir: %d", buf.offset, dir)
 		e.renderRequested = true
-		return
+
+	case mouseEventTypeDragStart:
+		if buf.CheckContentCoordinates(event.Y, event.X) {
+			StartTextSelection.DoOnBuffer(buf, e.rPrefs)
+		}
+		e.renderRequested = true
+
+	case mouseEventTypeDragEnd:
+		StopTextSelection.DoOnBuffer(buf, e.rPrefs)
+		e.renderRequested = true
 
 	case mouseEventTypeRaw:
 		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
@@ -475,8 +484,12 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		}
 		buf.c.x = data.X - 1 - buf.lineNumberPrefixWidth()
 		buf.c.y = buf.offset + data.Y - 1
+		if buf.selecting && event.Mod.HasMotion() && buf.CheckContentCoordinates(event.Y, event.X) {
+			buf.sel[len(buf.sel)-1].end = buf.c
+		} else if !buf.selecting {
+			buf.sel = nil
+		}
 		e.renderRequested = true
-		return
 	}
 
 }
