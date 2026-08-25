@@ -198,3 +198,27 @@ func TestScroll(t *testing.T) {
 		t.Errorf("third scroll should be skipped, buf.offset=%d", buf.offset)
 	}
 }
+
+func TestSwitchMode(t *testing.T) {
+	var buf Buffer
+
+	if buf.canEdit() {
+		t.Fatal("can edit buffer without content")
+	}
+
+	SwitchMode(ModeInsert).DoOnBuffer(&buf, RenderPrefs{TabSize: 4})
+	if buf.mode != ModeNormal {
+		t.Errorf("switched from normal to %s for non-editable content", buf.mode)
+	}
+
+	textContent := content.FullText{content.TextLine("a line")}
+	buf.Content = &textContent
+	if !buf.canEdit() {
+		t.Fatal("can NOT edit text content")
+	}
+
+	SwitchMode(ModeInsert).DoOnBuffer(&buf, RenderPrefs{TabSize: 4})
+	if buf.mode != ModeInsert {
+		t.Errorf("insert mode not activated: %s", buf.mode)
+	}
+}

@@ -195,4 +195,9 @@ var (
 
 type SwitchMode Mode
 
-func (s SwitchMode) DoOnBuffer(buf *Buffer, _ RenderPrefs) { buf.mode = Mode(s) }
+func (s SwitchMode) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
+	if Mode(s) == ModeInsert && !buf.canEdit() {
+		return
+	}
+	buf.mode = Mode(s)
+}
