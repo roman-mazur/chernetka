@@ -1,4 +1,5 @@
-- Text selection and operations on it
+- [x] Text selection: with kb and mouse
+- [ ] Text selection: copy / paste / cut
 
 - Markdown syntax highlight
 - Commit description syntax highlight
