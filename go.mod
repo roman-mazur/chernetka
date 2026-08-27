@@ -1,6 +1,6 @@
 module rmazur.io/chernetka
 
-go 1.26
+go 1.27
 
 tool golang.org/x/tools/cmd/stringer
 

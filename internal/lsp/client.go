@@ -122,10 +122,8 @@ func (c *Client) DidChange(ctx context.Context, fileURI uri.URI, text string, ve
 func (c *Client) Completion(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.CompletionItem, error) {
 	var list protocol.CompletionList
 	if _, err := c.conn.Call(ctx, protocol.MethodTextDocumentCompletion, &protocol.CompletionParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
-			Position:     protocol.Position{Line: line, Character: character},
-		},
+		TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
+		Position:     protocol.Position{Line: line, Character: character},
 	}, &list); err != nil {
 		return nil, err
 	}

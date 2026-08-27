@@ -10,6 +10,7 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -333,8 +334,8 @@ func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
 
 	var cleanupOps []func()
 	cleanup = func() {
-		for i := len(cleanupOps) - 1; i >= 0; i-- {
-			cleanupOps[i]()
+		for _, cleanupOp := range slices.Backward(cleanupOps) {
+			cleanupOp()
 		}
 	}
 

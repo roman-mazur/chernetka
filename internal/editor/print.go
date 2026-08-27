@@ -130,9 +130,9 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 		if !hlLine {
 			return nil
 		}
-		cs := colorSpan{color: colors.LineSelectedBg}
-		cs.start = position{x: 0, y: line}
-		cs.end = position{x: lineLen, y: line}
+		cs := colorSpan{color: colors.LineSelectedBg,
+			start: position{x: 0, y: line},
+			end:   position{x: lineLen, y: line}}
 		return []colorSpan{cs}
 	}
 
@@ -147,10 +147,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 
 	if spans[0].start.x != 0 {
 		res = append(res, colorSpan{
-			span: span{
-				start: position{0, line},
-				end:   position{spans[0].start.x, line},
-			},
+			start: position{0, line},
+			end:   position{spans[0].start.x, line},
 			color: defBg(),
 		})
 	}
@@ -162,10 +160,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 		})
 		if i < len(spans)-1 && selSpan.end.x != spans[i+1].start.x {
 			res = append(res, colorSpan{
-				span: span{
-					start: position{selSpan.end.x, line},
-					end:   position{spans[i+1].start.x, line},
-				},
+				start: position{selSpan.end.x, line},
+				end:   position{spans[i+1].start.x, line},
 				color: defBg(),
 			})
 		}
@@ -173,10 +169,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 
 	if spans[len(spans)-1].end.x != lineLen {
 		res = append(res, colorSpan{
-			span: span{
-				start: position{spans[len(spans)-1].end.x, line},
-				end:   position{lineLen, line},
-			},
+			start: position{spans[len(spans)-1].end.x, line},
+			end:   position{lineLen, line},
 			color: defBg(),
 		})
 	}
