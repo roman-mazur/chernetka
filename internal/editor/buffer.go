@@ -321,6 +321,37 @@ func (b *Buffer) Text() string {
 	return b._textCache
 }
 
+func (b *Buffer) SelectedText() string {
+	if len(b.sel) == 0 {
+		return ""
+	}
+	var out bytes.Buffer
+	for _, sel := range b.sel {
+		b.selectedText(&out, sel)
+	}
+	return out.String()
+}
+
+func (b *Buffer) selectedText(out *bytes.Buffer, s span) string {
+	lines := b.Content.Lines()
+	start, stop := s.min(), s.max()
+	for i := start.y; i <= stop.y; i++ {
+		line := lines[i].String()
+		j, k := start.x, stop.x
+		if i > start.y {
+			j = 0
+		}
+		if i < stop.y {
+			k = len(line)
+		}
+		if i > start.y {
+			out.Write([]byte("\n"))
+		}
+		out.Write([]byte(line[j:k]))
+	}
+	return out.String()
+}
+
 // Mutate is used to start changing the buffer content.
 // If underlying Content is not mutable, the returned implementation is a noop.
 func (b *Buffer) Mutate() content.Mutable {

@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/clipb"
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
@@ -139,7 +140,13 @@ var (
 		b.selecting = false
 		b.sel[len(b.sel)-1].end = b.c
 	})
+	// ClipboardCopy copies selected text to the clipboard.
+	ClipboardCopy = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		clipboard.Write(b.SelectedText())
+	})
 )
+
+var clipboard clipb.Clipboard
 
 // Save stores the boffer content in the destination path.
 type Save struct {

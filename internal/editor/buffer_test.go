@@ -192,6 +192,7 @@ func TestBuffer_Render(t *testing.T) {
 			content    string
 			selections []span
 			render     []escape.Span
+			selText    string
 
 			enableCurrentHighlight bool
 		}{
@@ -208,6 +209,7 @@ func TestBuffer_Render(t *testing.T) {
 				selections: []span{
 					{position{1, 0}, position{3, 0}},
 				},
+				selText: "in",
 			},
 			{
 				name:    "one line reversed",
@@ -218,6 +220,7 @@ func TestBuffer_Render(t *testing.T) {
 				render: []escape.Span{
 					{escape.Position{Offset: 1}, escape.Position{Offset: 3}},
 				},
+				selText: "in",
 			},
 			{
 				name:    "one line with hl",
@@ -232,6 +235,7 @@ func TestBuffer_Render(t *testing.T) {
 					{escape.Position{Line: 0, Offset: 6}, escape.Position{Line: 0, Offset: 40}},
 				},
 				enableCurrentHighlight: true,
+				selText:                "ine",
 			},
 			{
 				name:    "multiple lines",
@@ -244,6 +248,7 @@ func TestBuffer_Render(t *testing.T) {
 					{escape.Position{Line: 1, Offset: 0}, escape.Position{Line: 1, Offset: 6}},
 					{escape.Position{Line: 2, Offset: 0}, escape.Position{Line: 2, Offset: 3}},
 				},
+				selText: "ine 1\nline 2\nlin",
 			},
 			{
 				name:    "multiple lines reversed",
@@ -256,6 +261,7 @@ func TestBuffer_Render(t *testing.T) {
 					{escape.Position{Line: 1, Offset: 0}, escape.Position{Line: 1, Offset: 6}},
 					{escape.Position{Line: 2, Offset: 0}, escape.Position{Line: 2, Offset: 3}},
 				},
+				selText: "ine 1\nline 2\nlin",
 			},
 		} {
 			t.Run(fmt.Sprintf("%d/%s", n, tc.name), func(t *testing.T) {
@@ -289,6 +295,10 @@ func TestBuffer_Render(t *testing.T) {
 
 				if diff := cmp.Diff(expected, actuals); diff != "" {
 					t.Errorf("rendering mismatch (-want +got):\n%s", diff)
+				}
+
+				if diff := cmp.Diff(tc.selText, buf.SelectedText()); diff != "" {
+					t.Errorf("SelectedText() mismatch (-want +got):\n%s", diff)
 				}
 			})
 		}

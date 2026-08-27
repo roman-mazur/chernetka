@@ -57,6 +57,14 @@ func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
 				cmd, dstPath, _ = strings.Cut(cmd, " ")
 			}
 			(&Save{DstPath: dstPath}).DoOnBuffer(buf, *prefs)
+
+		case "p":
+			switch cmd {
+			case "bcopy":
+				ClipboardCopy.DoOnBuffer(buf, *prefs)
+			case "bpaste":
+				// TODO
+			}
 		}
 	}
 	return false
