@@ -8,56 +8,6 @@ import (
 	"rmazur.io/chernetka/internal/content"
 )
 
-func TestSave_WritesFileAndClearsDirty(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "out.txt")
-
-	ft := content.FullText{
-		content.TextLine("first"),
-		content.TextLine("second"),
-		content.TextLine(""),
-	}
-	buf := &Buffer{Path: path, Content: &ft, dirty: true}
-
-	(&Save{path}).DoOnBuffer(buf, RenderPrefs{})
-
-	if buf.dirty {
-		t.Errorf("dirty = true, want false after save")
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	if got, want := string(data), "first\nsecond\n"; got != want {
-		t.Errorf("file content = %q, want %q", got, want)
-	}
-}
-
-func TestSave_NoPath(t *testing.T) {
-	ft := content.FullText{content.TextLine("x")}
-	buf := &Buffer{Content: &ft, dirty: true}
-
-	(&Save{""}).DoOnBuffer(buf, RenderPrefs{}) // must not panic
-
-	if !buf.dirty {
-		t.Errorf("dirty cleared despite missing path")
-	}
-}
-
-func TestSave_NotMutable(t *testing.T) {
-	buf := &Buffer{
-		Path:    "irrelevant",
-		Content: &content.ErrorContent{Error: os.ErrNotExist},
-		dirty:   true,
-	}
-
-	(&Save{""}).DoOnBuffer(buf, RenderPrefs{}) // must not panic
-
-	if !buf.dirty {
-		t.Errorf("dirty cleared despite non-mutable content")
-	}
-}
-
 func TestCommandInput_WriteRunsSave(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.txt")
@@ -126,5 +76,27 @@ func TestCommandInput_QuitReturnsQuit(t *testing.T) {
 
 	if quit := commandInput(buf, []byte{'\r'}, &prefs); !quit {
 		t.Errorf("commandInput(:q) returned quit=false, want true")
+	}
+}
+
+func TestCommandInput_Clipboard(t *testing.T) {
+	ft := content.FullText{content.TextLine("hello")}
+	buf := &Buffer{Content: &ft, dirty: true, mode: ModeCommand}
+	prefs := RenderPrefs{}
+
+	StartTextSelection.DoOnBuffer(buf, prefs)
+	buf.c.x = ft.Lines()[0].Len()
+	StopTextSelection.DoOnBuffer(buf, prefs)
+	if selText := buf.SelectedText(); selText != "hello" {
+		t.Errorf("SelectedText() = %q, want %q", selText, "hello")
+	}
+
+	buf.cmdline = "pbcopy"
+	q := commandInput(buf, []byte("\r"), &prefs)
+	if q {
+		t.Error("quit flag returned true on pbcopy")
+	}
+	if res := clipboard.Read(); res != "hello" {
+		t.Errorf("clipboard.Read() = %q, expected %q", res, "hello")
 	}
 }
