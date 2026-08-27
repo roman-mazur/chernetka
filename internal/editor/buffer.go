@@ -352,6 +352,11 @@ func (b *Buffer) selectedText(out *bytes.Buffer, s span) string {
 	return out.String()
 }
 
+func (b *Buffer) cancelSelection() {
+	b.selecting = false
+	b.sel = nil
+}
+
 // Mutate is used to start changing the buffer content.
 // If underlying Content is not mutable, the returned implementation is a noop.
 func (b *Buffer) Mutate() content.Mutable {

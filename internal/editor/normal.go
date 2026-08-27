@@ -31,6 +31,10 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		case '-':
 			prefs.tabsScaleDown()
 
+		// Esc: clear selection.
+		case '\x1b':
+			buf.cancelSelection()
+
 		// Switch mode.
 		case 'i':
 			buf.mode = ModeInsert

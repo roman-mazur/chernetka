@@ -19,6 +19,11 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 
 	// Esc.
 	if inputs.IsEscape(b) {
+		if len(buf.sel) > 0 {
+			buf.cancelSelection()
+			return
+		}
+
 		buf.mode = ModeNormal
 		if buf.c.x > 0 {
 			buf.c.x-- // Land on the last typed character.
