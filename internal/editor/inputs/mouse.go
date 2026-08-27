@@ -3,10 +3,9 @@ package inputs
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"strconv"
-
-	"github.com/go-errors/errors"
 )
 
 func IsMouseInput(b []byte) bool {
