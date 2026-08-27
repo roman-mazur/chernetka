@@ -2,8 +2,10 @@ package editor
 
 import (
 	"fmt"
+	"io"
 	"time"
 
+	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
@@ -38,6 +40,24 @@ type mouseHandler struct {
 	lastPressAt   time.Time
 	clickCount    int
 	isDragging    bool
+
+	shapeText bool
+}
+
+func (mh *mouseHandler) ensureMouseTextShape(textShape bool) (changed bool) {
+	if mh.shapeText == textShape {
+		return false
+	}
+	mh.shapeText = textShape
+	return true
+}
+
+func (mh *mouseHandler) render(out io.Writer) {
+	if mh.shapeText {
+		escape.MouseShape(out, "text")
+	} else {
+		escape.MouseShape(out, "default")
+	}
 }
 
 func (mh *mouseHandler) currentTime() time.Time {

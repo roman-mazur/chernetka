@@ -82,6 +82,12 @@ func DisableLineWrapping(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?7l", "\x1b[?7h")
 }
 
+func MouseShape(out io.Writer, shape string) {
+	_, _ = io.WriteString(out, "\x1b]22;")
+	_, _ = io.WriteString(out, shape)
+	_, _ = io.WriteString(out, "\x07")
+}
+
 func applyPair(out io.Writer, action, revert string) (restore func()) {
 	_, err := io.WriteString(out, action)
 	if err == nil {

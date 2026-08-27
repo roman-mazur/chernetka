@@ -320,6 +320,8 @@ func (e *Editor) render(out *bufio.Writer) {
 		buf.noKeyboard = false
 	}
 	topBuf.RenderCursorPosition(out, &e.rPrefs)
+
+	e.mouseHandler.render(out)
 }
 
 func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
@@ -479,12 +481,17 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 		e.renderRequested = true
 
 	case mouseEventTypeRaw:
+		overContent := buf.CheckContentCoordinates(event.Y, event.X)
+		if e.ensureMouseTextShape(overContent) {
+			e.renderRequested = true
+		}
 		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
 			return
 		}
+
 		buf.c.x = data.X - 1 - buf.lineNumberPrefixWidth()
 		buf.c.y = buf.offset + data.Y - 1
-		if buf.selecting && event.Mod.HasMotion() && buf.CheckContentCoordinates(event.Y, event.X) {
+		if buf.selecting && event.Mod.HasMotion() && overContent {
 			buf.sel[len(buf.sel)-1].end = buf.c
 		} else if !buf.selecting {
 			buf.sel = nil
