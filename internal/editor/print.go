@@ -131,8 +131,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 			return nil
 		}
 		cs := colorSpan{color: colors.LineSelectedBg,
-			Start: position{Col: 0, Line: line},
-			End:   position{Col: lineLen, Line: line}}
+			Start: content.Position{Col: 0, Line: line},
+			End:   content.Position{Col: lineLen, Line: line}}
 		return []colorSpan{cs}
 	}
 
@@ -147,21 +147,21 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 
 	if spans[0].Start.Col != 0 {
 		res = append(res, colorSpan{
-			Start: position{0, line},
-			End:   position{spans[0].Start.Col, line},
+			Start: content.Position{0, line},
+			End:   content.Position{spans[0].Start.Col, line},
 			color: defBg(),
 		})
 	}
 
 	for i, selSpan := range spans {
 		res = append(res, colorSpan{
-			span:  selSpan,
+			Span:  selSpan,
 			color: colors.TextSelectedBg,
 		})
 		if i < len(spans)-1 && selSpan.End.Col != spans[i+1].Start.Col {
 			res = append(res, colorSpan{
-				Start: position{selSpan.End.Col, line},
-				End:   position{spans[i+1].Start.Col, line},
+				Start: content.Position{selSpan.End.Col, line},
+				End:   content.Position{spans[i+1].Start.Col, line},
 				color: defBg(),
 			})
 		}
@@ -169,8 +169,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 
 	if spans[len(spans)-1].End.Col != lineLen {
 		res = append(res, colorSpan{
-			Start: position{spans[len(spans)-1].End.Col, line},
-			End:   position{lineLen, line},
+			Start: content.Position{spans[len(spans)-1].End.Col, line},
+			End:   content.Position{lineLen, line},
 			color: defBg(),
 		})
 	}
@@ -179,7 +179,7 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 }
 
 type colorSpan struct {
-	span
+	content.Span
 	color color.Color
 }
 

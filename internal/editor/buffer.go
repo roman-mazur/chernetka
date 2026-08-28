@@ -25,11 +25,11 @@ type Buffer struct {
 	noKeyboard bool   // a flag that indicates that the last input was not from the keyboard
 	cmdline    string // Text typed after ':' while in ModeCommand
 
-	c      position // cursor position
-	offset int      // first visible row (scroll)
-	w, h   int      // terminal window dimensions
+	c      content.Position // cursor position
+	offset int              // first visible row (scroll)
+	w, h   int              // terminal window dimensions
 
-	sel       []span // selected text
+	sel       []content.Span // selected text
 	selecting bool
 
 	xData map[string]BufferExtData // data associated with the extensions
@@ -37,12 +37,6 @@ type Buffer struct {
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
 }
-
-//go:fix inline
-type span = content.Span
-
-//go:fix inline
-type position = content.Position
 
 // NewScratchBuffer constructs a new Buffer with empty content.
 func NewScratchBuffer() *Buffer {
@@ -207,7 +201,7 @@ func (b *Buffer) lineNumberPrefixWidth() int {
 	return nlDigitsLen(b.offset+b.printableLinesCount()) + 1
 }
 
-func (b *Buffer) selectionsOnLine(line int) (res []span) {
+func (b *Buffer) selectionsOnLine(line int) (res []content.Span) {
 	for i := range b.sel {
 		if b.sel[i].ContainsLine(line) {
 			lineLen := b.Content.Lines()[line].Len()
@@ -301,7 +295,7 @@ func (b *Buffer) SelectedText() string {
 	return out.String()
 }
 
-func (b *Buffer) selectedText(out *bytes.Buffer, s span) string {
+func (b *Buffer) selectedText(out *bytes.Buffer, s content.Span) string {
 	lines := b.Content.Lines()
 	start, stop := s.Min(), s.Max()
 	for i := start.Line; i <= stop.Line; i++ {

@@ -82,7 +82,7 @@ func TestBuffer_Render(t *testing.T) {
 					content.TextLine("third"),
 				},
 				mode: ModeNormal,
-				c:    position{3, 1},
+				c:    content.Position{3, 1},
 				w:    40,
 				h:    5,
 			},
@@ -107,7 +107,7 @@ func TestBuffer_Render(t *testing.T) {
 				Path:    "test.go",
 				Content: &content.FullText{content.TextLine("Pri")},
 				mode:    ModeInsert,
-				c:       position{3, 0},
+				c:       content.Position{3, 0},
 				w:       40,
 				h:       3,
 			},
@@ -190,7 +190,7 @@ func TestBuffer_Render(t *testing.T) {
 		for n, tc := range []struct {
 			name       string
 			content    string
-			selections []span
+			selections []content.Span
 			render     []escape.Span
 			selText    string
 
@@ -199,23 +199,23 @@ func TestBuffer_Render(t *testing.T) {
 			{
 				name:    "selection start",
 				content: "line 1",
-				selections: []span{
-					{position{1, 0}, position{1, 0}},
+				selections: []content.Span{
+					{content.Position{1, 0}, content.Position{1, 0}},
 				},
 			},
 			{
 				name:    "one line",
 				content: "line 1",
-				selections: []span{
-					{position{1, 0}, position{3, 0}},
+				selections: []content.Span{
+					{content.Position{1, 0}, content.Position{3, 0}},
 				},
 				selText: "in",
 			},
 			{
 				name:    "one line reversed",
 				content: "line 1",
-				selections: []span{
-					{position{3, 0}, position{1, 0}},
+				selections: []content.Span{
+					{content.Position{3, 0}, content.Position{1, 0}},
 				},
 				render: []escape.Span{
 					{escape.Position{Offset: 1}, escape.Position{Offset: 3}},
@@ -225,8 +225,8 @@ func TestBuffer_Render(t *testing.T) {
 			{
 				name:    "one line with hl",
 				content: "line 1",
-				selections: []span{
-					{position{1, 0}, position{4, 0}},
+				selections: []content.Span{
+					{content.Position{1, 0}, content.Position{4, 0}},
 				},
 				render: []escape.Span{
 					{escape.Position{Line: 0, Offset: 0}, escape.Position{Line: 0, Offset: 1}},
@@ -240,8 +240,8 @@ func TestBuffer_Render(t *testing.T) {
 			{
 				name:    "multiple lines",
 				content: "line 1\nline 2\nline 3",
-				selections: []span{
-					{position{3, 2}, position{1, 0}},
+				selections: []content.Span{
+					{content.Position{3, 2}, content.Position{1, 0}},
 				},
 				render: []escape.Span{
 					{escape.Position{Line: 0, Offset: 1}, escape.Position{Line: 0, Offset: 6}},
@@ -253,8 +253,8 @@ func TestBuffer_Render(t *testing.T) {
 			{
 				name:    "multiple lines reversed",
 				content: "line 1\nline 2\nline 3",
-				selections: []span{
-					{position{1, 0}, position{3, 2}},
+				selections: []content.Span{
+					{content.Position{1, 0}, content.Position{3, 2}},
 				},
 				render: []escape.Span{
 					{escape.Position{Line: 0, Offset: 1}, escape.Position{Line: 0, Offset: 6}},
@@ -305,8 +305,8 @@ func TestBuffer_Render(t *testing.T) {
 	})
 }
 
-func makePos(p position) escape.Position { return escape.Position{Line: p.Line, Offset: p.Col} }
-func makeSpan(s span) escape.Span        { return escape.Span{makePos(s.Start), makePos(s.End)} }
+func makePos(p content.Position) escape.Position { return escape.Position{Line: p.Line, Offset: p.Col} }
+func makeSpan(s content.Span) escape.Span        { return escape.Span{makePos(s.Start), makePos(s.End)} }
 
 type testSuggestionExt []string
 
@@ -320,7 +320,7 @@ func (tse testSuggestionExt) TextSuggestion() string {
 func TestBuffer_AcceptSuggestion(t *testing.T) {
 	buf := &Buffer{
 		Content: &content.FullText{content.TextLine("Pri")},
-		c:       position{3, 0},
+		c:       content.Position{3, 0},
 	}
 
 	buf.AcceptSuggestion("ntln")

@@ -130,7 +130,7 @@ var (
 			return
 		}
 		b.selecting = true
-		b.sel = []span{{b.c, b.c}}
+		b.sel = []content.Span{{b.c, b.c}}
 	})
 	// StopTextSelection finishes selecting text at the current cursor position.
 	StopTextSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
