@@ -97,7 +97,7 @@ func TestEditor_Run(t *testing.T) {
 		te.SendInput(t, []byte("\x1b[B")) // Cursor down.
 		var cursorY int
 		te.Post(t, CommandFunc(func(e *Editor) {
-			cursorY = e.Top().c.y
+			cursorY = e.Top().c.Line
 		}))
 		if cursorY != 1 {
 			t.Errorf("cursor y = %d, want 1 after cursor down", cursorY)

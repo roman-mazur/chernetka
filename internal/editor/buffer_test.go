@@ -305,8 +305,8 @@ func TestBuffer_Render(t *testing.T) {
 	})
 }
 
-func makePos(p position) escape.Position { return escape.Position{Line: p.y, Offset: p.x} }
-func makeSpan(s span) escape.Span        { return escape.Span{makePos(s.start), makePos(s.end)} }
+func makePos(p position) escape.Position { return escape.Position{Line: p.Line, Offset: p.Col} }
+func makeSpan(s span) escape.Span        { return escape.Span{makePos(s.Start), makePos(s.End)} }
 
 type testSuggestionExt []string
 
@@ -327,8 +327,8 @@ func TestBuffer_AcceptSuggestion(t *testing.T) {
 	if got := buf.Content.Lines()[0].String(); got != "Println" {
 		t.Errorf("line = %q, want %q", got, "Println")
 	}
-	if buf.c.x != 7 {
-		t.Errorf("cx = %d, want 7", buf.c.x)
+	if buf.c.Col != 7 {
+		t.Errorf("cx = %d, want 7", buf.c.Col)
 	}
 }
 

@@ -39,22 +39,22 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		case 'i':
 			buf.mode = ModeInsert
 		case 'a':
-			line := lines[buf.c.y].String()
-			if buf.c.x < len(line) {
-				_, sz := utf8.DecodeRuneInString(line[buf.c.x:])
-				buf.c.x += sz
+			line := lines[buf.c.Line].String()
+			if buf.c.Col < len(line) {
+				_, sz := utf8.DecodeRuneInString(line[buf.c.Col:])
+				buf.c.Col += sz
 			}
 			buf.mode = ModeInsert
 		case 'A':
-			buf.c.x = buf.Content.Lines()[buf.c.y].Len()
+			buf.c.Col = buf.Content.Lines()[buf.c.Line].Len()
 			buf.mode = ModeInsert
 		case 'o':
 			if !buf.canEdit() {
 				return false
 			}
-			buf.c.y++
-			buf.Mutate().Insert(buf.c.y, content.TextLine(""))
-			buf.c.x = 0
+			buf.c.Line++
+			buf.Mutate().Insert(buf.c.Line, content.TextLine(""))
+			buf.c.Col = 0
 			buf.mode = ModeInsert
 
 		// Enter command-line mode.
@@ -64,7 +64,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 
 		// Engage.
 		case '\r':
-			if action, ok := lines[buf.c.y].(content.LineAction); ok {
+			if action, ok := lines[buf.c.Line].(content.LineAction); ok {
 				action.Engage()
 			} else {
 				RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
@@ -75,10 +75,10 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			if !buf.canEdit() {
 				return false
 			}
-			line := lines[buf.c.y].String()
-			if buf.c.x < len(line) {
-				_, sz := utf8.DecodeRuneInString(line[buf.c.x:])
-				buf.Mutate().Update(buf.c.y, content.TextLine(line[:buf.c.x]+line[buf.c.x+sz:]))
+			line := lines[buf.c.Line].String()
+			if buf.c.Col < len(line) {
+				_, sz := utf8.DecodeRuneInString(line[buf.c.Col:])
+				buf.Mutate().Update(buf.c.Line, content.TextLine(line[:buf.c.Col]+line[buf.c.Col+sz:]))
 			}
 
 		// Commands.

@@ -63,9 +63,9 @@ func TestRelMove_Dx(t *testing.T) {
 			}
 			buf := &Buffer{Content: &ft, c: position{tc.cx, tc.cy}}
 			RelMove{Dx: tc.d}.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
-			if buf.c.x != tc.wantCx {
+			if buf.c.Col != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d)",
-					buf.c.x, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
+					buf.c.Col, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
 			}
 		})
 	}
@@ -122,11 +122,11 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cmd := ScreenMove{ScreenD: tc.dy}
 			cmd.DoOnBuffer(&tc.buf, RenderPrefs{TabSize: 4})
-			if tc.buf.c.x != tc.cx {
-				t.Errorf("buf.cx = %d, want %d", tc.buf.c.x, tc.cx)
+			if tc.buf.c.Col != tc.cx {
+				t.Errorf("buf.cx = %d, want %d", tc.buf.c.Col, tc.cx)
 			}
-			if tc.buf.c.y != tc.cy {
-				t.Errorf("buf.cy = %d, want %d", tc.buf.c.y, tc.cy)
+			if tc.buf.c.Line != tc.cy {
+				t.Errorf("buf.cy = %d, want %d", tc.buf.c.Line, tc.cy)
 			}
 			if tc.buf.offset != tc.offset {
 				t.Errorf("buf.offset = %d, want %d", tc.buf.offset, tc.offset)

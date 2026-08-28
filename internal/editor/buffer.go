@@ -38,42 +38,11 @@ type Buffer struct {
 	_textCache string // cached result for Text()
 }
 
-type span struct {
-	start, end position
-}
+//go:fix inline
+type span = content.Span
 
-func (s *span) min() position {
-	if s.start.y <= s.end.y {
-		return position{min(s.start.x, s.end.x), s.start.y}
-	}
-	return s.end
-}
-
-func (s *span) max() position {
-	if s.end.y >= s.start.y {
-		return position{max(s.start.x, s.end.x), s.end.y}
-	}
-	return s.start
-}
-
-func (s *span) containsLine(line int) bool {
-	return s.min().y <= line && line <= s.max().y
-}
-
-func (s *span) lineProjection(idx int, lineLen int) span {
-	res := span{s.min(), s.max()}
-	if res.start.y < idx {
-		res.start = position{0, idx}
-	}
-	if res.end.y > idx {
-		res.end = position{lineLen, idx}
-	}
-	return res
-}
-
-type position struct {
-	x, y int // x is a symbol offset in the line, y is a line index in the content.
-}
+//go:fix inline
+type position = content.Position
 
 // NewScratchBuffer constructs a new Buffer with empty content.
 func NewScratchBuffer() *Buffer {
@@ -94,7 +63,7 @@ func (b *Buffer) ExtensionData(id string) BufferExtData {
 // Pos provides a pair of coordinates pointing to the current cursor location.
 // cx is the symbol offset within the content line.
 // cy is the line index in the Content.
-func (b *Buffer) Pos() (cx, cy int) { return b.c.x, b.c.y }
+func (b *Buffer) Pos() (cx, cy int) { return b.c.Col, b.c.Line }
 
 // Close propagates the call to the Content and extension objects if they implement io.Closer.
 func (b *Buffer) Close() error {
@@ -113,30 +82,30 @@ func (b *Buffer) Close() error {
 func (b *Buffer) clampCursor() {
 	lines := b.Content.Lines()
 
-	b.c.y = max(0, min(b.c.y, len(lines)-1))
+	b.c.Line = max(0, min(b.c.Line, len(lines)-1))
 
 	var line string
 	if len(lines) > 0 {
-		line = lines[b.c.y].String()
+		line = lines[b.c.Line].String()
 	}
 	maxX := len(line)
 	if b.mode == ModeNormal && maxX > 0 {
 		_, sz := utf8.DecodeLastRuneInString(line)
 		maxX -= sz // Normal mode: cursor sits on a character, not past the last one.
 	}
-	b.c.x = max(0, min(b.c.x, maxX))
+	b.c.Col = max(0, min(b.c.Col, maxX))
 	// Vertical movement may land cx mid-rune; snap back to the rune start.
-	for b.c.x > 0 && b.c.x < len(line) && !utf8.RuneStart(line[b.c.x]) {
-		b.c.x--
+	for b.c.Col > 0 && b.c.Col < len(line) && !utf8.RuneStart(line[b.c.Col]) {
+		b.c.Col--
 	}
 
 	// Adjust scroll so cursor is visible.
 	if !b.noKeyboard {
-		if b.c.y < b.offset {
-			b.offset = b.c.y
+		if b.c.Line < b.offset {
+			b.offset = b.c.Line
 		}
-		if b.c.y >= b.offset+b.viewHeight() {
-			b.offset = b.c.y - b.viewHeight() + 1
+		if b.c.Line >= b.offset+b.viewHeight() {
+			b.offset = b.c.Line - b.viewHeight() + 1
 		}
 	}
 }
@@ -197,7 +166,7 @@ func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 		dirtyMark = " [*]"
 	}
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.Path, dirtyMark)
-	pos := fmt.Sprintf("%d:%d ", b.c.y+1, b.c.x+1)
+	pos := fmt.Sprintf("%d:%d ", b.c.Line+1, b.c.Col+1)
 	padding := max(b.w-len(status)-len(pos), 0)
 	_, _ = io.WriteString(out, status)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
@@ -216,11 +185,11 @@ func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
 	lines := b.Content.Lines()
 	var cursorLine string
 	if len(lines) > 0 {
-		cursorLine = lines[b.c.y].String()
+		cursorLine = lines[b.c.Line].String()
 	}
 
-	screenCol := runeToScreenCol(cursorLine, b.c.x, prefs.TabSize)
-	screenRow := b.c.y - b.offset + 1
+	screenCol := runeToScreenCol(cursorLine, b.c.Col, prefs.TabSize)
+	screenRow := b.c.Line - b.offset + 1
 	numDisplayWidth := b.lineNumberPrefixWidth()
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 }
@@ -240,9 +209,9 @@ func (b *Buffer) lineNumberPrefixWidth() int {
 
 func (b *Buffer) selectionsOnLine(line int) (res []span) {
 	for i := range b.sel {
-		if b.sel[i].containsLine(line) {
+		if b.sel[i].ContainsLine(line) {
 			lineLen := b.Content.Lines()[line].Len()
-			res = append(res, b.sel[i].lineProjection(line, lineLen))
+			res = append(res, b.sel[i].LineProjection(line, lineLen))
 		}
 	}
 	return
@@ -255,12 +224,12 @@ func (b *Buffer) AcceptSuggestion(sug string) {
 	if sug == "" || !b.canEdit() {
 		return
 	}
-	line := b.Content.Lines()[b.c.y].String()
-	if b.c.x > len(line) {
-		b.c.x = len(line)
+	line := b.Content.Lines()[b.c.Line].String()
+	if b.c.Col > len(line) {
+		b.c.Col = len(line)
 	}
-	b.Mutate().Update(b.c.y, content.TextLine(line[:b.c.x]+sug+line[b.c.x:]))
-	b.c.x += len(sug)
+	b.Mutate().Update(b.c.Line, content.TextLine(line[:b.c.Col]+sug+line[b.c.Col:]))
+	b.c.Col += len(sug)
 }
 
 func (b *Buffer) canEdit() bool {
@@ -334,17 +303,17 @@ func (b *Buffer) SelectedText() string {
 
 func (b *Buffer) selectedText(out *bytes.Buffer, s span) string {
 	lines := b.Content.Lines()
-	start, stop := s.min(), s.max()
-	for i := start.y; i <= stop.y; i++ {
+	start, stop := s.Min(), s.Max()
+	for i := start.Line; i <= stop.Line; i++ {
 		line := lines[i].String()
-		j, k := start.x, stop.x
-		if i > start.y {
+		j, k := start.Col, stop.Col
+		if i > start.Line {
 			j = 0
 		}
-		if i < stop.y {
+		if i < stop.Line {
 			k = len(line)
 		}
-		if i > start.y {
+		if i > start.Line {
 			out.Write([]byte("\n"))
 		}
 		out.Write([]byte(line[j:k]))

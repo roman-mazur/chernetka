@@ -25,8 +25,8 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 		}
 
 		buf.mode = ModeNormal
-		if buf.c.x > 0 {
-			buf.c.x-- // Land on the last typed character.
+		if buf.c.Col > 0 {
+			buf.c.Col-- // Land on the last typed character.
 		}
 		return
 	}
@@ -39,36 +39,36 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 		return
 	}
 	lines := buf.Content.Lines()
-	line := lines[buf.c.y].String()
+	line := lines[buf.c.Line].String()
 	mut := buf.Mutate()
 
 	switch ch := b[0]; ch {
 	// Backspace.
 	case 0x7f, 0x08:
-		if buf.c.x > 0 {
-			_, sz := utf8.DecodeLastRuneInString(line[:buf.c.x])
-			mut.Update(buf.c.y, content.TextLine(line[:buf.c.x-sz]+line[buf.c.x:]))
-			buf.c.x -= sz
-		} else if buf.c.y > 0 {
-			prev := lines[buf.c.y-1].String()
-			buf.c.x = len(prev)
-			mut.Update(buf.c.y-1, content.TextLine(prev+line))
-			mut.Delete(buf.c.y)
-			buf.c.y--
+		if buf.c.Col > 0 {
+			_, sz := utf8.DecodeLastRuneInString(line[:buf.c.Col])
+			mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col-sz]+line[buf.c.Col:]))
+			buf.c.Col -= sz
+		} else if buf.c.Line > 0 {
+			prev := lines[buf.c.Line-1].String()
+			buf.c.Col = len(prev)
+			mut.Update(buf.c.Line-1, content.TextLine(prev+line))
+			mut.Delete(buf.c.Line)
+			buf.c.Line--
 		}
 
 	// Enter.
 	case '\r':
-		mut.Update(buf.c.y, content.TextLine(line[:buf.c.x]))
-		mut.Insert(buf.c.y+1, content.TextLine(line[buf.c.x:]))
-		buf.c.y++
-		buf.c.x = 0
+		mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col]))
+		mut.Insert(buf.c.Line+1, content.TextLine(line[buf.c.Col:]))
+		buf.c.Line++
+		buf.c.Col = 0
 
 	// Printable ASCII.
 	default:
 		if inputs.IsTab(b) || ch >= 0x20 {
-			mut.Update(buf.c.y, content.TextLine(line[:buf.c.x]+string(ch)+line[buf.c.x:]))
-			buf.c.x++
+			mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col]+string(ch)+line[buf.c.Col:]))
+			buf.c.Col++
 		}
 	}
 

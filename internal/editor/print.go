@@ -65,13 +65,13 @@ func (cr *contentPrinter) render(out io.Writer) {
 
 		if !cr.b.hideLineNumbers {
 			nlColor := colors.Suggestion
-			if ln == cr.b.c.y {
+			if ln == cr.b.c.Line {
 				nlColor = colors.LineSelected
 			}
 			escape.ColorText(out, cr.lineNumber(ln+1), nlColor, nil)
 		}
 
-		lineHL := ln == cr.b.c.y && !cr.b.noCurrentLineHL
+		lineHL := ln == cr.b.c.Line && !cr.b.noCurrentLineHL
 		cr.renderLine(out, ln, raw, lineHL)
 
 		if lineHL {
@@ -95,10 +95,10 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 		bg:   cr.buildBgSpans(ln, len(line), hlLine),
 	}
 
-	if ln == cr.b.c.y && cr.suggestion != "" && cr.b.c.x <= len(line) {
-		p.print(line[:cr.b.c.x], nil)
+	if ln == cr.b.c.Line && cr.suggestion != "" && cr.b.c.Col <= len(line) {
+		p.print(line[:cr.b.c.Col], nil)
 		p.printSuggestion(cr.suggestion, colors.Suggestion)
-		p.print(line[cr.b.c.x:], nil)
+		p.print(line[cr.b.c.Col:], nil)
 		// TODO: use syntax HL
 		return
 	}
@@ -131,8 +131,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 			return nil
 		}
 		cs := colorSpan{color: colors.LineSelectedBg,
-			start: position{x: 0, y: line},
-			end:   position{x: lineLen, y: line}}
+			Start: position{Col: 0, Line: line},
+			End:   position{Col: lineLen, Line: line}}
 		return []colorSpan{cs}
 	}
 
@@ -145,10 +145,10 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 
 	res := make([]colorSpan, 0, len(spans)+2)
 
-	if spans[0].start.x != 0 {
+	if spans[0].Start.Col != 0 {
 		res = append(res, colorSpan{
-			start: position{0, line},
-			end:   position{spans[0].start.x, line},
+			Start: position{0, line},
+			End:   position{spans[0].Start.Col, line},
 			color: defBg(),
 		})
 	}
@@ -158,19 +158,19 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 			span:  selSpan,
 			color: colors.TextSelectedBg,
 		})
-		if i < len(spans)-1 && selSpan.end.x != spans[i+1].start.x {
+		if i < len(spans)-1 && selSpan.End.Col != spans[i+1].Start.Col {
 			res = append(res, colorSpan{
-				start: position{selSpan.end.x, line},
-				end:   position{spans[i+1].start.x, line},
+				Start: position{selSpan.End.Col, line},
+				End:   position{spans[i+1].Start.Col, line},
 				color: defBg(),
 			})
 		}
 	}
 
-	if spans[len(spans)-1].end.x != lineLen {
+	if spans[len(spans)-1].End.Col != lineLen {
 		res = append(res, colorSpan{
-			start: position{spans[len(spans)-1].end.x, line},
-			end:   position{lineLen, line},
+			Start: position{spans[len(spans)-1].End.Col, line},
+			End:   position{lineLen, line},
 			color: defBg(),
 		})
 	}
@@ -199,7 +199,7 @@ func (clp *colorLinePrinter) printedText(s string) string {
 
 func (clp *colorLinePrinter) currentBgIdx() int {
 	return slices.IndexFunc(clp.bg, func(cs colorSpan) bool {
-		return cs.start.x <= clp.li && cs.end.x >= clp.li
+		return cs.Start.Col <= clp.li && cs.End.Col >= clp.li
 	})
 }
 
@@ -211,10 +211,10 @@ func (clp *colorLinePrinter) print(s string, fg color.Color) {
 	}
 	for start := 0; start < len(s); {
 		bg := clp.bg[bgIdx]
-		end := min(len(s), bg.end.x-clp.li)
+		end := min(len(s), bg.End.Col-clp.li)
 		escape.ColorText(clp.out, clp.printedText(s[start:end]), fg, bg.color)
 		start = end
-		if clp.li+start >= bg.end.x {
+		if clp.li+start >= bg.End.Col {
 			bgIdx++
 		}
 	}

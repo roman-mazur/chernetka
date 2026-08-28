@@ -490,10 +490,10 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 			return
 		}
 
-		buf.c.x = data.X - 1 - buf.lineNumberPrefixWidth()
-		buf.c.y = buf.offset + data.Y - 1
+		buf.c.Col = data.X - 1 - buf.lineNumberPrefixWidth()
+		buf.c.Line = buf.offset + data.Y - 1
 		if buf.selecting && event.Mod.HasMotion() && overContent {
-			buf.sel[len(buf.sel)-1].end = buf.c
+			buf.sel[len(buf.sel)-1].End = buf.c
 		} else if !buf.selecting {
 			buf.sel = nil
 		}

@@ -85,7 +85,7 @@ func TestCommandInput_Clipboard(t *testing.T) {
 	prefs := RenderPrefs{}
 
 	StartTextSelection.DoOnBuffer(buf, prefs)
-	buf.c.x = ft.Lines()[0].Len()
+	buf.c.Col = ft.Lines()[0].Len()
 	StopTextSelection.DoOnBuffer(buf, prefs)
 	if selText := buf.SelectedText(); selText != "hello" {
 		t.Errorf("SelectedText() = %q, want %q", selText, "hello")
