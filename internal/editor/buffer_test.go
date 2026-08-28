@@ -341,6 +341,29 @@ func TestBuffer_Text(t *testing.T) {
 	doubleCheckBufferText(t, buf, "Hello\nWorld")
 }
 
+func TestBuffer_SelectedText_MultiLineDownAndLeft(t *testing.T) {
+	// Selection starts at a high column on an early, long line and ends at
+	// a low column on a later, short line (a normal down-and-left drag).
+	// This exercises Span.Min()/Max() with Start.Line < End.Line and
+	// Start.Col > End.Col, which must not mix columns across lines.
+	buf := &Buffer{
+		Content: &content.FullText{
+			content.TextLine("0123456789ABCDEFGHIJ"), // line 0, len 20
+			content.TextLine("middle"),                // line 1
+			content.TextLine("012"),                   // line 2, len 3
+		},
+		sel: []content.Span{{
+			Start: content.Position{Col: 15, Line: 0},
+			End:   content.Position{Col: 2, Line: 2},
+		}},
+	}
+
+	want := "FGHIJ\nmiddle\n01"
+	if got := buf.SelectedText(); got != want {
+		t.Errorf("SelectedText() = %q, want %q", got, want)
+	}
+}
+
 func BenchmarkBuffer_Text(b *testing.B) {
 	f, err := os.Open("buffer_test.go")
 	if err != nil {

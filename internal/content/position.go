@@ -12,17 +12,23 @@ type Span struct {
 }
 
 func (s *Span) Min() Position {
-	if s.Start.Line <= s.End.Line {
-		return Position{min(s.Start.Col, s.End.Col), s.Start.Line}
+	if s.Start.Line != s.End.Line {
+		if s.Start.Line < s.End.Line {
+			return s.Start
+		}
+		return s.End
 	}
-	return s.End
+	return Position{min(s.Start.Col, s.End.Col), s.Start.Line}
 }
 
 func (s *Span) Max() Position {
-	if s.End.Line >= s.Start.Line {
-		return Position{max(s.Start.Col, s.End.Col), s.End.Line}
+	if s.Start.Line != s.End.Line {
+		if s.Start.Line < s.End.Line {
+			return s.End
+		}
+		return s.Start
 	}
-	return s.Start
+	return Position{max(s.Start.Col, s.End.Col), s.Start.Line}
 }
 
 func (s *Span) ContainsLine(line int) bool {
