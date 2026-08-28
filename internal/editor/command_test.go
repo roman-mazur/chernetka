@@ -100,3 +100,32 @@ func TestCommandInput_Clipboard(t *testing.T) {
 		t.Errorf("clipboard.Read() = %q, expected %q", res, "hello")
 	}
 }
+
+func TestCommandInput_ClipboardCutAndPaste(t *testing.T) {
+	ft := content.FullText{content.TextLine("hello")}
+	buf := &Buffer{Content: &ft, mode: ModeCommand}
+	prefs := RenderPrefs{}
+
+	StartTextSelection.DoOnBuffer(buf, prefs)
+	buf.c.Col = ft.Lines()[0].Len()
+	StopTextSelection.DoOnBuffer(buf, prefs)
+
+	buf.cmdline = "pbcut"
+	if q := commandInput(buf, []byte("\r"), &prefs); q {
+		t.Error("quit flag returned true on pbcut")
+	}
+	if res := clipboard.Read(); res != "hello" {
+		t.Errorf("clipboard.Read() after cut = %q, want %q", res, "hello")
+	}
+	if got := ft.Lines()[0].String(); got != "" {
+		t.Errorf("line after cut = %q, want empty", got)
+	}
+
+	buf.cmdline = "pbpaste"
+	if q := commandInput(buf, []byte("\r"), &prefs); q {
+		t.Error("quit flag returned true on pbpaste")
+	}
+	if got := ft.Lines()[0].String(); got != "hello" {
+		t.Errorf("line after paste = %q, want %q", got, "hello")
+	}
+}

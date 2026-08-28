@@ -259,6 +259,75 @@ func TestSave_NoPath(t *testing.T) {
 	}
 }
 
+func TestClipboardCut(t *testing.T) {
+	ft := content.FullText{content.TextLine("hello world")}
+	buf := &Buffer{Content: &ft, dirty: false}
+	prefs := RenderPrefs{TabSize: 4}
+
+	StartTextSelection.DoOnBuffer(buf, prefs)
+	buf.c.Col = 5
+	StopTextSelection.DoOnBuffer(buf, prefs)
+
+	ClipboardCut.DoOnBuffer(buf, prefs)
+
+	if got, want := clipboard.Read(), "hello"; got != want {
+		t.Errorf("clipboard.Read() = %q, want %q", got, want)
+	}
+	if got, want := ft.Lines()[0].String(), " world"; got != want {
+		t.Errorf("line after cut = %q, want %q", got, want)
+	}
+	if buf.c != (content.Position{Col: 0, Line: 0}) {
+		t.Errorf("cursor after cut = %+v, want start of removed span", buf.c)
+	}
+	if buf.selecting || len(buf.sel) != 0 {
+		t.Errorf("selection not cleared after cut")
+	}
+	if !buf.dirty {
+		t.Error("buffer not marked dirty after cut")
+	}
+}
+
+func TestClipboardCut_NoSelectionIsNoop(t *testing.T) {
+	ft := content.FullText{content.TextLine("hello")}
+	buf := &Buffer{Content: &ft}
+	ClipboardCut.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
+	if got := ft.Lines()[0].String(); got != "hello" {
+		t.Errorf("content changed without a selection: %q", got)
+	}
+}
+
+func TestClipboardCut_NotMutable(t *testing.T) {
+	buf := &Buffer{Content: &content.ErrorContent{}}
+	buf.sel = []content.Span{{Start: content.Position{}, End: content.Position{Col: 1}}}
+
+	ClipboardCut.DoOnBuffer(buf, RenderPrefs{TabSize: 4}) // must not panic
+}
+
+func TestClipboardPaste(t *testing.T) {
+	ft := content.FullText{content.TextLine("ad")}
+	buf := &Buffer{Content: &ft, c: content.Position{Col: 1, Line: 0}}
+	prefs := RenderPrefs{TabSize: 4}
+
+	clipboard.Write("b\nc")
+	ClipboardPaste.DoOnBuffer(buf, prefs)
+
+	if got, want := []string{ft.Lines()[0].String(), ft.Lines()[1].String()}, []string{"ab", "cd"}; got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("lines after paste = %q, want %q", got, want)
+	}
+	if buf.c != (content.Position{Col: 1, Line: 1}) {
+		t.Errorf("cursor after paste = %+v, want %+v", buf.c, content.Position{Col: 1, Line: 1})
+	}
+	if !buf.dirty {
+		t.Error("buffer not marked dirty after paste")
+	}
+}
+
+func TestClipboardPaste_NotMutable(t *testing.T) {
+	buf := &Buffer{Content: &content.ErrorContent{}}
+	clipboard.Write("x")
+	ClipboardPaste.DoOnBuffer(buf, RenderPrefs{TabSize: 4}) // must not panic
+}
+
 func TestSave_NotMutable(t *testing.T) {
 	buf := &Buffer{
 		Path:    "irrelevant",

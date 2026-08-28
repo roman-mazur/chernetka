@@ -62,8 +62,10 @@ func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
 			switch cmd {
 			case "bcopy":
 				ClipboardCopy.DoOnBuffer(buf, *prefs)
+			case "bcut":
+				ClipboardCut.DoOnBuffer(buf, *prefs)
 			case "bpaste":
-				// TODO
+				ClipboardPaste.DoOnBuffer(buf, *prefs)
 			}
 		}
 	}

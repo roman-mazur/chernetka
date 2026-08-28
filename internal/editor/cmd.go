@@ -144,6 +144,22 @@ var (
 	ClipboardCopy = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		clipboard.Write(b.SelectedText())
 	})
+	// ClipboardCut copies selected text to the clipboard and removes it from the buffer.
+	ClipboardCut = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		if len(b.sel) == 0 || !b.canEdit() {
+			return
+		}
+		clipboard.Write(b.SelectedText())
+		b.c = content.DeleteSpan(b.Mutate(), b.sel[len(b.sel)-1])
+		b.cancelSelection()
+	})
+	// ClipboardPaste inserts the clipboard text at the cursor position.
+	ClipboardPaste = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		if !b.canEdit() {
+			return
+		}
+		b.c = content.InsertText(b.Mutate(), b.c, clipboard.Read())
+	})
 )
 
 var clipboard clipb.Clipboard
