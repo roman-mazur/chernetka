@@ -285,34 +285,7 @@ func (b *Buffer) Text() string {
 }
 
 func (b *Buffer) SelectedText() string {
-	if len(b.sel) == 0 {
-		return ""
-	}
-	var out bytes.Buffer
-	for _, sel := range b.sel {
-		b.selectedText(&out, sel)
-	}
-	return out.String()
-}
-
-func (b *Buffer) selectedText(out *bytes.Buffer, s content.Span) string {
-	lines := b.Content.Lines()
-	start, stop := s.Min(), s.Max()
-	for i := start.Line; i <= stop.Line; i++ {
-		line := lines[i].String()
-		j, k := start.Col, stop.Col
-		if i > start.Line {
-			j = 0
-		}
-		if i < stop.Line {
-			k = len(line)
-		}
-		if i > start.Line {
-			out.Write([]byte("\n"))
-		}
-		out.Write([]byte(line[j:k]))
-	}
-	return out.String()
+	return content.Select(b.Content, b.sel)
 }
 
 func (b *Buffer) cancelSelection() {
