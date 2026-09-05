@@ -1,207 +1,196 @@
 package extsyntaxhl
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
+	"unicode"
 
-	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 )
 
-func TestIntegration_AfterEdit(t *testing.T) {
-	t.Run("no syntax highlight", func(t *testing.T) {
-		shl := new(Integration)
-		var (
-			edit editor.Editor
-			buf  editor.Buffer
-		)
-		shl.AfterEdit(&edit, &buf) // should not crash
-	})
-}
-
-func TestIntegration(t *testing.T) {
-	example := testExamples{
-		{line: "// Command comment.", tokens: []string{"0:19:Comment"}},
-		{line: "package main", tokens: []string{"0:7:Keyword", "8:12:Identifier"}},
-		{line: "import \"fmt\"", tokens: []string{"0:6:Keyword", "7:12:StringLiteral"}},
-		{line: "import \"time\"", tokens: []string{"0:6:Keyword", "7:13:StringLiteral"}},
-		{line: "func main() {", tokens: []string{"0:4:Keyword", "5:9:Identifier"}},
-		{line: "\tfmt.Println(\"Hello World\")", tokens: []string{"1:4:Identifier", "5:12:Identifier", "13:26:StringLiteral"}},
-		{line: "\tif time.Now().Day() == time.Sunday {", tokens: []string{"1:3:Keyword", "4:8:Identifier", "9:12:Identifier", "15:18:Identifier", "24:28:Identifier", "29:35:Identifier"}},
-		{line: "\t\tfmt.Println(\"It's Sunday!\")", tokens: []string{"2:5:Identifier", "6:13:Identifier", "14:28:StringLiteral"}},
-		{line: "\t} else {", tokens: []string{"3:7:Keyword"}},
-		{line: "\t\tfmt.Println(\"It's not Sunday!\")", tokens: []string{"2:5:Identifier", "6:13:Identifier", "14:32:StringLiteral"}},
-		{line: "\t}", tokens: []string{"0:2:Nothing"}},
-		{line: "}", tokens: []string{"0:1:Nothing"}},
+func TestGoHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"// Command comment.", []string{"0:19:Comment"}},
+		{"package main", []string{"0:7:Keyword", "8:12:Identifier"}},
+		{"", nil},
+		{"import \"fmt\"", []string{"0:6:Keyword", "7:12:ImportRef"}},
+		{"", nil},
+		{"type T struct{ N int }", []string{
+			"0:4:Keyword", "5:6:TypeRef", "7:13:Keyword", "15:16:Field", "17:20:TypeRef",
+		}},
+		{"", nil},
+		{"func (t *T) Do(s string) error {", []string{
+			"0:4:Keyword", "6:7:Identifier", "9:10:TypeRef",
+			"12:14:FuncDeclaration", "15:16:Identifier", "17:23:TypeRef", "25:30:TypeRef",
+		}},
+		{"\tconst x = 1.5", []string{"1:6:Keyword", "7:8:Identifier", "11:14:NumberLiteral"}},
+		// The \t escape sequence sits inside the string literal and overrides it.
+		{"\tfmt.Println(\"a\\tb\", t.N, x, nil)", []string{
+			"1:4:Identifier", "5:12:Call", "13:15:StringLiteral", "15:17:Escape",
+			"17:19:StringLiteral", "21:22:Identifier", "23:24:Field", "26:27:Identifier",
+			"29:32:Constant",
+		}},
+		{"\treturn nil", []string{"1:7:Keyword", "8:11:Constant"}},
+		{"}", nil},
 	}
 
-	lines := example.lines()
+	buf, ext := openDoc(t, "main.go", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
 
-	prog := strings.Join(lines, "\n")
-	text, err := content.LoadFullText(strings.NewReader(prog))
+// TestGoMultiLineLiteral covers a node that starts on one line and ends on
+// another: it has to be cut into one span per line, each clipped to its own
+// line, instead of being reported with the start line's number and the end
+// line's column.
+func TestGoMultiLineLiteral(t *testing.T) {
+	doc := hlDoc{
+		{"package main", []string{"0:7:Keyword", "8:12:Identifier"}},
+		{"", nil},
+		{"var raw = `first", []string{"0:3:Keyword", "4:7:Identifier", "10:16:StringLiteral"}},
+		{"second line is longer", []string{"0:21:StringLiteral"}},
+		{"third`", []string{"0:6:StringLiteral"}},
+		{"", nil},
+		{"/* a block", []string{"0:10:Comment"}},
+		{"   comment */", []string{"0:13:Comment"}},
+	}
+
+	buf, ext := openDoc(t, "main.go", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestGoHighlightAfterEdit(t *testing.T) {
+	doc := hlDoc{
+		{"package main", []string{"0:7:Keyword", "8:12:Identifier"}},
+		{"", nil},
+		{"func main() {}", []string{"0:4:Keyword", "5:9:FuncDeclaration"}},
+	}
+
+	buf, ext := openDoc(t, "main.go", doc.text())
+	hl := highlighterOf(t, buf, ext)
+	doc.check(t, hl)
+
+	// Inserting a line shifts everything below it down by one.
+	insertLine(t, buf, ext, 1)
+	shifted := hlDoc{doc[0], {"", nil}, doc[1], doc[2]}
+	shifted.check(t, hl)
+}
+
+// TestLanguageForPath checks that only the recognized file types get a
+// highlighter, and that an unknown one is left alone rather than mishandled.
+func TestLanguageForPath(t *testing.T) {
+	for path, want := range map[string]string{
+		"main.go":         "go",
+		"a/b/main.GO":     "go",
+		"notes.md":        "markdown",
+		"notes.markdown":  "markdown",
+		"":                "",
+		"Makefile":        "",
+		"query.sql":       "",
+		"go":              "",
+		"archive.go.bak":  "",
+		"dir.go/file.txt": "",
+	} {
+		got := ""
+		if lang := languageForPath(path); lang != nil {
+			got = lang.name
+		}
+		if got != want {
+			t.Errorf("languageForPath(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
+
+func TestNoHighlightForUnknownType(t *testing.T) {
+	buf, ext := openDoc(t, "notes.txt", "some text\n")
+	if data := buf.ExtensionData(ext.ID()); data != nil {
+		t.Errorf("got extension data %#v for an unknown file type, want none", data)
+	}
+	// AfterEdit has to tolerate a buffer it never made data for.
+	ext.AfterEdit(nil, buf)
+	// So does a buffer that was never passed through MakeBufferData at all.
+	ext.AfterEdit(nil, new(editor.Buffer))
+}
+
+// TestGoRealSources runs the highlighter over this package's own sources. It is
+// a sanity check rather than an exact comparison: every line with real content
+// should come back with some highlight, and no span may fall outside its line.
+func TestGoRealSources(t *testing.T) {
+	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	buf := editor.Buffer{
-		Path:    "test.go",
-		Content: &text,
-	}
-	var edit editor.Editor
-
-	syntaxHighlighter := new(Integration)
-	syntaxHighlighter.LogDebug = true
-	syntaxHighlighter.LogF = t.Logf
-
-	edit.Extend(syntaxHighlighter)
-
-	edit.OpenBuffer(&buf)
-
-	data, ok := buf.ExtensionData("syntaxhl").(*syntaxTree)
-	if !ok {
-		t.Fatal("didn't get the syntax tree for the buffer")
-	}
-	root := data.tree.RootNode()
-	rootStart, rootEnd := root.ByteRange()
-	if rootStart != 0 || rootEnd != uint(len(prog)) {
-		t.Errorf("rootStart: %d, rootEnd: %d", rootStart, rootEnd)
-	}
-
-	example.match(t, data)
-
-	insertEmptyLine := func(buf *editor.Buffer, hl editor.Extension) int {
-		mut := buf.Mutate()
-		idx := min(17, buf.Content.Len()/2)
-		mut.Insert(idx, content.TextLine(""))
-		hl.AfterEdit(&edit, buf)
-		return idx
-	}
-
-	t.Run("edit/insert-empty-line", func(t *testing.T) {
-		syntaxHighlighter.LogF = t.Logf
-		insertEmptyLine(&buf, syntaxHighlighter)
-
-		exampleV2 := example.copy()
-		exampleV2 = slices.Insert(exampleV2, len(example)/2, testCase{tokens: []string{"0:0:Nothing"}})
-		exampleV2.match(t, buf.ExtensionData(syntaxHighlighter.ID()).(*syntaxTree))
-	})
-
-	t.Run("real-sources", func(t *testing.T) {
-		entries, err := os.ReadDir(".")
-		if err != nil {
-			t.Fatal(err)
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".go" {
+			continue
 		}
-		for _, entry := range entries {
-			if !entry.IsDir() && filepath.Ext(entry.Name()) == ".go" {
-				t.Run(entry.Name(), func(t *testing.T) {
-					var edit editor.Editor
-					syntaxHighlighter := new(Integration)
-					syntaxHighlighter.LogF = t.Logf
-					edit.Extend(syntaxHighlighter)
+		t.Run(entry.Name(), func(t *testing.T) {
+			src, err := os.ReadFile(entry.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf, ext := openDoc(t, entry.Name(), string(src))
+			hl := highlighterOf(t, buf, ext)
 
-					f, err := os.Open(entry.Name())
-					must(t, err)
-					t.Cleanup(func() { _ = f.Close() })
-
-					must(t, edit.OpenReader(entry.Name(), f))
-
-					checkHl := func(buf *editor.Buffer, ctxMsg string) {
-						t.Helper()
-						hl := buf.ExtensionData(syntaxHighlighter.ID()).(editor.SyntaxHighlighter)
-						for i, line := range buf.Content.Lines() {
-							textLine := line.String()
-							spans := hl.SyntaxSpans(i, textLine)
-							textLen := len(strings.TrimSpace(textLine))
-							if textLen > 2 && len(spans) < 2 {
-								if len(spans) == 1 && spans[0].TokenType != editor.TtNothing {
-									continue
-								}
-								t.Log("line:", textLine)
-								t.Log("spans:", spans)
-								t.Errorf("%s > line %d: got %d spans, want at least %d",
-									ctxMsg, i, len(spans), 2)
-							}
+			check := func(stage string) {
+				t.Helper()
+				for i, line := range buf.Content.Lines() {
+					text := line.String()
+					spans := hl.SyntaxSpans(i, text)
+					for _, s := range spans {
+						if s.LineNumber != i || s.Start < 0 || s.End > len(text) || s.Start >= s.End {
+							t.Fatalf("%s > line %d %q: span %s is out of range", stage, i, text, s)
 						}
 					}
-
-					buf := edit.Top()
-					// TODO: something must be wrong with Buffer Text() implementation.
-
-					t.Log("initial check")
-					checkHl(buf, "initial check")
-
-					oldLen := buf.Content.Len()
-					t.Logf("insert empty line at %d and check", insertEmptyLine(buf, syntaxHighlighter))
-					if buf.Content.Len() == oldLen {
-						t.Error("content Len() didn't change after insert")
+					// Any line with a word on it is a keyword, an identifier, a
+					// comment or a string, so it has to come back colorized.
+					// Lines of pure punctuation such as "}}," legitimately do not.
+					if len(spans) == 0 && strings.ContainsFunc(text, unicode.IsLetter) {
+						t.Errorf("%s > line %d %q: no highlight", stage, i, text)
 					}
-					if len(buf.Content.Lines()) != buf.Content.Len() {
-						t.Error("inconsistent content length")
-					}
-					checkHl(buf, "after insert")
-				})
+				}
 			}
-		}
-	})
+
+			check("initial")
+
+			before := buf.Content.Len()
+			insertLine(t, buf, ext, before/2)
+			if buf.Content.Len() != before+1 {
+				t.Fatalf("content length %d after insert, want %d", buf.Content.Len(), before+1)
+			}
+			check("after insert")
+		})
+	}
 }
 
-func must(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
+// TestNoHighlightForDirectoryListing covers a directory whose own name ends in
+// a recognized extension: the buffer lists file names, not code.
+func TestNoHighlightForDirectoryListing(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "notes.md")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-}
-
-type testCase struct {
-	line   string
-	tokens []string
-}
-
-func (tc testCase) copy() testCase {
-	res := testCase{
-		line:   tc.line,
-		tokens: make([]string, len(tc.tokens)),
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	copy(res.tokens, tc.tokens)
-	return res
-}
 
-type testExamples []testCase
+	ext := new(Integration)
+	ext.LogF = t.Logf
+	var edit editor.Editor
+	edit.Extend(ext)
+	edit.OpenDir(dir, noopOpener{})
 
-func (te testExamples) lines() []string {
-	lines := make([]string, len(te))
-	for i, ex := range te {
-		lines[i] = ex.line
+	buf := edit.Top()
+	if buf.Path != "notes.md" {
+		t.Fatalf("buffer path is %q, want the directory name", buf.Path)
 	}
-	return lines
-}
-
-func (te testExamples) expectedTokens(ln int) []string {
-	res := make([]string, len(te[ln].tokens))
-	for i, suffix := range te[ln].tokens {
-		res[i] = fmt.Sprintf("%d:%s", ln, suffix)
-	}
-	return res
-}
-
-func (te testExamples) match(t *testing.T, data *syntaxTree) {
-	t.Helper()
-	for i, ex := range te {
-		spans := data.SyntaxSpans(i, ex.line)
-		if ss, es := fmt.Sprint(spans), fmt.Sprint(te.expectedTokens(i)); ss != es {
-			t.Errorf("line %d: got %s, want %s", i, ss, es)
-		}
+	if data := buf.ExtensionData(ext.ID()); data != nil {
+		t.Errorf("got extension data %#v for a directory listing, want none", data)
 	}
 }
 
-func (te testExamples) copy() testExamples {
-	res := make(testExamples, len(te))
-	for i := range res {
-		res[i] = te[i].copy()
-	}
-	return res
-}
+// noopOpener satisfies content.OpenFile for a test that never opens anything.
+type noopOpener struct{}
+
+func (noopOpener) OpenFile(string) {}

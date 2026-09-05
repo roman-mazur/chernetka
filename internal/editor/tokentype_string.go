@@ -18,11 +18,23 @@ func _() {
 	_ = x[TtStringLiteral-7]
 	_ = x[TtNumberLiteral-8]
 	_ = x[TtComment-9]
+	_ = x[TtConstant-10]
+	_ = x[TtField-11]
+	_ = x[TtEscape-12]
+	_ = x[TtPunctuation-13]
+	_ = x[TtHeading-14]
+	_ = x[TtEmphasis-15]
+	_ = x[TtStrong-16]
+	_ = x[TtLink-17]
+	_ = x[TtURL-18]
+	_ = x[TtListMarker-19]
+	_ = x[TtRawText-20]
+	_ = x[TtQuote-21]
 }
 
-const _TokenType_name = "NothingKeywordIdentifierTypeRefImportRefFuncDeclarationCallStringLiteralNumberLiteralComment"
+const _TokenType_name = "NothingKeywordIdentifierTypeRefImportRefFuncDeclarationCallStringLiteralNumberLiteralCommentConstantFieldEscapePunctuationHeadingEmphasisStrongLinkURLListMarkerRawTextQuote"
 
-var _TokenType_index = [...]uint8{0, 7, 14, 24, 31, 40, 55, 59, 72, 85, 92}
+var _TokenType_index = [...]uint8{0, 7, 14, 24, 31, 40, 55, 59, 72, 85, 92, 100, 105, 111, 122, 129, 137, 143, 147, 150, 160, 167, 172}
 
 func (i TokenType) String() string {
 	idx := int(i) - 0

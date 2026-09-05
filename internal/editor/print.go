@@ -278,10 +278,27 @@ var colors = ColorTheme{
 	syntaxColors: map[TokenType]color.Color{
 		TtKeyword:         parseColor("CF8E6D"),
 		TtTypeRef:         parseColor("BCBEC4"),
+		TtImportRef:       parseColor("57AAF7"),
 		TtStringLiteral:   parseColor("6AAB73"),
 		TtNumberLiteral:   parseColor("2AACB8"),
 		TtFuncDeclaration: parseColor("56A8F5"),
+		TtCall:            parseColor("56A8F5"),
 		TtComment:         parseColor("7A7E85"),
+		TtConstant:        parseColor("C77DBB"),
+		TtField:           parseColor("C77DBB"),
+		TtEscape:          parseColor("CF8E6D"),
+
+		// Markup. Emphasis and strong text only differ by color: the terminal
+		// writer sets foreground and background, not text attributes.
+		TtPunctuation: parseColor("7A7E85"),
+		TtHeading:     parseColor("56A8F5"),
+		TtEmphasis:    parseColor("BCBEC4"),
+		TtStrong:      parseColor("FFFFFF"),
+		TtLink:        parseColor("C77DBB"),
+		TtURL:         parseColor("548AF7"),
+		TtListMarker:  parseColor("CF8E6D"),
+		TtRawText:     parseColor("6AAB73"),
+		TtQuote:       parseColor("9BA0A8"),
 	},
 }
 
