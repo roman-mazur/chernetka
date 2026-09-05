@@ -18,12 +18,15 @@ func TestConsumeClipboardPaste_NotAPaste(t *testing.T) {
 		{"wrong marker", []byte("\x1b[201~hello")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			content, err := ConsumeClipboardPaste(tc.b, strings.NewReader(""))
+			content, detected, err := ConsumeClipboardPaste(tc.b, strings.NewReader(""))
 			if err != nil {
 				t.Fatalf("err = %v, want nil", err)
 			}
 			if content != "" {
 				t.Errorf("content = %q, want empty", content)
+			}
+			if detected {
+				t.Errorf("detected = true, want false")
 			}
 		})
 	}
@@ -84,9 +87,12 @@ func TestConsumeClipboardPaste(t *testing.T) {
 			// iotest.OneByteReader forces every Read to return at most one
 			// byte, exercising the case where the terminator marker arrives
 			// fragmented across multiple reads.
-			content, err := ConsumeClipboardPaste(tc.b, iotest.OneByteReader(strings.NewReader(tc.rest)))
+			content, detected, err := ConsumeClipboardPaste(tc.b, iotest.OneByteReader(strings.NewReader(tc.rest)))
 			if err != nil {
 				t.Fatalf("err = %v, want nil", err)
+			}
+			if !detected {
+				t.Errorf("detected = false, want true")
 			}
 			if content != tc.want {
 				t.Errorf("content = %q, want %q", content, tc.want)
@@ -110,9 +116,12 @@ func TestConsumeClipboardPaste_ReaderError(t *testing.T) {
 			if tc.rest != "" {
 				r = iotest.TimeoutReader(strings.NewReader(tc.rest))
 			}
-			content, err := ConsumeClipboardPaste(tc.b, r)
+			content, detected, err := ConsumeClipboardPaste(tc.b, r)
 			if err == nil {
 				t.Fatal("err = nil, want an error")
+			}
+			if !detected {
+				t.Errorf("detected = false, want true")
 			}
 			if content != "" {
 				t.Errorf("content = %q, want empty on error", content)

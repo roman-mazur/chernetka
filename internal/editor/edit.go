@@ -164,6 +164,16 @@ func (e *Editor) Post(cmd Command) {
 	e.cmdChannel <- cmd
 }
 
+func (e *Editor) postBufferCmd(cmd BufferCommand) {
+	e.cmdChannel <- CommandFunc(func(e *Editor) {
+		b := e.Top()
+		if b == nil {
+			return
+		}
+		cmd.DoOnBuffer(b, e.rPrefs)
+	})
+}
+
 func (e *Editor) push(buf *Buffer) {
 	e.prepareExt(buf)
 
@@ -341,6 +351,7 @@ func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
 
 	cleanupOps = append(cleanupOps, escape.EnableAlternativeBuffer(f))
 	cleanupOps = append(cleanupOps, escape.DisableLineWrapping(f))
+	cleanupOps = append(cleanupOps, escape.EnableBracketedPasteMode(f))
 
 	e.termFd = int(f.Fd())
 	state, err := term.MakeRaw(e.termFd)
@@ -398,7 +409,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		// Get input.
 		n, err := in.Read(inBuf[:])
 		if err != nil {
-			e.cmdChannel <- commandQuit
+			e.handleInputError(err, logf)
 			break
 		}
 		if n == 0 {
@@ -414,7 +425,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		// Check for mouse input.
 		_, k, err := e.readAndHandleMouse(input, logf)
 		if err != nil {
-			e.cmdChannel <- commandQuit
+			e.handleInputError(err, logf)
 			break
 		}
 		input = input[k:]
@@ -423,8 +434,21 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 			continue
 		}
 
+		// Check for clipboard paste.
+		clipboardContent, detected, err := inputs.ConsumeClipboardPaste(input, in)
+		if err != nil {
+			e.handleInputError(err, logf)
+			break
+		}
+		if clipboardContent != "" {
+			e.postBufferCmd(PasteText(clipboardContent))
+		}
+		if detected {
+			continue
+		}
+
 		// Handle input.
-		e.cmdChannel <- CommandFunc(func(e *Editor) {
+		e.Post(CommandFunc(func(e *Editor) {
 			quit := e.handleInput(input)
 			if quit {
 				commandQuit(e)
@@ -432,8 +456,13 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 				e.renderRequested = true
 			}
 			bPool.Put(buf)
-		})
+		}))
 	}
+}
+
+func (e *Editor) handleInputError(err error, logf logger.Func) {
+	logf("input error, quitting: %s", err)
+	e.cmdChannel <- commandQuit
 }
 
 func (e *Editor) readAndHandleMouse(input []byte, logf logger.Func) (handled bool, n int, err error) {

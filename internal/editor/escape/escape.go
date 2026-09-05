@@ -88,6 +88,10 @@ func MouseShape(out io.Writer, shape string) {
 	_, _ = io.WriteString(out, "\x07")
 }
 
+func EnableBracketedPasteMode(out io.Writer) (restore func()) {
+	return applyPair(out, "\x1b[?2004h", "\x1b[?2004l")
+}
+
 func applyPair(out io.Writer, action, revert string) (restore func()) {
 	_, err := io.WriteString(out, action)
 	if err == nil {

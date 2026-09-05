@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"rmazur.io/chernetka/internal/content"
 )
 
 func TestEditor_OpenReader(t *testing.T) {
@@ -112,6 +114,67 @@ func TestEditor_Run(t *testing.T) {
 		}))
 		if offset != 5 {
 			t.Errorf("offset = %d, some scroll down events seem to be ignored", offset)
+		}
+	})
+
+	t.Run("clipboard paste", func(t *testing.T) {
+		// Land the cursor at a known position for a deterministic assertion.
+		te.Post(t, CommandFunc(func(e *Editor) {
+			e.Top().c = content.Position{}
+		}))
+
+		te.SendInput(t, []byte("\x1b[200~pasted \x1b[201~"))
+
+		var line0 string
+		var cursor content.Position
+		te.Post(t, CommandFunc(func(e *Editor) {
+			line0 = e.Top().Content.Lines()[0].String()
+			cursor = e.Top().c
+		}))
+		if want := "pasted "; !strings.HasPrefix(line0, want) {
+			t.Errorf("line 0 = %q, want prefix %q", line0, want)
+		}
+		if want := (content.Position{Col: len("pasted ")}); cursor != want {
+			t.Errorf("cursor after paste = %+v, want %+v", cursor, want)
+		}
+	})
+
+	t.Run("clipboard paste split across reads", func(t *testing.T) {
+		te.Post(t, CommandFunc(func(e *Editor) {
+			e.Top().c = content.Position{}
+		}))
+
+		// Split both the pasted text and the terminator marker across
+		// separate writes, exercising the reader continuation that
+		// readAndHandleInput relies on to reassemble a paste that
+		// straddles two terminal reads.
+		te.SendInput(t, []byte("\x1b[200~spl"))
+		te.SendInput(t, []byte("it\x1b[2"))
+		te.SendInput(t, []byte("01~"))
+
+		var line0 string
+		te.Post(t, CommandFunc(func(e *Editor) {
+			line0 = e.Top().Content.Lines()[0].String()
+		}))
+		if want := "split"; !strings.HasPrefix(line0, want) {
+			t.Errorf("line 0 = %q, want prefix %q", line0, want)
+		}
+	})
+
+	t.Run("empty clipboard paste is a no-op", func(t *testing.T) {
+		var before string
+		te.Post(t, CommandFunc(func(e *Editor) {
+			before = e.Top().Text()
+		}))
+
+		te.SendInput(t, []byte("\x1b[200~\x1b[201~"))
+
+		var after string
+		te.Post(t, CommandFunc(func(e *Editor) {
+			after = e.Top().Text()
+		}))
+		if before != after {
+			t.Errorf("buffer changed after an empty paste:\nbefore: %q\nafter:  %q", before, after)
 		}
 	})
 }

@@ -6,10 +6,11 @@ import (
 	"io"
 )
 
-func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, err error) {
+func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, detected bool, err error) {
 	if !checkClipboardPaste(b, "200~") {
 		return
 	}
+	detected = true
 	var (
 		input     = bufio.NewReader(io.MultiReader(bytes.NewReader(b[clipboardPasteCmdLen:]), in))
 		markerBuf [clipboardPasteCmdLen - 1]byte

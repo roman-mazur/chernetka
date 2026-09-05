@@ -154,15 +154,21 @@ var (
 		b.cancelSelection()
 	})
 	// ClipboardPaste inserts the clipboard text at the cursor position.
-	ClipboardPaste = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
-		if !b.canEdit() {
-			return
-		}
-		b.c = content.InsertText(b.Mutate(), b.c, clipboard.Read())
+	ClipboardPaste = BufferCommandFunc(func(b *Buffer, prefs RenderPrefs) {
+		PasteText(clipboard.Read()).DoOnBuffer(b, prefs)
 	})
 )
 
 var clipboard clipb.Clipboard
+
+type PasteText string
+
+func (pt PasteText) DoOnBuffer(b *Buffer, _ RenderPrefs) {
+	if !b.canEdit() {
+		return
+	}
+	b.c = content.InsertText(b.Mutate(), b.c, string(pt))
+}
 
 // Save stores the boffer content in the destination path.
 type Save struct {
