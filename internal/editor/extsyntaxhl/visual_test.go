@@ -19,6 +19,7 @@ func TestVisual(t *testing.T) {
 	for _, tc := range []struct{ path, text string }{
 		{"visual.md", visualMarkdown},
 		{"visual.go", visualGo},
+		{".git/COMMIT_EDITMSG", visualGitMsg},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			h := editor.NewTestHarness()
@@ -132,4 +133,14 @@ func main() {
 	literals := []any{0x1f, 1.5e3, 'r', true, false, nil}
 	_, _ = g, literals
 }
+`
+
+const visualGitMsg = `some/path: change title
+
+Test commit message
+
+Signed-off-by: chernetka@rmazur.io
+Another-tag: something
+
+P.S.
 `

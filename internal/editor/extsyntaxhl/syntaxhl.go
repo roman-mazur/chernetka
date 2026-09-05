@@ -33,32 +33,41 @@ type highlighter interface {
 
 // language ties a file type to the highlighter that understands it.
 type language struct {
-	name string
-	// exts are the lower case file extensions of the language, dot included.
-	exts           []string
+	name           string
+	matcher        func(filePath string) bool
 	newHighlighter func() highlighter
 }
 
 var languages = []language{
 	{
 		name:           "go",
-		exts:           []string{".go"},
+		matcher:        matchExtensions(".go"),
 		newHighlighter: newTreeSitter(goGrammar),
 	},
 	{
 		name:           "markdown",
-		exts:           []string{".md", ".markdown"},
+		matcher:        matchExtensions(".md", ".markdown"),
 		newHighlighter: newMarkdown,
+	},
+	{
+		name: "git_commit_msg",
+		matcher: func(filePath string) bool {
+			return strings.HasSuffix(filePath, ".git/COMMIT_EDITMSG")
+		},
+		newHighlighter: func() highlighter { return new(gitMessage) },
 	},
 }
 
-func languageForPath(path string) *language {
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == "" {
-		return nil
+func matchExtensions(extensions ...string) func(filePath string) bool {
+	return func(filePath string) bool {
+		ext := strings.ToLower(filepath.Ext(filePath))
+		return slices.Contains(extensions, ext)
 	}
+}
+
+func languageForPath(path string) *language {
 	for i := range languages {
-		if slices.Contains(languages[i].exts, ext) {
+		if languages[i].matcher(path) {
 			return &languages[i]
 		}
 	}
