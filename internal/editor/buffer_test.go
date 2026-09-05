@@ -349,8 +349,8 @@ func TestBuffer_SelectedText_MultiLineDownAndLeft(t *testing.T) {
 	buf := &Buffer{
 		Content: &content.FullText{
 			content.TextLine("0123456789ABCDEFGHIJ"), // line 0, len 20
-			content.TextLine("middle"),                // line 1
-			content.TextLine("012"),                   // line 2, len 3
+			content.TextLine("middle"),               // line 1
+			content.TextLine("012"),                  // line 2, len 3
 		},
 		sel: []content.Span{{
 			Start: content.Position{Col: 15, Line: 0},
@@ -402,4 +402,41 @@ type TB interface {
 
 	Helper()
 	Errorf(string, ...any)
+}
+
+// TestBuffer_Render_FillsExactlyWindowHeight pins the invariant that keeps the buffer
+// visible in a short terminal pane: Render must emit exactly h rows, i.e. h-1 line
+// endings plus the status bar with no trailing newline. Emitting more rows than the
+// pane holds scrolls the top of the content out of view.
+func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		lines int
+		mode  Mode
+		h     int
+	}{
+		{name: "content shorter than pane", lines: 3, h: 21},
+		{name: "content longer than pane", lines: 1000, h: 21},
+		{name: "single row pane", lines: 1000, h: 2},
+		{name: "command mode", lines: 1000, mode: ModeCommand, h: 21},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf Buffer
+			testContent := content.FullText(slices.Repeat(content.FullText{content.TextLine("test")}, tc.lines))
+			buf.Content = &testContent
+			buf.mode = tc.mode
+			buf.cmdline = "w"
+			buf.w, buf.h = 40, tc.h
+
+			var out bytes.Buffer
+			buf.Render(&out, &RenderPrefs{TabSize: 2})
+
+			if got, want := strings.Count(out.String(), "\r\n"), tc.h-1; got != want {
+				t.Errorf("Render emitted %d line endings, want %d (window height %d)", got, want, tc.h)
+			}
+			if strings.HasSuffix(out.String(), "\r\n") {
+				t.Error("Render ended with a line ending; the last row must not wrap to the next one")
+			}
+		})
+	}
 }

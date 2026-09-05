@@ -178,3 +178,50 @@ func TestEditor_Run(t *testing.T) {
 		}
 	})
 }
+
+// TestEditor_LayoutWindowSize covers the terminal size resolution used by layout.
+// A horizontally split terminal pane is shorter than the mock fallback height, and
+// the editor used to keep that fallback because it treated fd 0 (the tty arriving on
+// stdin) as "no terminal". It then rendered more rows than the pane could hold,
+// scrolling the top of the buffer out of view.
+func TestEditor_LayoutWindowSize(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		termSize     func() (int, int, error)
+		wantW, wantH int
+	}{
+		{
+			name:  "no terminal",
+			wantW: 80, wantH: 40,
+		},
+		{
+			name:     "split pane on stdin",
+			termSize: func() (int, int, error) { return 120, 21, nil },
+			wantW:    120, wantH: 21,
+		},
+		{
+			name:     "size query fails",
+			termSize: func() (int, int, error) { return 0, 0, os.ErrInvalid },
+			wantW:    80, wantH: 42,
+		},
+		{
+			name:     "zero size reported",
+			termSize: func() (int, int, error) { return 0, 0, nil },
+			wantW:    80, wantH: 42,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var e Editor
+			e.termSize = tc.termSize
+			if err := e.OpenReader("a.txt", strings.NewReader("hello\nworld")); err != nil {
+				t.Fatalf("OpenReader: %v", err)
+			}
+
+			for buf := range e.layout() {
+				if buf.w != tc.wantW || buf.h != tc.wantH {
+					t.Errorf("buffer size = %dx%d, want %dx%d", buf.w, buf.h, tc.wantW, tc.wantH)
+				}
+			}
+		})
+	}
+}

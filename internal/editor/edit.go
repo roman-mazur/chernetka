@@ -65,8 +65,12 @@ type Editor struct {
 	cmdChannel      chan Command
 	quitRequested   bool
 
-	termFd int
-	rPrefs RenderPrefs
+	termFd int // terminal file descriptor used to toggle raw mode
+	// termSize reports the current terminal dimensions.
+	// It stays nil when there is no real terminal (test/mock environment).
+	// fd 0 is a valid tty (stdin), so termFd cannot serve as that sentinel.
+	termSize func() (w, h int, err error)
+	rPrefs   RenderPrefs
 
 	x []Extension // extensions
 }
@@ -353,12 +357,14 @@ func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
 	cleanupOps = append(cleanupOps, escape.DisableLineWrapping(f))
 	cleanupOps = append(cleanupOps, escape.EnableBracketedPasteMode(f))
 
-	e.termFd = int(f.Fd())
-	state, err := term.MakeRaw(e.termFd)
+	fd := int(f.Fd())
+	e.termFd = fd
+	state, err := term.MakeRaw(fd)
 	if err != nil {
-		logf("cannot initialize terminal (fd %d): %s", e.termFd, err)
+		logf("cannot initialize terminal (fd %d): %s", fd, err)
 		return
 	}
+	e.termSize = func() (int, int, error) { return term.GetSize(fd) }
 	cleanupOps = append(cleanupOps, func() {
 		_ = term.Restore(e.termFd, state)
 	})
@@ -599,14 +605,14 @@ type layoutState struct {
 }
 
 func (lps *layoutState) resolveWindowSize() (w int, h int) {
-	if lps.editor.termFd == 0 {
+	if lps.editor.termSize == nil {
 		return 80, 40 // real terminal is not resolved - test/mock environment
 	}
-	w, h, _ = term.GetSize(lps.editor.termFd)
-	if w == 0 && h == 0 {
+	w, h, err := lps.editor.termSize()
+	if err != nil || (w == 0 && h == 0) {
 		return 80, 42 // TODO: Resolve window size issues on Windows.
 	}
-	return
+	return w, h
 }
 
 func (lps *layoutState) Pass() iter.Seq[*Buffer] {
