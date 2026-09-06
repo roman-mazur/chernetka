@@ -35,6 +35,10 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		case '\x1b':
 			buf.cancelSelection()
 
+		// Copy to clipboard.
+		case 'y':
+			ClipboardCopy.DoOnBuffer(buf, *prefs)
+
 		// Switch mode.
 		case 'i':
 			buf.mode = ModeInsert
