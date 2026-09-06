@@ -8,82 +8,80 @@ import (
 
 type gitMessage struct {
 	subject *rawSpan
-	footers [][2]rawSpan // footers as key/value pairs
+	parts   []rawSpan // footers and comments
 }
 
 var _ = highlighter(&gitMessage{}) // ensure interface implementation
 
 func (gm *gitMessage) reparse(s *source) {
-	gm.subject, gm.footers = nil, nil
+	gm.subject, gm.parts = nil, nil
 	sLen := len(s.lines)
 	if sLen == 0 {
-		return
-	}
-	if s.line(1) != "" {
 		return
 	}
 	gm.subject = &rawSpan{
 		EndCol:    len(s.line(0)),
 		TokenType: editor.TtHeading,
 	}
+	if len(s.lines) != 1 && s.line(1) != "" {
+		gm.subject = nil // no distinct subject line
+		return
+	}
 	if sLen <= 2 {
 		return
 	}
-	footersStart := findGitMsgFootersStart(s)
-	if footersStart == 0 {
-		return
-	}
-	for i := footersStart; i < sLen; i++ {
-		parts := strings.Split(s.lines[i], ":")
-		if len(parts) < 2 && strings.ContainsAny(parts[0], " \t") {
-			continue
-		}
-		gm.footers = append(gm.footers, [2]rawSpan{
-			{
-				StartLine: i,
-				EndLine:   i,
-				EndCol:    len(parts[0]) + 1,
-				TokenType: editor.TtComment,
-			},
-			{
-				StartLine: i,
-				StartCol:  len(parts[0]) + 2,
-				EndLine:   i,
-				EndCol:    len(s.lines[i]),
-				TokenType: editor.TtStringLiteral,
-			},
-		})
-	}
+	gm.parseBody(s)
 }
 
-func findGitMsgFootersStart(s *source) int {
+func (gm *gitMessage) parseBody(s *source) {
 	_ = s.lines[2:] // bounds check
 
-	footersStart := 0
-	afterEmptyLine := false
+	afterEmptyLine, insideTags := true, false
 	for i := 2; i < len(s.lines); i++ {
 		switch {
 		case s.lines[i] == "":
 			afterEmptyLine = true
-		case afterEmptyLine:
+
+		case s.lines[i][0] == '#':
 			afterEmptyLine = false
-			parts := strings.Split(s.lines[i], ":")
-			if len(parts) > 1 && !strings.ContainsAny(parts[0], " \t") {
-				footersStart = i
-				break
+			gm.parts = append(gm.parts, rawSpan{
+				StartLine: i,
+				EndLine:   i,
+				EndCol:    len(s.lines[i]),
+				TokenType: editor.TtComment,
+			})
+
+		case afterEmptyLine || insideTags:
+			afterEmptyLine = false
+			parts := strings.SplitN(s.lines[i], ":", 2)
+			insideTags = len(parts) == 2 && !strings.ContainsAny(parts[0], " \t")
+			if insideTags {
+				gm.parts = append(gm.parts,
+					rawSpan{
+						StartLine: i,
+						EndLine:   i,
+						EndCol:    len(parts[0]) + 1,
+						TokenType: editor.TtField,
+					},
+					rawSpan{
+						StartLine: i,
+						StartCol:  len(parts[0]) + 2,
+						EndLine:   i,
+						EndCol:    len(s.lines[i]),
+						TokenType: editor.TtStringLiteral,
+					},
+				)
 			}
 		}
 	}
-	return footersStart
 }
 
 func (gm *gitMessage) spans(_ *source, emit func(rawSpan)) {
 	if gm.subject != nil {
 		emit(*gm.subject)
 	}
-	for _, footer := range gm.footers {
-		emit(footer[0])
-		emit(footer[1])
+	for _, p := range gm.parts {
+		emit(p)
 	}
 }
 

@@ -143,4 +143,7 @@ Signed-off-by: chernetka@rmazur.io
 Another-tag: something
 
 P.S.
+
+# Some comment 1
+# Some comment 2
 `
