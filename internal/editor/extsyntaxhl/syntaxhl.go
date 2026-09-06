@@ -56,6 +56,13 @@ var languages = []language{
 		},
 		newHighlighter: func() highlighter { return new(gitMessage) },
 	},
+	{
+		name: "git_rebase",
+		matcher: func(filePath string) bool {
+			return strings.HasSuffix(filePath, ".git/rebase-merge/git-rebase-todo")
+		},
+		newHighlighter: func() highlighter { return new(gitRebase) },
+	},
 }
 
 func matchExtensions(extensions ...string) func(filePath string) bool {

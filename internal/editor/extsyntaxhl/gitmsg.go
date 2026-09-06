@@ -1,6 +1,7 @@
 package extsyntaxhl
 
 import (
+	"regexp"
 	"strings"
 
 	"rmazur.io/chernetka/internal/editor"
@@ -86,3 +87,86 @@ func (gm *gitMessage) spans(_ *source, emit func(rawSpan)) {
 }
 
 func (gm *gitMessage) Close() error { return nil }
+
+type gitRebase struct {
+	parts []rawSpan
+}
+
+func (gr *gitRebase) reparse(s *source) {
+	for i, line := range s.lines {
+		if strings.HasPrefix(line, "#") {
+			gr.parts = append(gr.parts, rawSpan{
+				StartLine: i,
+				EndLine:   i,
+				EndCol:    len(line),
+				TokenType: editor.TtComment,
+			})
+			continue
+		}
+
+		m := gitRebaseCmdRegexp.FindStringSubmatchIndex(line)
+		if len(m) == 0 || !validateGitRebaseCmd(line[m[2]:m[3]]) {
+			continue
+		}
+		gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 1, editor.TtKeyword, i))
+		if gitRebaseHasMatch(m, 2) {
+			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 2, editor.TtNumberLiteral, i))
+		}
+		if gitRebaseHasMatch(m, 3) {
+			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 3, editor.TtComment, i))
+		}
+	}
+}
+
+func (gr *gitRebase) spans(_ *source, emit func(rawSpan)) {
+	for _, p := range gr.parts {
+		emit(p)
+	}
+}
+
+func (gr *gitRebase) Close() error { return nil }
+
+func gitRebaseTokenSpan(m []int, group int, token editor.TokenType, line int) rawSpan {
+	return rawSpan{
+		StartLine: line,
+		EndLine:   line,
+		StartCol:  m[group*2],
+		EndCol:    m[group*2+1],
+		TokenType: token,
+	}
+}
+
+func gitRebaseHasMatch(m []int, group int) bool {
+	return len(m) >= (group+1)*2 && m[group*2] < m[group*2+1]
+}
+
+var gitRebaseCmdRegexp = regexp.MustCompile(`^(\w+)\s(.+?)(\s?#.*)?$`)
+
+func validateGitRebaseCmd(name string) bool {
+	for _, cmd := range rebaseCommands {
+		if name == cmd.shortcut || name == cmd.name {
+			return true
+		}
+	}
+	return false
+}
+
+var rebaseCommands = []gitRebaseCmd{
+	{"p", "pick"},
+	{"r", "reword"},
+	{"e", "edit"},
+	{"s", "squash"},
+	{"f", "fixup"},
+	{"x", "exec"},
+	{"b", "break"},
+	{"d", "drop"},
+	{"l", "label"},
+	{"t", "reset"},
+	{"m", "merge"},
+	{"u", "update-ref"},
+}
+
+type gitRebaseCmd struct {
+	shortcut string
+	name     string
+}

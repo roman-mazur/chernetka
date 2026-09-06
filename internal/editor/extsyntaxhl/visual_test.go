@@ -20,6 +20,7 @@ func TestVisual(t *testing.T) {
 		{"visual.md", visualMarkdown},
 		{"visual.go", visualGo},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
+		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			h := editor.NewTestHarness()
@@ -146,4 +147,14 @@ P.S.
 
 # Some comment 1
 # Some comment 2
+`
+
+const visualGitRebase = `
+p abcdef # pick a commit
+edit ab123 # edit a commit
+x go test ./... # verify
+f another # continue
+squash one more
+# this should be it
+something irrelevant
 `
