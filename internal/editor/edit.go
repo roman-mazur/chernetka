@@ -175,6 +175,7 @@ func (e *Editor) postBufferCmd(cmd BufferCommand) {
 			return
 		}
 		cmd.DoOnBuffer(b, e.rPrefs)
+		e.renderRequested = true
 	})
 }
 
@@ -450,6 +451,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 			e.postBufferCmd(PasteText(clipboardContent))
 		}
 		if detected {
+			bPool.Put(buf)
 			continue
 		}
 
