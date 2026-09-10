@@ -11,4 +11,7 @@
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy
 
+- Right col after return (understand tabs)
+- Auto import of Go packages
+
 - Address race issues in the Editor/Run test

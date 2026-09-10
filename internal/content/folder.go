@@ -91,6 +91,16 @@ func (fc *FsContent) insert(pos int, dirPath string) {
 		return
 	}
 
+	slices.SortFunc(entries, func(a, b fs.DirEntry) int {
+		if a.IsDir() && !b.IsDir() {
+			return -1
+		}
+		if b.IsDir() && !a.IsDir() {
+			return 1
+		}
+		return strings.Compare(a.Name(), b.Name())
+	})
+
 	lines := make([]Line, len(entries))
 	for i, entry := range entries {
 		lines[i] = &fsEntryLine{
