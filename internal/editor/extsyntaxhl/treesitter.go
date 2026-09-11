@@ -11,6 +11,10 @@ import (
 	"rmazur.io/chernetka/internal/editor"
 )
 
+func init() {
+	go goGrammar.prepare()
+}
+
 //go:embed queries/go.scm
 var goQuery string
 
