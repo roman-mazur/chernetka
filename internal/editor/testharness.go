@@ -2,6 +2,8 @@ package editor
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -54,17 +56,15 @@ func (h *TestHarness) Run(t *testing.T) {
 func (h *TestHarness) Post(t *testing.T, cmd Command) {
 	t.Helper()
 
-	done := make(chan struct{})
-	h.Editor.Post(CommandFunc(func(e *Editor) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second)
+	h.Editor.Send(CommandFunc(func(e *Editor) {
 		cmd.DoOnEditor(e)
-		close(done)
+		done()
 	}))
 
-	select {
-	case <-done:
-		return
-	case <-time.After(time.Second):
-		t.Fatalf("Post timed out")
+	<-ctx.Done()
+	if err := ctx.Err(); !errors.Is(err, context.Canceled) {
+		t.Fatal("post cmd wait error:", err)
 	}
 }
 
@@ -98,6 +98,13 @@ func (h *TestHarness) SendInput(t *testing.T, b []byte) {
 
 	// Wait for commands to drain after this.
 	h.Post(t, CommandFunc(func(e *Editor) {}))
+}
+
+// SendInputSequence sends each byte of the string as a dedicated input.
+func (h *TestHarness) SendInputSequence(t *testing.T, s string) {
+	for _, b := range []byte(s) {
+		h.SendInput(t, []byte{b})
+	}
 }
 
 // RenderBuffer renders the active buffer the way the run loop would and returns

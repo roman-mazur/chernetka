@@ -141,7 +141,7 @@ func (le *Integration) askForNewSuggestion(line string, cx, cy int, e *editor.Ed
 			return
 		}
 		suggestions := extractLspSuggestions(items, line, cx)
-		e.Post(editor.CommandFunc(func(e *editor.Editor) {
+		e.Send(editor.CommandFunc(func(e *editor.Editor) {
 			if bufData.reqCompletion != req {
 				return // A newer edit superseded this request.
 			}

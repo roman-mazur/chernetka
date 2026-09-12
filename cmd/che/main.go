@@ -92,7 +92,7 @@ func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
 	}
 
 	ed.logf("remote cmd: %s", cmd.Action)
-	ed.edit.Post(editorCommand)
+	ed.edit.Send(editorCommand)
 }
 
 func (ed *editDelegate) OpenFile(path string) {

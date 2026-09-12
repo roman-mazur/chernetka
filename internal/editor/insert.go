@@ -9,10 +9,10 @@ import (
 
 func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 	var (
-		arrow inputs.CursorArrow
+		arrow inputs.Cursor
 		mod   inputs.Modifier
 	)
-	if inputs.IsArrow(b, &arrow, &mod) {
+	if inputs.IsCursor(b, &arrow, &mod) {
 		buf.handleCursor(arrow, mod, prefs)
 		return
 	}
@@ -41,6 +41,10 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 	lines := buf.Content.Lines()
 	line := lines[buf.c.Line].String()
 	mut := buf.Mutate()
+
+	if len(buf.sel) > 0 {
+		DeleteSelection.DoOnBuffer(buf, *prefs)
+	}
 
 	switch ch := b[0]; ch {
 	// Backspace.

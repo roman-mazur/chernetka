@@ -16,10 +16,10 @@ func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPre
 	}
 
 	var (
-		arrow inputs.CursorArrow
+		arrow inputs.Cursor
 		mod   inputs.Modifier
 	)
-	if inputs.IsArrow(b, &arrow, &mod) {
+	if inputs.IsCursor(b, &arrow, &mod) {
 		switch arrow {
 		case inputs.CursorArrowUp:
 			data.SuggestPrev()

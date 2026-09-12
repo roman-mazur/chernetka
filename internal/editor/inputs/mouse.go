@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 )
 
@@ -62,7 +63,7 @@ func ReadMouse(inData []byte) (data Mouse, n int, err error) {
 		k   int
 	)
 
-	B, sep, k, err = mouseParseNextInt(in)
+	B, sep, k, err = termParseNextInt(in)
 	n += k
 	if err != nil {
 		return
@@ -74,7 +75,7 @@ func ReadMouse(inData []byte) (data Mouse, n int, err error) {
 	data.Button = MouseButton(B & 3)
 	data.Mod = Modifier((B >> 2) & 0xff)
 
-	data.X, sep, k, err = mouseParseNextInt(in)
+	data.X, sep, k, err = termParseNextInt(in)
 	n += k
 	if err != nil {
 		return
@@ -84,7 +85,7 @@ func ReadMouse(inData []byte) (data Mouse, n int, err error) {
 		return
 	}
 
-	data.Y, sep, k, err = mouseParseNextInt(in)
+	data.Y, sep, k, err = termParseNextInt(in)
 	n += k
 	if err != nil {
 		return
@@ -110,17 +111,24 @@ func discard(in *bufio.Reader, x int) (err error) {
 	return
 }
 
-func mouseParseNextInt(in *bufio.Reader) (int, byte, int, error) {
-	var digits []byte
+func termParseNextInt(in io.Reader) (int, byte, int, error) {
+	var (
+		digits []byte
+		buf    [1]byte
+	)
 	for {
-		b, err := in.ReadByte()
+		bc, err := in.Read(buf[:])
 		if err != nil {
-			return 0, 0, 0, err
+			return 0, 0, len(digits) + bc, err
 		}
-		if b < '0' || b > '9' {
+		if bc == 0 {
+			continue
+		}
+
+		if buf[0] < '0' || buf[0] > '9' {
 			n, err := strconv.Atoi(string(digits))
-			return n, b, len(digits) + 1, err
+			return n, buf[0], len(digits) + 1, err
 		}
-		digits = append(digits, b)
+		digits = append(digits, buf[0])
 	}
 }

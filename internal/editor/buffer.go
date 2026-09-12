@@ -231,14 +231,14 @@ func (b *Buffer) canEdit() bool {
 	return ok
 }
 
-func (b *Buffer) handleCursor(arrow inputs.CursorArrow, mod inputs.Modifier, prefs *RenderPrefs) {
+func (b *Buffer) handleCursor(cursorType inputs.Cursor, mod inputs.Modifier, prefs *RenderPrefs) {
 	if !b.selecting && mod.HasShift() {
 		StartTextSelection.DoOnBuffer(b, *prefs)
 	}
 	if b.selecting && !mod.HasShift() {
 		StopTextSelection.DoOnBuffer(b, *prefs)
 	}
-	switch arrow {
+	switch cursorType {
 	case inputs.CursorArrowUp:
 		RelMove{Dy: -1}.DoOnBuffer(b, *prefs)
 	case inputs.CursorArrowDown:
@@ -247,6 +247,10 @@ func (b *Buffer) handleCursor(arrow inputs.CursorArrow, mod inputs.Modifier, pre
 		RelMove{Dx: 1}.DoOnBuffer(b, *prefs)
 	case inputs.CursorArrowLeft:
 		RelMove{Dx: -1}.DoOnBuffer(b, *prefs)
+	case inputs.CursorHome:
+		MoveHome.DoOnBuffer(b, *prefs)
+	case inputs.CursorEnd:
+		MoveEnd.DoOnBuffer(b, *prefs)
 	}
 	if !b.selecting {
 		b.sel = nil
@@ -286,6 +290,12 @@ func (b *Buffer) Text() string {
 
 func (b *Buffer) SelectedText() string {
 	return content.Select(b.Content, b.sel)
+}
+
+func (b *Buffer) updateSelection() {
+	if b.selecting {
+		b.sel[len(b.sel)-1].End = b.c
+	}
 }
 
 func (b *Buffer) cancelSelection() {

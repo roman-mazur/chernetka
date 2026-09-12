@@ -177,6 +177,37 @@ func TestEditor_Run(t *testing.T) {
 			t.Errorf("buffer changed after an empty paste:\nbefore: %q\nafter:  %q", before, after)
 		}
 	})
+
+	t.Run("select line", func(t *testing.T) {
+		te.SendInput(t, []byte("\x1b[1;10D"))
+		var selText string
+		te.Post(t, CommandFunc(func(e *Editor) {
+			selText = e.Top().SelectedText()
+		}))
+		if selText == "" {
+			t.Errorf("selected text is empty")
+		}
+		te.Post(t, CommandFunc(func(e *Editor) {
+			e.execBufferCmd(MoveHome)
+		}))
+	})
+
+	t.Run("clipboard copy", func(t *testing.T) {
+		te.SendInputSequence(t, "ihe") // Insert mode, then "he"
+		te.Post(t, CommandFunc(func(e *Editor) {
+			// Select these letters.
+			e.Top().sel = []content.Span{
+				{End: content.Position{Col: 2}},
+			}
+		}))
+		te.SendInput(t, []byte{0x3}) // Ctrl+C
+
+		clipData := clipboard.Read()
+		t.Log("clipboard data:", clipData)
+		if clipData != "he" {
+			t.Errorf("clipboard not copied")
+		}
+	})
 }
 
 // TestEditor_LayoutWindowSize covers the terminal size resolution used by layout.

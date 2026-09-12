@@ -128,7 +128,7 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 		for range changes {
 			folder := content.LoadFolder(path, open)
 			folder.SyncState(buf.Content.(*content.FsContent))
-			e.Post(CommandFunc(func(e *Editor) {
+			e.Send(CommandFunc(func(e *Editor) {
 				buf.Content = folder
 				e.renderRequested = true
 			}))
@@ -164,19 +164,21 @@ func (e *Editor) findAndActivateBuffer(p string) bool {
 	return false
 }
 
-func (e *Editor) Post(cmd Command) {
+func (e *Editor) Send(cmd Command) {
 	e.cmdChannel <- cmd
 }
 
-func (e *Editor) postBufferCmd(cmd BufferCommand) {
-	e.cmdChannel <- CommandFunc(func(e *Editor) {
-		b := e.Top()
-		if b == nil {
-			return
-		}
-		cmd.DoOnBuffer(b, e.rPrefs)
-		e.renderRequested = true
-	})
+func (e *Editor) sendBufferCmd(cmd BufferCommand) {
+	e.cmdChannel <- CommandFunc(func(e *Editor) { e.execBufferCmd(cmd) })
+}
+
+func (e *Editor) execBufferCmd(cmd BufferCommand) {
+	b := e.Top()
+	if b == nil {
+		return
+	}
+	cmd.DoOnBuffer(b, e.rPrefs)
+	e.renderRequested = true
 }
 
 func (e *Editor) push(buf *Buffer) {
@@ -268,7 +270,7 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 	e.rPrefs = newRenderPrefs()
 
 	if e.cmdChannel == nil {
-		e.cmdChannel = make(chan Command)
+		e.cmdChannel = make(chan Command, 1)
 	}
 
 	ctx, stop := context.WithCancel(context.Background())
@@ -391,14 +393,14 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 			}
 			if time.Since(lastTime) > maxFrequency {
 				lastTime = time.Now()
-				e.Post(commandRequestLayout)
+				e.Send(commandRequestLayout)
 			} else if timerChan == nil {
 				timer.Reset(maxFrequency)
 				timerChan = timer.C
 			}
 
 		case <-timerChan:
-			e.Post(commandRequestLayout)
+			e.Send(commandRequestLayout)
 			timerChan = nil
 
 		case <-ctx.Done():
@@ -448,7 +450,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 			break
 		}
 		if clipboardContent != "" {
-			e.postBufferCmd(PasteText(clipboardContent))
+			e.sendBufferCmd(PasteText(clipboardContent))
 		}
 		if detected {
 			bPool.Put(buf)
@@ -456,7 +458,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		}
 
 		// Handle input.
-		e.Post(CommandFunc(func(e *Editor) {
+		e.Send(CommandFunc(func(e *Editor) {
 			quit := e.handleInput(input)
 			if quit {
 				commandQuit(e)
@@ -543,8 +545,16 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	buf := e.top.b
 
 	// Ctrl+S saves the current buffer in any mode.
-	if len(input) == 1 && input[0] == 0x13 {
-		(&Save{buf.Path}).DoOnBuffer(buf, e.rPrefs)
+	if inputs.IsSaveCommand(input) {
+		e.execBufferCmd(&Save{buf.Path})
+		return false
+	}
+
+	var clipboardOp inputs.ClipboardOp
+	if inputs.IsClipboardOp(input, &clipboardOp) {
+		if cmd := ClipboardCommand(clipboardOp); cmd != nil {
+			e.execBufferCmd(cmd)
+		}
 		return false
 	}
 

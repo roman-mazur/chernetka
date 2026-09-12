@@ -9,10 +9,10 @@ import (
 
 func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 	var (
-		arrow inputs.CursorArrow
+		arrow inputs.Cursor
 		mod   inputs.Modifier
 	)
-	if inputs.IsArrow(b, &arrow, &mod) {
+	if inputs.IsCursor(b, &arrow, &mod) {
 		buf.handleCursor(arrow, mod, prefs)
 		return false
 	}
@@ -32,7 +32,7 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			prefs.tabsScaleDown()
 
 		// Esc: clear selection.
-		case '\x1b':
+		case inputs.Escape:
 			buf.cancelSelection()
 
 		// Copy to clipboard.

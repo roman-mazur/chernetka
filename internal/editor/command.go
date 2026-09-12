@@ -8,10 +8,10 @@ import (
 
 func commandInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 	var (
-		arrow inputs.CursorArrow
+		arrow inputs.Cursor
 		mod   inputs.Modifier
 	)
-	if inputs.IsArrow(b, &arrow, &mod) {
+	if inputs.IsCursor(b, &arrow, &mod) {
 		// TODO: Handle history on up/down, move on left/right.
 		return false
 	}

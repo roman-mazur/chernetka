@@ -2,6 +2,7 @@ package editor
 
 import (
 	"os"
+	"slices"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -31,9 +32,7 @@ func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	if r.Dy != 0 {
 		buf.c.Line += r.Dy
 	}
-	if buf.selecting {
-		buf.sel[len(buf.sel)-1].End = buf.c
-	}
+	buf.updateSelection()
 }
 
 func (r RelMove) moveDx(b *Buffer) {
@@ -78,7 +77,9 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 
 	buf.offset = max(0, min(buf.offset+dy, contentLen-1))
 	buf.c.Line = max(0, min(buf.c.Line+dy, contentLen-1))
+
 	clampBufferCx(buf)
+	buf.updateSelection()
 }
 
 type Scroll inputs.ScrollDirection
@@ -105,14 +106,21 @@ func (f BufferCommandFunc) DoOnBuffer(buf *Buffer, prefs RenderPrefs) { f(buf, p
 
 var (
 	// MoveHome moves the cursor to the beginning of the line.
-	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.c.Col = 0 })
+	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		b.c.Col = 0
+		b.updateSelection()
+	})
 	// MoveEnd moves the cursor to the end of the line.
-	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) { b.c.Col = b.Content.Lines()[b.c.Line].Len() })
+	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		b.c.Col = b.Content.Lines()[b.c.Line].Len()
+		b.updateSelection()
+	})
 	// MoveContentStart moves the cursor to the first line.
 	MoveContentStart = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		b.c.Line = 0
 		b.offset = 0
 		clampBufferCx(b)
+		b.updateSelection()
 	})
 	// MoveContentEnd moves the cursor to the last line.
 	MoveContentEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
@@ -123,6 +131,7 @@ var (
 		b.c.Line = linesCnt - 1
 		b.offset = max(0, b.c.Line-b.viewHeight())
 		clampBufferCx(b)
+		b.updateSelection()
 	})
 	// StartTextSelection begins selecting text at the current cursor position.
 	StartTextSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
@@ -140,24 +149,44 @@ var (
 		b.selecting = false
 		b.sel[len(b.sel)-1].End = b.c
 	})
+	// DeleteSelection command deletes currently selected content in the buffer adjusting the cursor position.
+	DeleteSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		m := b.Mutate()
+		for _, span := range slices.Backward(b.sel) {
+			b.c = content.DeleteSpan(m, span)
+		}
+		b.cancelSelection()
+	})
 	// ClipboardCopy copies selected text to the clipboard.
 	ClipboardCopy = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		clipboard.Write(b.SelectedText())
 	})
 	// ClipboardCut copies selected text to the clipboard and removes it from the buffer.
-	ClipboardCut = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+	ClipboardCut = BufferCommandFunc(func(b *Buffer, prefs RenderPrefs) {
 		if len(b.sel) == 0 || !b.canEdit() {
 			return
 		}
 		clipboard.Write(b.SelectedText())
-		b.c = content.DeleteSpan(b.Mutate(), b.sel[len(b.sel)-1])
-		b.cancelSelection()
+		DeleteSelection.DoOnBuffer(b, prefs)
 	})
 	// ClipboardPaste inserts the clipboard text at the cursor position.
 	ClipboardPaste = BufferCommandFunc(func(b *Buffer, prefs RenderPrefs) {
 		PasteText(clipboard.Read()).DoOnBuffer(b, prefs)
 	})
 )
+
+func ClipboardCommand(op inputs.ClipboardOp) BufferCommand {
+	switch op {
+	case inputs.ClipboardOpCopy:
+		return ClipboardCopy
+	case inputs.ClipboardOpPaste:
+		return ClipboardPaste
+	case inputs.ClipboardOpCut:
+		return ClipboardCut
+	default:
+		return nil
+	}
+}
 
 var clipboard clipb.Clipboard
 
