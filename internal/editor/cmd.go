@@ -98,7 +98,7 @@ func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 func clampBufferCx(buf *Buffer) {
 	curLen := buf.Content.Len()
 	if curLen > 0 && buf.c.Line < curLen {
-		buf.c.Col = max(0, min(buf.c.Col, buf.Content.Lines()[buf.c.Line].Len()-1))
+		buf.c.Col = max(0, min(buf.c.Col, buf.Content.Lines()[buf.c.Line].Len()))
 	} else {
 		buf.c.Col = 0
 	}
