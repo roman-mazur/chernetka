@@ -81,10 +81,10 @@ func TestRenderDrivesRealEditor(t *testing.T) {
 				h.SendInput(t, []byte("\x1b[1;2B")) // shift+down
 			}
 
-			// Type into the buffer so the highlighter reparses between renders.
+			// Remove selection, type into the buffer so the highlighter reparses between renders.
+			h.SendInput(t, []byte("\x1b"))
 			h.SendInputSequence(t, "G")
 			h.SendInputSequence(t, "o"+tc.insert)
-			h.SendInput(t, []byte("\x1b"))
 
 			h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
 				if buf.Content.Len() != origLines+1 {
