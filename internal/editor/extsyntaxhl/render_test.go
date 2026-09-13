@@ -15,7 +15,7 @@ import (
 func TestRenderDrivesRealEditor(t *testing.T) {
 	for _, tc := range []struct{ path, text, insert string }{{
 		path:   "render.go",
-		insert: `var added = "x"`,
+		insert: `var added = 42`,
 		text: strings.Join([]string{
 			"package main",
 			"",
