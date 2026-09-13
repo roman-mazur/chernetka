@@ -102,6 +102,7 @@ func (h *TestHarness) SendInput(t *testing.T, b []byte) {
 
 // SendInputSequence sends each byte of the string as a dedicated input.
 func (h *TestHarness) SendInputSequence(t *testing.T, s string) {
+	t.Helper()
 	for _, b := range []byte(s) {
 		h.SendInput(t, []byte{b})
 	}

@@ -48,6 +48,7 @@ func (r RelMove) moveDx(b *Buffer) {
 		b.c.Col -= sz
 		d++
 	}
+	clampBufferCx(b)
 }
 
 // ScreenMove adjusts Buffer offset and cursor position to scroll by the screen height.
@@ -95,8 +96,11 @@ func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 }
 
 func clampBufferCx(buf *Buffer) {
-	if buf.Content.Len() > 0 {
-		buf.c.Col = min(buf.c.Col, buf.Content.Lines()[buf.c.Line].Len()-1)
+	curLen := buf.Content.Len()
+	if curLen > 0 && buf.c.Line < curLen {
+		buf.c.Col = max(0, min(buf.c.Col, buf.Content.Lines()[buf.c.Line].Len()-1))
+	} else {
+		buf.c.Col = 0
 	}
 }
 

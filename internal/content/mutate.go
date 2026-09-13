@@ -6,6 +6,9 @@ import "strings"
 // and returns the position where the deleted text used to start.
 func DeleteSpan(m Mutable, span Span) Position {
 	start, stop := span.Min(), span.Max()
+	if stop.Col < 0 {
+		panic("stop.Col cannot be negative")
+	}
 	lines := m.Lines()
 
 	first := lines[start.Line].String()

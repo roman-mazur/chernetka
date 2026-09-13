@@ -67,52 +67,44 @@ func TestRenderDrivesRealEditor(t *testing.T) {
 			h.Run(t)
 
 			buf := h.Top()
-			lines := buf.Content.Len()
-
-			// send delivers keys the way a terminal does, one at a time: the
-			// editor ignores insert mode input that is not a single byte, so a
-			// batched string would be dropped.
-			send := func(keys string) {
-				t.Helper()
-				for i := range len(keys) {
-					h.SendInput(t, []byte{keys[i]})
-				}
-			}
+			origLines := buf.Content.Len()
 
 			// Walk the cursor down the whole buffer. The line under the cursor
 			// renders with a background, which is the path where the renderer
 			// interleaves the syntax spans with the background spans.
-			send(strings.Repeat("j", lines+1))
+			h.SendInputSequence(t, strings.Repeat("j", origLines+1))
 
 			// Select a few lines, layering selection backgrounds over the
 			// syntax spans.
-			send("gg")
+			h.SendInputSequence(t, "gg")
 			for range 5 {
 				h.SendInput(t, []byte("\x1b[1;2B")) // shift+down
 			}
 
 			// Type into the buffer so the highlighter reparses between renders.
-			send("G")
-			send("o" + tc.insert)
+			h.SendInputSequence(t, "G")
+			h.SendInputSequence(t, "o"+tc.insert)
 			h.SendInput(t, []byte("\x1b"))
 
-			last := buf.Content.Len() - 1
-			if last != lines {
-				t.Fatalf("content length %d, want %d", buf.Content.Len(), lines+1)
-			}
-			if got := buf.Content.Lines()[last].String(); got != tc.insert {
-				t.Fatalf("last line is %q, want %q", got, tc.insert)
-			}
+			h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
+				if buf.Content.Len() != origLines+1 {
+					t.Log(buf.Content)
+					t.Fatalf("content length %d, want %d", buf.Content.Len(), origLines+1)
+				}
+				if got := buf.Content.Lines()[origLines].String(); got != tc.insert {
+					t.Fatalf("last line is %q, want %q", got, tc.insert)
+				}
 
-			// The inserted line has to come back highlighted, which shows the
-			// edit invalidated the cached spans instead of serving stale ones.
-			hl, ok := buf.ExtensionData("syntaxhl").(editor.SyntaxHighlighter)
-			if !ok {
-				t.Fatal("no syntax highlighter for the buffer")
-			}
-			if spans := hl.SyntaxSpans(last, tc.insert); len(spans) == 0 {
-				t.Error("the inserted line came back with no highlight")
-			}
+				// The inserted line has to come back highlighted, which shows the
+				// edit invalidated the cached spans instead of serving stale ones.
+				hl, ok := buf.ExtensionData("syntaxhl").(editor.SyntaxHighlighter)
+				if !ok {
+					t.Fatal("no syntax highlighter for the buffer")
+				}
+				if spans := hl.SyntaxSpans(origLines, tc.insert); len(spans) == 0 {
+					t.Error("the inserted line came back with no highlight")
+				}
+			}))
 		})
 	}
 }
