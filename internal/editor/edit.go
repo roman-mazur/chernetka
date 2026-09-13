@@ -393,14 +393,14 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 			}
 			if time.Since(lastTime) > maxFrequency {
 				lastTime = time.Now()
-				e.Send(commandRequestLayout)
+				e.Send(commandRequestRender)
 			} else if timerChan == nil {
 				timer.Reset(maxFrequency)
 				timerChan = timer.C
 			}
 
 		case <-timerChan:
-			e.Send(commandRequestLayout)
+			e.Send(commandRequestRender)
 			timerChan = nil
 
 		case <-ctx.Done():
