@@ -3,9 +3,7 @@ package editor
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
-	"strings"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -154,18 +152,8 @@ func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 		return
 	}
 
-	modeLabel := b.mode.String()
-	dirtyMark := ""
-	if b.dirty {
-		dirtyMark = " [*]"
-	}
-	status := fmt.Sprintf(" %s  %s%s", modeLabel, b.Path, dirtyMark)
-	pos := fmt.Sprintf("%d:%d ", b.c.Line+1, b.c.Col+1)
-	padding := max(b.w-len(status)-len(pos), 0)
-	_, _ = io.WriteString(out, status)
-	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
-	_, _ = io.WriteString(out, pos)
-	restoreColors()
+	sb := statusBar{buf: b}
+	sb.render(out)
 }
 
 // RenderCursorPosition asks the Buffer to instruct the terminal to position the cursor
