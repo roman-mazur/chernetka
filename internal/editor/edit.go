@@ -506,19 +506,22 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 	switch event.eventType {
 	case mouseEventTypeScroll:
 		dir := event.Mod.SrollDirection(event.Mouse)
-		Scroll(dir).DoOnBuffer(buf, e.rPrefs)
-		logf("offset: %d, dir: %d", buf.offset, dir)
-		e.renderRequested = true
+		e.execBufferCmd(Scroll(dir))
 
 	case mouseEventTypeDragStart:
 		if buf.CheckContentCoordinates(event.Y, event.X) {
-			StartTextSelection.DoOnBuffer(buf, e.rPrefs)
+			e.execBufferCmd(StartTextSelection)
 		}
 		e.renderRequested = true
 
 	case mouseEventTypeDragEnd:
-		StopTextSelection.DoOnBuffer(buf, e.rPrefs)
-		e.renderRequested = true
+		e.execBufferCmd(StopTextSelection)
+
+	case mouseEventTypeDoubleClick:
+		e.execBufferCmd(SelectWord)
+
+	case mouseEventTypeTripleClick:
+		e.execBufferCmd(SelectLine)
 
 	case mouseEventTypeRaw:
 		overContent := buf.CheckContentCoordinates(event.Y, event.X)

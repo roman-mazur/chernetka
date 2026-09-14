@@ -153,6 +153,21 @@ var (
 		b.selecting = false
 		b.sel[len(b.sel)-1].End = b.c
 	})
+	// SelectWord adjusts the buffer selection to select the word at the current cursor.
+	SelectWord = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		b.cancelSelection()
+		// TODO: find the word.
+	})
+	// SelectLine adjusts the buffer selection to select the whole line at the current cursor.
+	SelectLine = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		b.cancelSelection()
+		b.sel = []content.Span{
+			{
+				Start: content.Position{Line: b.c.Line},
+				End:   content.Position{Line: b.c.Line, Col: b.Content.Lines()[b.c.Line].Len()},
+			},
+		}
+	})
 	// DeleteSelection command deletes currently selected content in the buffer adjusting the cursor position.
 	DeleteSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		m := b.Mutate()
