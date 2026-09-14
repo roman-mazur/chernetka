@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
@@ -24,6 +25,8 @@ func main() {
 
 	logf, _ := logger.UserLogFile()
 	delegate := editDelegate{edit: &edit, logf: logf}
+
+	debugEnv(logf)
 
 	edit.Extend(new(extlsp.Integration))
 	edit.Extend(new(extsyntaxhl.Integration))
@@ -73,6 +76,23 @@ func main() {
 		WindowChangeSignal: windowChangeSignal(),
 	}
 	edit.Run(&inOut, logf)
+}
+
+const doDebugEnv = false
+
+func debugEnv(logf logger.Func) {
+	if !doDebugEnv {
+		return
+	}
+	env := os.Environ()
+	envKeys := make([]string, len(env))
+	for i := range env {
+		envKeys[i], _, _ = strings.Cut(env[i], "=")
+	}
+	logf("env: %v", envKeys)
+	for _, key := range []string{"GHOSTTY_SHELL_FEATURES", "TERM_PROGRAM"} {
+		logf("%s = %q", key, os.Getenv(key))
+	}
 }
 
 type editDelegate struct {
