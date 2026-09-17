@@ -87,12 +87,14 @@ func StyleText(out io.Writer, text string, style styles.TextStyle) {
 }
 
 func write8bitColor(out io.Writer, c color.Color) {
+	var buf [11]byte // 3 numbers of 3 digits max + 2*;
 	r, g, b, _ := c.RGBA()
-	_, _ = io.WriteString(out, strconv.Itoa(int(r>>8)))
-	_, _ = io.WriteString(out, ";")
-	_, _ = io.WriteString(out, strconv.Itoa(int(g>>8)))
-	_, _ = io.WriteString(out, ";")
-	_, _ = io.WriteString(out, strconv.Itoa(int(b>>8)))
+	tail := strconv.AppendInt(buf[0:0], int64(r>>8), 10)
+	tail = append(tail, ';')
+	tail = strconv.AppendInt(tail, int64(g>>8), 10)
+	tail = append(tail, ';')
+	tail = strconv.AppendInt(tail, int64(b>>8), 10)
+	_, _ = out.Write(tail)
 }
 
 func DisableLineWrapping(out io.Writer) (restore func()) {

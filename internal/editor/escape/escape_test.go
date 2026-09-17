@@ -74,6 +74,11 @@ func TestStyleText(t *testing.T) {
 	})
 	buf.WriteString("\n")
 	StyleText(&buf, "normal", styles.TextStyle{})
+	buf.WriteString("\n")
+	StyleText(&buf, "bold blue", styles.TextStyle{
+		Bold:      true,
+		TextColor: color.RGBA{B: 255, A: 255},
+	})
 	t.Log(buf.String())
 }
 
