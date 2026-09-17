@@ -14,6 +14,23 @@ type statusBar struct {
 }
 
 func (s *statusBar) render(out io.Writer) {
+	// Set terminal title.
+	if s.buf.Path != "" {
+		title := "che: " + filepath.Base(s.buf.Path)
+		escape.SetTermTitle(out, title)
+	}
+
+	restoreColors := escape.ReverseVideo(out)
+	defer restoreColors()
+
+	if s.buf.mode == ModeCommand {
+		// In command mode, the status bar becomes the command line.
+		escape.ClearLine(out)
+		_, _ = io.WriteString(out, ":")
+		_, _ = io.WriteString(out, s.buf.cmdline)
+		return
+	}
+
 	modeLabel := s.buf.mode.String()
 	dirtyMark := ""
 	if s.buf.dirty {
@@ -25,10 +42,4 @@ func (s *statusBar) render(out io.Writer) {
 	_, _ = io.WriteString(out, status)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 	_, _ = io.WriteString(out, pos)
-
-	// Set terminal title.
-	if s.buf.Path != "" {
-		title := "che: " + filepath.Base(s.buf.Path)
-		escape.SetTermTitle(out, title)
-	}
 }

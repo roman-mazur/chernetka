@@ -337,6 +337,11 @@ func (e *Editor) render(out *bufio.Writer) {
 		buf.Render(out, &e.rPrefs)
 		buf.noKeyboard = false
 	}
+
+	(&statusBar{
+		buf: topBuf,
+	}).render(out)
+
 	topBuf.RenderCursorPosition(out, &e.rPrefs)
 
 	e.mouseHandler.render(out)

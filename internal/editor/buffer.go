@@ -139,21 +139,6 @@ func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 		escape.ClearLine(out)
 		printLineEnding(out)
 	}
-
-	// Status bar (reverse colors).
-	restoreColors := escape.ReverseVideo(out)
-	defer restoreColors()
-
-	if b.mode == ModeCommand {
-		// In command mode, the status bar becomes the command line.
-		escape.ClearLine(out)
-		_, _ = io.WriteString(out, ":")
-		_, _ = io.WriteString(out, b.cmdline)
-		return
-	}
-
-	sb := statusBar{buf: b}
-	sb.render(out)
 }
 
 // RenderCursorPosition asks the Buffer to instruct the terminal to position the cursor
