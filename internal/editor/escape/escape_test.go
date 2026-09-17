@@ -3,6 +3,7 @@ package escape
 import (
 	"bytes"
 	"image/color"
+	"io"
 	"testing"
 
 	"rmazur.io/chernetka/internal/editor/styles"
@@ -77,9 +78,8 @@ func TestStyleText(t *testing.T) {
 }
 
 func BenchmarkStyleText(b *testing.B) {
-	var buf bytes.Buffer
 	for b.Loop() {
-		StyleText(&buf, "some text examples", styles.TextStyle{
+		StyleText(io.Discard, "some text examples", styles.TextStyle{
 			Bold:      true,
 			Italic:    true,
 			TextColor: color.White,

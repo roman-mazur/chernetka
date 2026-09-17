@@ -48,24 +48,39 @@ func ClearLine(out io.Writer) {
 	_, _ = io.WriteString(out, "\x1b[2K")
 }
 
-func colorText(out io.Writer, text string, fg, bg color.Color) {
-	if fg == nil && bg == nil {
+// StyleText prints the provided text with the defined TextStyle.
+func StyleText(out io.Writer, text string, style styles.TextStyle) {
+	if style == (styles.TextStyle{}) {
 		_, _ = io.WriteString(out, text)
 		return
 	}
 
-	_, _ = io.WriteString(out, "\x1b[")
-	if fg != nil {
-		_, _ = io.WriteString(out, "38;2;")
-		write8bitColor(out, fg)
-		if bg != nil {
+	styleSet := false
+	writeStyle := func(code string) {
+		if styleSet {
 			_, _ = io.WriteString(out, ";")
 		}
+		_, _ = io.WriteString(out, code)
+		styleSet = true
 	}
-	if bg != nil {
-		_, _ = io.WriteString(out, "48;2;")
-		write8bitColor(out, bg)
+
+	_, _ = io.WriteString(out, "\x1b[")
+
+	if style.Bold {
+		writeStyle("1")
 	}
+	if style.Italic {
+		writeStyle("3")
+	}
+	if style.TextColor != nil {
+		writeStyle("38;2;")
+		write8bitColor(out, style.TextColor)
+	}
+	if style.BgColor != nil {
+		writeStyle("48;2;")
+		write8bitColor(out, style.BgColor)
+	}
+
 	_, _ = io.WriteString(out, "m")
 	_, _ = io.WriteString(out, text)
 	_, _ = io.WriteString(out, "\x1b[0m")
@@ -120,10 +135,4 @@ func SetTermTitle(out io.Writer, title string) {
 	_, _ = io.WriteString(out, "\x1b]0;")
 	_, _ = io.WriteString(out, title)
 	_, _ = io.WriteString(out, "\x07")
-}
-
-// StyleText prints the provided text with the defined TextStyle.
-func StyleText(out io.Writer, text string, style styles.TextStyle) {
-	// TODO: apply bold/italic.
-	colorText(out, text, style.TextColor, style.BgColor)
 }
