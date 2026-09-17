@@ -48,7 +48,7 @@ func TestColorText(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			out := &bytes.Buffer{}
-			ColorText(out, tt.args.text, tt.args.fg, tt.args.bg)
+			StyleText(out, tt.args.text, styles.TextStyle{TextColor: tt.args.fg, BgColor: tt.args.bg})
 			if gotOut := out.String(); gotOut != tt.wantOut {
 				t.Errorf("ColorText() = %v, want %v", gotOut, tt.wantOut)
 			}
@@ -74,13 +74,6 @@ func TestStyleText(t *testing.T) {
 	buf.WriteString("\n")
 	StyleText(&buf, "normal", styles.TextStyle{})
 	t.Log(buf.String())
-}
-
-func BenchmarkColorText(b *testing.B) {
-	var buf bytes.Buffer
-	for b.Loop() {
-		ColorText(&buf, "some text examples", color.White, color.Gray{Y: 50})
-	}
 }
 
 func BenchmarkStyleText(b *testing.B) {

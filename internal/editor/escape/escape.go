@@ -48,7 +48,7 @@ func ClearLine(out io.Writer) {
 	_, _ = io.WriteString(out, "\x1b[2K")
 }
 
-func ColorText(out io.Writer, text string, fg, bg color.Color) {
+func colorText(out io.Writer, text string, fg, bg color.Color) {
 	if fg == nil && bg == nil {
 		_, _ = io.WriteString(out, text)
 		return
@@ -125,5 +125,5 @@ func SetTermTitle(out io.Writer, title string) {
 // StyleText prints the provided text with the defined TextStyle.
 func StyleText(out io.Writer, text string, style styles.TextStyle) {
 	// TODO: apply bold/italic.
-	ColorText(out, text, style.TextColor, style.BgColor)
+	colorText(out, text, style.TextColor, style.BgColor)
 }

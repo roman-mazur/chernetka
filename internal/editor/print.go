@@ -65,11 +65,11 @@ func (cr *contentPrinter) render(out io.Writer) {
 		escape.ClearLine(out)
 
 		if !cr.b.hideLineNumbers {
-			nlColor := styles.DefaultColors.Suggestion
+			style := styles.TextStyle{TextColor: styles.DefaultColors.Suggestion}
 			if ln == cr.b.c.Line {
-				nlColor = styles.DefaultColors.LineSelected
+				style.TextColor = styles.DefaultColors.LineSelected
 			}
-			escape.ColorText(out, cr.lineNumber(ln+1), nlColor, nil)
+			escape.StyleText(out, cr.lineNumber(ln+1), style)
 		}
 
 		lineHL := ln == cr.b.c.Line && !cr.b.noCurrentLineHL
@@ -78,7 +78,8 @@ func (cr *contentPrinter) render(out io.Writer) {
 		if lineHL {
 			rightPad := cr.b.w - runeToScreenCol(raw, len(raw), len(cr.tab))
 			if rightPad > 0 {
-				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, styles.DefaultColors.LineSelectedBg)
+				escape.StyleText(out, strings.Repeat(" ", rightPad),
+					styles.TextStyle{BgColor: styles.DefaultColors.TextSelectedBg})
 			}
 		}
 
@@ -97,31 +98,31 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 	}
 
 	if ln == cr.b.c.Line && cr.suggestion != "" && cr.b.c.Col <= len(line) {
-		p.print(line[:cr.b.c.Col], nil)
+		p.print(line[:cr.b.c.Col], styles.TextStyle{})
 		p.printSuggestion(cr.suggestion, styles.DefaultColors.Suggestion)
-		p.print(line[cr.b.c.Col:], nil)
+		p.print(line[cr.b.c.Col:], styles.TextStyle{})
 		// TODO: use syntax HL
 		return
 	}
 
 	if cr.SyntaxHighlighter == nil {
-		p.print(line, nil)
+		p.print(line, styles.TextStyle{})
 		return
 	}
 
 	lastIndex := 0
 	for _, span := range cr.SyntaxSpans(ln, line) {
 		if span.Start > lastIndex {
-			p.print(line[lastIndex:span.Start], nil)
+			p.print(line[lastIndex:span.Start], styles.TextStyle{})
 		}
 		if span.End > len(line) {
 			panic(fmt.Errorf("line %d %q, span %s out of range", ln, line, span))
 		}
-		p.print(line[span.Start:span.End], styles.DefaultColors.ColorForTokenType(span.TokenType))
+		p.print(line[span.Start:span.End], styles.ResolveTokenStyle(span.TokenType))
 		lastIndex = span.End
 	}
 	if lastIndex < len(line) {
-		p.print(line[lastIndex:], nil)
+		p.print(line[lastIndex:], styles.TextStyle{})
 	}
 }
 
@@ -204,16 +205,19 @@ func (clp *colorLinePrinter) currentBgIdx() int {
 	})
 }
 
-func (clp *colorLinePrinter) print(s string, fg color.Color) {
+func (clp *colorLinePrinter) print(s string, style styles.TextStyle) {
+	appliedStyle := style
 	bgIdx := clp.currentBgIdx()
 	if bgIdx == -1 {
-		escape.ColorText(clp.out, clp.printedText(s), fg, nil)
+		appliedStyle.BgColor = nil
+		escape.StyleText(clp.out, clp.printedText(s), appliedStyle)
 		return
 	}
 	for start := 0; start < len(s); {
 		bg := clp.bg[bgIdx]
 		end := min(len(s), bg.End.Col-clp.li)
-		escape.ColorText(clp.out, clp.printedText(s[start:end]), fg, bg.color)
+		appliedStyle.BgColor = bg.color
+		escape.StyleText(clp.out, clp.printedText(s[start:end]), appliedStyle)
 		start = end
 		if clp.li+start >= bg.End.Col {
 			bgIdx++
@@ -223,11 +227,12 @@ func (clp *colorLinePrinter) print(s string, fg color.Color) {
 }
 
 func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
-	var bgColor color.Color
+	style := styles.TextStyle{TextColor: fg}
 	if bgIdx := clp.currentBgIdx(); bgIdx != -1 {
-		bgColor = clp.bg[bgIdx].color
+		style.BgColor = clp.bg[bgIdx].color
 	}
-	escape.ColorText(clp.out, clp.printedText(txt), fg, bgColor)
+
+	escape.StyleText(clp.out, clp.printedText(txt), style)
 }
 
 func findExtData[T BufferExtData](b *Buffer, out *T) {

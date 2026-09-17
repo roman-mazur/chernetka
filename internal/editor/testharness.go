@@ -8,9 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"rmazur.io/chernetka/internal/content/code"
-	"rmazur.io/chernetka/internal/editor/escape"
-	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/logger"
 )
 
@@ -126,16 +123,5 @@ func (h *TestHarness) RenderBuffer(width int) string {
 
 	var out bytes.Buffer
 	b.Render(&out, &h.rPrefs)
-	return out.String()
-}
-
-// TokenLegend renders the name of every token type in the color the theme gives
-// it, so a test log can show what each color in the rendered output means.
-func TokenLegend() string {
-	var out bytes.Buffer
-	for token := code.TtNothing; token <= code.TtQuote; token++ {
-		escape.ColorText(&out, token.String(), styles.DefaultColors.ColorForTokenType(token), nil)
-		out.WriteString("  ")
-	}
 	return out.String()
 }

@@ -1,11 +1,15 @@
 package extsyntaxhl
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
 
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/editor/styles"
 )
 
 // TestVisual renders highlighted buffers into the test log so the colors can be
@@ -14,7 +18,7 @@ import (
 // at, not to catch regressions. The exact offsets are covered by the tests in
 // markdown_test.go and treesitter_test.go.
 func TestVisual(t *testing.T) {
-	t.Log("token colors:\n" + editor.TokenLegend())
+	t.Log("token colors:\n" + tokenLegend())
 
 	for _, tc := range []struct{ path, text string }{
 		{"visual.md", visualMarkdown},
@@ -51,6 +55,15 @@ func TestVisual(t *testing.T) {
 			t.Log("spans:\n" + spans.String())
 		})
 	}
+}
+
+func tokenLegend() string {
+	var out bytes.Buffer
+	for token := code.TtNothing; token <= code.TtQuote; token++ {
+		escape.StyleText(&out, token.String(), styles.ResolveTokenStyle(token))
+		out.WriteString("  ")
+	}
+	return out.String()
 }
 
 const visualMarkdown = "# Chernetka notes\n" + `
