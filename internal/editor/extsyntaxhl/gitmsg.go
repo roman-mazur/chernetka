@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/content/code"
 )
 
 type gitMessage struct {
@@ -22,7 +22,7 @@ func (gm *gitMessage) reparse(s *source) {
 	}
 	gm.subject = &rawSpan{
 		EndCol:    len(s.line(0)),
-		TokenType: editor.TtHeading,
+		TokenType: code.TtHeading,
 	}
 	if len(s.lines) != 1 && s.line(1) != "" {
 		gm.subject = nil // no distinct subject line
@@ -49,7 +49,7 @@ func (gm *gitMessage) parseBody(s *source) {
 				StartLine: i,
 				EndLine:   i,
 				EndCol:    len(s.lines[i]),
-				TokenType: editor.TtComment,
+				TokenType: code.TtComment,
 			})
 
 		case afterEmptyLine || insideTags:
@@ -62,14 +62,14 @@ func (gm *gitMessage) parseBody(s *source) {
 						StartLine: i,
 						EndLine:   i,
 						EndCol:    len(parts[0]) + 1,
-						TokenType: editor.TtField,
+						TokenType: code.TtField,
 					},
 					rawSpan{
 						StartLine: i,
 						StartCol:  len(parts[0]) + 2,
 						EndLine:   i,
 						EndCol:    len(s.lines[i]),
-						TokenType: editor.TtStringLiteral,
+						TokenType: code.TtStringLiteral,
 					},
 				)
 			}
@@ -99,7 +99,7 @@ func (gr *gitRebase) reparse(s *source) {
 				StartLine: i,
 				EndLine:   i,
 				EndCol:    len(line),
-				TokenType: editor.TtComment,
+				TokenType: code.TtComment,
 			})
 			continue
 		}
@@ -108,12 +108,12 @@ func (gr *gitRebase) reparse(s *source) {
 		if len(m) == 0 || !validateGitRebaseCmd(line[m[2]:m[3]]) {
 			continue
 		}
-		gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 1, editor.TtKeyword, i))
+		gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 1, code.TtKeyword, i))
 		if gitRebaseHasMatch(m, 2) {
-			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 2, editor.TtNumberLiteral, i))
+			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 2, code.TtNumberLiteral, i))
 		}
 		if gitRebaseHasMatch(m, 3) {
-			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 3, editor.TtComment, i))
+			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 3, code.TtComment, i))
 		}
 	}
 }
@@ -126,7 +126,7 @@ func (gr *gitRebase) spans(_ *source, emit func(rawSpan)) {
 
 func (gr *gitRebase) Close() error { return nil }
 
-func gitRebaseTokenSpan(m []int, group int, token editor.TokenType, line int) rawSpan {
+func gitRebaseTokenSpan(m []int, group int, token code.TokenType, line int) rawSpan {
 	return rawSpan{
 		StartLine: line,
 		EndLine:   line,

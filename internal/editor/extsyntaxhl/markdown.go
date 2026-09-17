@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/content/code"
 )
 
 // markdown highlights Markdown with a hand written scanner.
@@ -53,10 +53,10 @@ func (s *mdScanner) run() {
 		if s.inFence {
 			// An unterminated fence just runs to the end of the document.
 			if s.closesFence(line) {
-				s.mark(ln, 0, len(line), editor.TtPunctuation)
+				s.mark(ln, 0, len(line), code.TtPunctuation)
 				s.inFence = false
 			} else {
-				s.mark(ln, 0, len(line), editor.TtRawText)
+				s.mark(ln, 0, len(line), code.TtRawText)
 			}
 			continue
 		}
@@ -89,7 +89,7 @@ func (s *mdScanner) scanBlock(ln int, line string, col int) {
 		// An indented code block: four columns of indentation, following a blank
 		// line, and not the continuation of a list item.
 		if indent >= 4 && paragraph < 0 && s.listContent == 0 {
-			s.mark(ln, indent, len(line), editor.TtRawText)
+			s.mark(ln, indent, len(line), code.TtRawText)
 			return
 		}
 	}
@@ -125,9 +125,9 @@ func (s *mdScanner) scanFenceOpen(ln int, line string, indent int) bool {
 		return false
 	}
 
-	s.mark(ln, indent, i, editor.TtPunctuation)
+	s.mark(ln, indent, i, code.TtPunctuation)
 	// Whatever follows the fence is the info string naming the language.
-	s.mark(ln, i, len(line), editor.TtKeyword)
+	s.mark(ln, i, len(line), code.TtKeyword)
 
 	s.inFence, s.fenceChar, s.fenceLen, s.fenceIndent = true, c, i-indent, indent
 	return true
@@ -166,7 +166,7 @@ func (s *mdScanner) scanHeading(ln int, line string, indent int) bool {
 	if i < len(line) && !isSpaceByte(line[i]) {
 		return false
 	}
-	s.mark(ln, indent, i, editor.TtPunctuation)
+	s.mark(ln, indent, i, code.TtPunctuation)
 
 	end := len(line)
 	for end > i && isSpaceByte(line[end-1]) {
@@ -178,13 +178,13 @@ func (s *mdScanner) scanHeading(ln int, line string, indent int) bool {
 		closing--
 	}
 	if closing < end && (closing == i || isSpaceByte(line[closing-1])) {
-		s.mark(ln, closing, end, editor.TtPunctuation)
+		s.mark(ln, closing, end, code.TtPunctuation)
 		end = closing
 	}
 
 	// The heading text is colorized as a whole, then the inline markup inside it
 	// overrides the narrower ranges it covers.
-	s.mark(ln, i, end, editor.TtHeading)
+	s.mark(ln, i, end, code.TtHeading)
 	s.scanInline(ln, line, i, end)
 	return true
 }
@@ -207,11 +207,11 @@ func (s *mdScanner) scanSetext(ln int, line string, indent, paragraph int) bool 
 		return false
 	}
 
-	s.mark(ln, indent, len(line), editor.TtPunctuation)
+	s.mark(ln, indent, len(line), code.TtPunctuation)
 	// Promote the line above after the fact. Spans are collected before they are
 	// flattened, so emitting one for an earlier line is fine, and the inline
 	// spans already reported for it are narrower and still win.
-	s.mark(paragraph, 0, len(s.src.line(paragraph)), editor.TtHeading)
+	s.mark(paragraph, 0, len(s.src.line(paragraph)), code.TtHeading)
 	return true
 }
 
@@ -234,7 +234,7 @@ func (s *mdScanner) scanThematicBreak(ln int, line string, indent int) bool {
 	if count < 3 {
 		return false
 	}
-	s.mark(ln, indent, len(line), editor.TtListMarker)
+	s.mark(ln, indent, len(line), code.TtListMarker)
 	return true
 }
 
@@ -244,8 +244,8 @@ func (s *mdScanner) scanBlockQuote(ln int, line string, indent int) bool {
 	if line[indent] != '>' {
 		return false
 	}
-	s.mark(ln, indent, indent+1, editor.TtPunctuation)
-	s.mark(ln, indent+1, len(line), editor.TtQuote)
+	s.mark(ln, indent, indent+1, code.TtPunctuation)
+	s.mark(ln, indent+1, len(line), code.TtQuote)
 	s.scanBlock(ln, line, indent+1)
 	return true
 }
@@ -267,12 +267,12 @@ func (s *mdScanner) scanTableRow(ln int, line string, indent int) bool {
 	s.inTable = true
 
 	if delimiter {
-		s.mark(ln, indent, len(line), editor.TtPunctuation)
+		s.mark(ln, indent, len(line), code.TtPunctuation)
 		return true
 	}
-	cellToken := editor.TtNothing
+	cellToken := code.TtNothing
 	if header {
-		cellToken = editor.TtStrong
+		cellToken = code.TtStrong
 	}
 	cell := indent
 	markCell := func(end int) {
@@ -284,7 +284,7 @@ func (s *mdScanner) scanTableRow(ln int, line string, indent int) bool {
 			continue
 		}
 		markCell(i)
-		s.mark(ln, i, i+1, editor.TtPunctuation)
+		s.mark(ln, i, i+1, code.TtPunctuation)
 		cell = i + 1
 	}
 	markCell(len(line))
@@ -329,7 +329,7 @@ func (s *mdScanner) scanListItem(ln int, line string, indent int) bool {
 	if i < len(line) && !isSpaceByte(line[i]) {
 		return false
 	}
-	s.mark(ln, indent, i, editor.TtListMarker)
+	s.mark(ln, indent, i, code.TtListMarker)
 
 	content := i
 	for content < len(line) && isSpaceByte(line[content]) {
@@ -339,7 +339,7 @@ func (s *mdScanner) scanListItem(ln int, line string, indent int) bool {
 
 	if rest := line[content:]; len(rest) >= 3 && rest[0] == '[' && rest[2] == ']' &&
 		(rest[1] == ' ' || rest[1] == 'x' || rest[1] == 'X') {
-		s.mark(ln, content, content+3, editor.TtConstant)
+		s.mark(ln, content, content+3, code.TtConstant)
 		content += 3
 	}
 	s.scanInline(ln, line, content, len(line))
@@ -357,9 +357,9 @@ func (s *mdScanner) scanLinkDefinition(ln int, line string, indent int) bool {
 	}
 	label += indent
 
-	s.mark(ln, indent, indent+1, editor.TtPunctuation)
-	s.mark(ln, indent+1, label, editor.TtLink)
-	s.mark(ln, label, label+2, editor.TtPunctuation)
+	s.mark(ln, indent, indent+1, code.TtPunctuation)
+	s.mark(ln, indent+1, label, code.TtLink)
+	s.mark(ln, label, label+2, code.TtPunctuation)
 
 	dest := label + 2
 	for dest < len(line) && isSpaceByte(line[dest]) {
@@ -369,13 +369,13 @@ func (s *mdScanner) scanLinkDefinition(ln int, line string, indent int) bool {
 	for destEnd < len(line) && !isSpaceByte(line[destEnd]) {
 		destEnd++
 	}
-	s.mark(ln, dest, destEnd, editor.TtURL)
+	s.mark(ln, dest, destEnd, code.TtURL)
 
 	title := destEnd
 	for title < len(line) && isSpaceByte(line[title]) {
 		title++
 	}
-	s.mark(ln, title, len(line), editor.TtStringLiteral)
+	s.mark(ln, title, len(line), code.TtStringLiteral)
 	return true
 }
 
@@ -387,7 +387,7 @@ func (s *mdScanner) scanInline(ln int, line string, from, to int) {
 		case '\\':
 			// A backslash escape hides the punctuation character after it.
 			if i+1 < to && isMarkdownPunct(line[i+1]) {
-				s.mark(ln, i, i+2, editor.TtEscape)
+				s.mark(ln, i, i+2, code.TtEscape)
 				next = i + 2
 			}
 		case '`':
@@ -428,9 +428,9 @@ func (s *mdScanner) scanCodeSpan(ln int, line string, i, to int) int {
 			run++
 		}
 		if run == n {
-			s.mark(ln, open, i, editor.TtPunctuation)
-			s.mark(ln, i, j, editor.TtRawText)
-			s.mark(ln, j, j+n, editor.TtPunctuation)
+			s.mark(ln, open, i, code.TtPunctuation)
+			s.mark(ln, i, j, code.TtRawText)
+			s.mark(ln, j, j+n, code.TtPunctuation)
 			return j + n
 		}
 		j += run - 1
@@ -462,14 +462,14 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 		return open
 	}
 
-	token := editor.TtStrong
+	token := code.TtStrong
 	switch {
 	case c == '~':
 		// The terminal writer only sets colors, not text attributes, so struck
 		// text borrows the dimmed color comments use.
-		token = editor.TtComment
+		token = code.TtComment
 	case n == 1:
-		token = editor.TtEmphasis
+		token = code.TtEmphasis
 	}
 
 	for j := i; j < to; j++ {
@@ -482,9 +482,9 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 		}
 		if run >= n && !isSpaceByte(line[j-1]) &&
 			(c != '_' || !isWordByte(byteAt(line, j+run))) {
-			s.mark(ln, open, i, editor.TtPunctuation)
+			s.mark(ln, open, i, code.TtPunctuation)
 			s.mark(ln, i, j, token)
-			s.mark(ln, j, j+n, editor.TtPunctuation)
+			s.mark(ln, j, j+n, code.TtPunctuation)
 			s.scanInline(ln, line, i, j)
 			return j + n
 		}
@@ -522,10 +522,10 @@ func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 		return start
 	}
 
-	s.mark(ln, start, label, editor.TtPunctuation) // the '!' and the '['
-	s.mark(ln, label, end, editor.TtLink)
+	s.mark(ln, start, label, code.TtPunctuation) // the '!' and the '['
+	s.mark(ln, label, end, code.TtLink)
 	s.scanInline(ln, line, label, end)
-	s.mark(ln, end, end+1, editor.TtPunctuation)
+	s.mark(ln, end, end+1, code.TtPunctuation)
 	i = end + 1
 
 	if i >= to {
@@ -533,16 +533,16 @@ func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 	}
 	switch line[i] {
 	case '(':
-		return s.scanLinkTarget(ln, line, i, to, ')', editor.TtURL)
+		return s.scanLinkTarget(ln, line, i, to, ')', code.TtURL)
 	case '[':
-		return s.scanLinkTarget(ln, line, i, to, ']', editor.TtURL)
+		return s.scanLinkTarget(ln, line, i, to, ']', code.TtURL)
 	}
 	return i // a shortcut reference link, '[ref]' on its own
 }
 
 // scanLinkTarget colorizes the '(destination "Title")' or '[reference]' that
 // follows a link label, up to the matching close byte.
-func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, token editor.TokenType) int {
+func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, token code.TokenType) int {
 	end := -1
 	for j := i + 1; j < to && end < 0; j++ {
 		switch line[j] {
@@ -556,15 +556,15 @@ func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, t
 		return i
 	}
 
-	s.mark(ln, i, i+1, editor.TtPunctuation)
+	s.mark(ln, i, i+1, code.TtPunctuation)
 	destEnd := i + 1
 	for destEnd < end && !isSpaceByte(line[destEnd]) {
 		destEnd++
 	}
 	s.mark(ln, i+1, destEnd, token)
 	// Anything after the destination is the optional quoted title.
-	s.mark(ln, destEnd, end, editor.TtStringLiteral)
-	s.mark(ln, end, end+1, editor.TtPunctuation)
+	s.mark(ln, destEnd, end, code.TtStringLiteral)
+	s.mark(ln, end, end+1, code.TtPunctuation)
 	return end + 1
 }
 
@@ -577,13 +577,13 @@ func (s *mdScanner) scanAngle(ln int, line string, i, to int) int {
 	end += i
 
 	body := line[i+1 : end]
-	token := editor.TtURL
+	token := code.TtURL
 	if !strings.Contains(body, "://") && !strings.Contains(body, "@") {
-		token = editor.TtPunctuation // an HTML tag rather than an autolink
+		token = code.TtPunctuation // an HTML tag rather than an autolink
 	}
-	s.mark(ln, i, i+1, editor.TtPunctuation)
+	s.mark(ln, i, i+1, code.TtPunctuation)
 	s.mark(ln, i+1, end, token)
-	s.mark(ln, end, end+1, editor.TtPunctuation)
+	s.mark(ln, end, end+1, code.TtPunctuation)
 	return end + 1
 }
 
@@ -610,11 +610,11 @@ func (s *mdScanner) scanBareURL(ln int, line string, i, to int) int {
 	for end > i+scheme && strings.IndexByte(".,;:!?", line[end-1]) >= 0 {
 		end--
 	}
-	s.mark(ln, i, end, editor.TtURL)
+	s.mark(ln, i, end, code.TtURL)
 	return end
 }
 
-func (s *mdScanner) mark(ln, start, end int, token editor.TokenType) {
+func (s *mdScanner) mark(ln, start, end int, token code.TokenType) {
 	if start >= end {
 		return
 	}

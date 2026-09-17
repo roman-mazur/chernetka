@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 )
 
@@ -33,10 +34,10 @@ func (s *source) line(n int) string {
 type rawSpan struct {
 	StartLine, StartCol int
 	EndLine, EndCol     int
-	TokenType           editor.TokenType
+	TokenType           code.TokenType
 }
 
-func lineSpan(ln, start, end int, t editor.TokenType) rawSpan {
+func lineSpan(ln, start, end int, t code.TokenType) rawSpan {
 	return rawSpan{StartLine: ln, StartCol: start, EndLine: ln, EndCol: end, TokenType: t}
 }
 
@@ -44,7 +45,7 @@ func lineSpan(ln, start, end int, t editor.TokenType) rawSpan {
 type piece struct {
 	line       int
 	start, end int
-	token      editor.TokenType
+	token      code.TokenType
 	seq        int // emission order, used to break ties between equal ranges
 }
 
@@ -60,7 +61,7 @@ type piece struct {
 // gaps and merges neighbours that ended up with the same token type.
 type spanBuilder struct {
 	pieces []piece
-	canvas []editor.TokenType
+	canvas []code.TokenType
 }
 
 func (sb *spanBuilder) reset() {
@@ -70,7 +71,7 @@ func (sb *spanBuilder) reset() {
 // add cuts a raw span into per-line pieces, dropping whatever falls outside the
 // document or outside its line.
 func (sb *spanBuilder) add(src *source, rs rawSpan) {
-	if rs.TokenType == editor.TtNothing || rs.EndLine < rs.StartLine {
+	if rs.TokenType == code.TtNothing || rs.EndLine < rs.StartLine {
 		return
 	}
 	for ln := max(rs.StartLine, 0); ln <= min(rs.EndLine, len(src.lines)-1); ln++ {
@@ -85,7 +86,7 @@ func (sb *spanBuilder) add(src *source, rs rawSpan) {
 	}
 }
 
-func (sb *spanBuilder) addPiece(src *source, ln, start, end int, t editor.TokenType) {
+func (sb *spanBuilder) addPiece(src *source, ln, start, end int, t code.TokenType) {
 	lineLen := len(src.line(ln))
 	start, end = max(start, 0), min(end, lineLen)
 	if start >= end {
@@ -140,14 +141,14 @@ func (sb *spanBuilder) build(dst []editor.SyntaxSpan) []editor.SyntaxSpan {
 
 // encodeRuns appends one span per run of equal token types on the canvas,
 // skipping the runs that need no highlight.
-func encodeRuns(dst []editor.SyntaxSpan, ln int, canvas []editor.TokenType) []editor.SyntaxSpan {
+func encodeRuns(dst []editor.SyntaxSpan, ln int, canvas []code.TokenType) []editor.SyntaxSpan {
 	for i := 0; i < len(canvas); {
 		t := canvas[i]
 		j := i
 		for j < len(canvas) && canvas[j] == t {
 			j++
 		}
-		if t != editor.TtNothing {
+		if t != code.TtNothing {
 			dst = append(dst, editor.SyntaxSpan{LineNumber: ln, Start: i, End: j, TokenType: t})
 		}
 		i = j

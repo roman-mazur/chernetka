@@ -8,7 +8,7 @@ import (
 
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
-	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/content/code"
 )
 
 func init() {
@@ -28,21 +28,21 @@ var goGrammar = &tsGrammar{
 // defaultCaptureTokens maps the capture names used by tree-sitter highlight
 // queries to editor token types. A dotted name falls back to its prefix, so
 // "function.call" without an entry of its own is treated as "function".
-var defaultCaptureTokens = map[string]editor.TokenType{
-	"keyword":  editor.TtKeyword,
-	"variable": editor.TtIdentifier,
-	"type":     editor.TtTypeRef,
-	"module":   editor.TtImportRef,
-	"function": editor.TtFuncDeclaration,
+var defaultCaptureTokens = map[string]code.TokenType{
+	"keyword":  code.TtKeyword,
+	"variable": code.TtIdentifier,
+	"type":     code.TtTypeRef,
+	"module":   code.TtImportRef,
+	"function": code.TtFuncDeclaration,
 	// A call site is a reference, not a declaration.
-	"function.call":   editor.TtCall,
-	"function.method": editor.TtCall,
-	"property":        editor.TtField,
-	"string":          editor.TtStringLiteral,
-	"escape":          editor.TtEscape,
-	"number":          editor.TtNumberLiteral,
-	"constant":        editor.TtConstant,
-	"comment":         editor.TtComment,
+	"function.call":   code.TtCall,
+	"function.method": code.TtCall,
+	"property":        code.TtField,
+	"string":          code.TtStringLiteral,
+	"escape":          code.TtEscape,
+	"number":          code.TtNumberLiteral,
+	"constant":        code.TtConstant,
+	"comment":         code.TtComment,
 }
 
 // tsGrammar is a tree-sitter grammar paired with its highlight query. Both are
@@ -50,14 +50,14 @@ var defaultCaptureTokens = map[string]editor.TokenType{
 type tsGrammar struct {
 	load   func() *treesitter.Language
 	query  string
-	tokens map[string]editor.TokenType
+	tokens map[string]code.TokenType
 
 	once     sync.Once
 	lang     *treesitter.Language
 	compiled *treesitter.Query
 	// captureTokens resolves a capture index to its token type, which avoids a
 	// map lookup for every capture of every parse.
-	captureTokens []editor.TokenType
+	captureTokens []code.TokenType
 	err           error
 }
 
@@ -80,7 +80,7 @@ func (g *tsGrammar) prepare() error {
 		g.compiled = compiled
 
 		names := compiled.CaptureNames()
-		g.captureTokens = make([]editor.TokenType, len(names))
+		g.captureTokens = make([]code.TokenType, len(names))
 		for i, name := range names {
 			g.captureTokens[i] = tokenForCapture(g.tokens, name)
 		}
@@ -88,9 +88,9 @@ func (g *tsGrammar) prepare() error {
 	return g.err
 }
 
-func (g *tsGrammar) tokenType(captureIndex uint32) editor.TokenType {
+func (g *tsGrammar) tokenType(captureIndex uint32) code.TokenType {
 	if int(captureIndex) >= len(g.captureTokens) {
-		return editor.TtNothing
+		return code.TtNothing
 	}
 	return g.captureTokens[captureIndex]
 }
@@ -98,14 +98,14 @@ func (g *tsGrammar) tokenType(captureIndex uint32) editor.TokenType {
 // tokenForCapture resolves a capture name against the mapping, falling back to
 // ever less specific names. Names with no mapping at all yield TtNothing and
 // their captures are dropped, so a query may capture more than we colorize.
-func tokenForCapture(tokens map[string]editor.TokenType, name string) editor.TokenType {
+func tokenForCapture(tokens map[string]code.TokenType, name string) code.TokenType {
 	for {
 		if t, ok := tokens[name]; ok {
 			return t
 		}
 		dot := strings.LastIndexByte(name, '.')
 		if dot < 0 {
-			return editor.TtNothing
+			return code.TtNothing
 		}
 		name = name[:dot]
 	}
@@ -160,7 +160,7 @@ func (h *tsHighlighter) spans(src *source, emit func(rawSpan)) {
 		}
 		capture := match.Captures[i]
 		token := h.grammar.tokenType(capture.Index)
-		if token == editor.TtNothing {
+		if token == code.TtNothing {
 			continue
 		}
 		// Next reuses the match memory, so the positions are read out now.
@@ -183,7 +183,7 @@ func (h *tsHighlighter) closeTree() {
 // spanFromNode converts a node's position to a rawSpan. A tree-sitter column is
 // a byte offset within its row, which is what the editor slices lines by. Nodes
 // covering several rows stay multi-line here and are cut up by the spanBuilder.
-func spanFromNode(node *treesitter.Node, token editor.TokenType) rawSpan {
+func spanFromNode(node *treesitter.Node, token code.TokenType) rawSpan {
 	start, end := node.StartPosition(), node.EndPosition()
 	return rawSpan{
 		StartLine: int(start.Row),

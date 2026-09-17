@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"image/color"
 	"testing"
+
+	"rmazur.io/chernetka/internal/editor/styles"
 )
 
 func TestColorText(t *testing.T) {
@@ -54,9 +56,41 @@ func TestColorText(t *testing.T) {
 	}
 }
 
+func TestStyleText(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("\n")
+	StyleText(&buf, "bold", styles.TextStyle{
+		Bold: true,
+	})
+	buf.WriteString("\n")
+	StyleText(&buf, "italic", styles.TextStyle{
+		Italic: true,
+	})
+	buf.WriteString("\n")
+	StyleText(&buf, "both", styles.TextStyle{
+		Bold:   true,
+		Italic: true,
+	})
+	buf.WriteString("\n")
+	StyleText(&buf, "normal", styles.TextStyle{})
+	t.Log(buf.String())
+}
+
 func BenchmarkColorText(b *testing.B) {
 	var buf bytes.Buffer
 	for b.Loop() {
 		ColorText(&buf, "some text examples", color.White, color.Gray{Y: 50})
+	}
+}
+
+func BenchmarkStyleText(b *testing.B) {
+	var buf bytes.Buffer
+	for b.Loop() {
+		StyleText(&buf, "some text examples", styles.TextStyle{
+			Bold:      true,
+			Italic:    true,
+			TextColor: color.White,
+			BgColor:   color.Gray{Y: 50},
+		})
 	}
 }

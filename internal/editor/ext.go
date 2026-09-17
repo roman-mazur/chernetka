@@ -1,6 +1,10 @@
 package editor
 
-import "fmt"
+import (
+	"fmt"
+
+	"rmazur.io/chernetka/internal/content/code"
+)
 
 // Extension represents an editor extension.
 type Extension interface {
@@ -33,45 +37,9 @@ type SyntaxHighlighter interface {
 type SyntaxSpan struct {
 	LineNumber int
 	Start, End int
-	TokenType
+	code.TokenType
 }
 
 func (ss SyntaxSpan) String() string {
 	return fmt.Sprintf("%d:%d:%d:%s", ss.LineNumber, ss.Start, ss.End, ss.TokenType)
 }
-
-// TokenType represents a syntax token recognized by SyntaxHighlighter.
-type TokenType int
-
-//go:generate go run golang.org/x/tools/cmd/stringer -type=TokenType -trimprefix=Tt
-
-const (
-	TtNothing TokenType = iota
-	TtKeyword
-	TtIdentifier
-	TtTypeRef
-	TtImportRef
-	TtFuncDeclaration
-	TtCall
-	TtStringLiteral
-	TtNumberLiteral
-	TtComment
-
-	// Programming language tokens.
-
-	TtConstant // language-defined constant, e.g. Go's true, false, nil, iota
-	TtField    // struct field or property reference
-	TtEscape   // escape sequence inside a string literal
-
-	// Markup tokens.
-
-	TtPunctuation // markup syntax characters, e.g. '#', '**', '`', '>'
-	TtHeading     // heading text
-	TtEmphasis    // italic text
-	TtStrong      // bold text
-	TtLink        // link or image label
-	TtURL         // link destination or autolink
-	TtListMarker  // list bullet, ordered list marker, or thematic break
-	TtRawText     // inline code and fenced code block content
-	TtQuote       // block quote text
-)

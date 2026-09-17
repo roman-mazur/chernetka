@@ -7,6 +7,8 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+
+	"rmazur.io/chernetka/internal/editor/styles"
 )
 
 func SyncOutput(out io.Writer) (restore func()) {
@@ -118,4 +120,10 @@ func SetTermTitle(out io.Writer, title string) {
 	_, _ = io.WriteString(out, "\x1b]0;")
 	_, _ = io.WriteString(out, title)
 	_, _ = io.WriteString(out, "\x07")
+}
+
+// StyleText prints the provided text with the defined TextStyle.
+func StyleText(out io.Writer, text string, style styles.TextStyle) {
+	// TODO: apply bold/italic.
+	ColorText(out, text, style.TextColor, style.BgColor)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 )
 
@@ -32,28 +33,28 @@ func TestSpanBuilder(t *testing.T) {
 		want string
 	}{{
 		name: "single line",
-		raw:  []rawSpan{lineSpan(0, 0, 5, editor.TtKeyword)},
+		raw:  []rawSpan{lineSpan(0, 0, 5, code.TtKeyword)},
 		want: "[0:0:5:Keyword]",
 	}, {
 		// A node spanning several lines becomes one span per line, each clipped
 		// to its own line rather than to the end column of the last one.
 		name: "multi line is split per line",
-		raw:  []rawSpan{{StartLine: 0, StartCol: 6, EndLine: 2, EndCol: 3, TokenType: editor.TtStringLiteral}},
+		raw:  []rawSpan{{StartLine: 0, StartCol: 6, EndLine: 2, EndCol: 3, TokenType: code.TtStringLiteral}},
 		want: "[0:6:11:StringLiteral 1:0:11:StringLiteral 2:0:3:StringLiteral]",
 	}, {
 		// A nested span wins over the one enclosing it, which is what puts an
 		// escape sequence on top of its string literal.
 		name: "nested span splits its parent",
 		raw: []rawSpan{
-			lineSpan(0, 0, 11, editor.TtStringLiteral),
-			lineSpan(0, 5, 7, editor.TtEscape),
+			lineSpan(0, 0, 11, code.TtStringLiteral),
+			lineSpan(0, 5, 7, code.TtEscape),
 		},
 		want: "[0:0:5:StringLiteral 0:5:7:Escape 0:7:11:StringLiteral]",
 	}, {
 		name: "order of nested spans does not matter",
 		raw: []rawSpan{
-			lineSpan(0, 5, 7, editor.TtEscape),
-			lineSpan(0, 0, 11, editor.TtStringLiteral),
+			lineSpan(0, 5, 7, code.TtEscape),
+			lineSpan(0, 0, 11, code.TtStringLiteral),
 		},
 		want: "[0:0:5:StringLiteral 0:5:7:Escape 0:7:11:StringLiteral]",
 	}, {
@@ -61,48 +62,48 @@ func TestSpanBuilder(t *testing.T) {
 		// is how a highlight query orders its specific patterns first.
 		name: "identical ranges resolve to the first",
 		raw: []rawSpan{
-			lineSpan(0, 0, 5, editor.TtFuncDeclaration),
-			lineSpan(0, 0, 5, editor.TtIdentifier),
+			lineSpan(0, 0, 5, code.TtFuncDeclaration),
+			lineSpan(0, 0, 5, code.TtIdentifier),
 		},
 		want: "[0:0:5:FuncDeclaration]",
 	}, {
 		name: "partial overlap is resolved, never duplicated",
 		raw: []rawSpan{
-			lineSpan(0, 0, 6, editor.TtKeyword),
-			lineSpan(0, 4, 11, editor.TtIdentifier),
+			lineSpan(0, 0, 6, code.TtKeyword),
+			lineSpan(0, 4, 11, code.TtIdentifier),
 		},
 		want: "[0:0:4:Keyword 0:4:11:Identifier]",
 	}, {
 		name: "adjacent spans of one type merge",
 		raw: []rawSpan{
-			lineSpan(0, 0, 5, editor.TtComment),
-			lineSpan(0, 5, 11, editor.TtComment),
+			lineSpan(0, 0, 5, code.TtComment),
+			lineSpan(0, 5, 11, code.TtComment),
 		},
 		want: "[0:0:11:Comment]",
 	}, {
 		name: "spans are clipped to the line",
-		raw:  []rawSpan{lineSpan(2, 3, 99, editor.TtKeyword)},
+		raw:  []rawSpan{lineSpan(2, 3, 99, code.TtKeyword)},
 		want: "[2:3:5:Keyword]",
 	}, {
 		name: "spans outside the document are dropped",
 		raw: []rawSpan{
-			lineSpan(9, 0, 3, editor.TtKeyword),
-			lineSpan(-1, 0, 3, editor.TtKeyword),
-			lineSpan(0, 20, 30, editor.TtKeyword),
-			lineSpan(0, 4, 4, editor.TtKeyword),
-			lineSpan(0, 6, 2, editor.TtKeyword),
+			lineSpan(9, 0, 3, code.TtKeyword),
+			lineSpan(-1, 0, 3, code.TtKeyword),
+			lineSpan(0, 20, 30, code.TtKeyword),
+			lineSpan(0, 4, 4, code.TtKeyword),
+			lineSpan(0, 6, 2, code.TtKeyword),
 		},
 		want: "[]",
 	}, {
 		name: "unmapped token types are dropped",
-		raw:  []rawSpan{lineSpan(0, 0, 5, editor.TtNothing)},
+		raw:  []rawSpan{lineSpan(0, 0, 5, code.TtNothing)},
 		want: "[]",
 	}, {
 		name: "spans are sorted by line and offset",
 		raw: []rawSpan{
-			lineSpan(2, 0, 5, editor.TtKeyword),
-			lineSpan(0, 6, 11, editor.TtComment),
-			lineSpan(0, 0, 5, editor.TtKeyword),
+			lineSpan(2, 0, 5, code.TtKeyword),
+			lineSpan(0, 6, 11, code.TtComment),
+			lineSpan(0, 0, 5, code.TtKeyword),
 		},
 		want: "[0:0:5:Keyword 0:6:11:Comment 2:0:5:Keyword]",
 	}} {
@@ -117,9 +118,9 @@ func TestSpanBuilder(t *testing.T) {
 func TestSpansOfLine(t *testing.T) {
 	src := newSource("aaa\nbbb\nccc\nddd")
 	spans := buildSpans(src,
-		lineSpan(0, 0, 3, editor.TtKeyword),
-		lineSpan(2, 0, 1, editor.TtKeyword),
-		lineSpan(2, 2, 3, editor.TtComment),
+		lineSpan(0, 0, 3, code.TtKeyword),
+		lineSpan(2, 0, 1, code.TtKeyword),
+		lineSpan(2, 2, 3, code.TtComment),
 	)
 
 	for _, tc := range []struct {
@@ -144,8 +145,8 @@ func TestSpansOfLine(t *testing.T) {
 // an offset past the end of the line.
 func TestClipSpans(t *testing.T) {
 	spans := []editor.SyntaxSpan{
-		{LineNumber: 0, Start: 0, End: 4, TokenType: editor.TtKeyword},
-		{LineNumber: 0, Start: 5, End: 9, TokenType: editor.TtIdentifier},
+		{LineNumber: 0, Start: 0, End: 4, TokenType: code.TtKeyword},
+		{LineNumber: 0, Start: 5, End: 9, TokenType: code.TtIdentifier},
 	}
 
 	for _, tc := range []struct {

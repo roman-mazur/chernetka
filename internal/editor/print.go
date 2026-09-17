@@ -10,6 +10,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/editor/styles"
 )
 
 type contentPrinter struct {
@@ -64,9 +65,9 @@ func (cr *contentPrinter) render(out io.Writer) {
 		escape.ClearLine(out)
 
 		if !cr.b.hideLineNumbers {
-			nlColor := colors.Suggestion
+			nlColor := styles.DefaultColors.Suggestion
 			if ln == cr.b.c.Line {
-				nlColor = colors.LineSelected
+				nlColor = styles.DefaultColors.LineSelected
 			}
 			escape.ColorText(out, cr.lineNumber(ln+1), nlColor, nil)
 		}
@@ -77,7 +78,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 		if lineHL {
 			rightPad := cr.b.w - runeToScreenCol(raw, len(raw), len(cr.tab))
 			if rightPad > 0 {
-				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, colors.LineSelectedBg)
+				escape.ColorText(out, strings.Repeat(" ", rightPad), nil, styles.DefaultColors.LineSelectedBg)
 			}
 		}
 
@@ -97,7 +98,7 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 
 	if ln == cr.b.c.Line && cr.suggestion != "" && cr.b.c.Col <= len(line) {
 		p.print(line[:cr.b.c.Col], nil)
-		p.printSuggestion(cr.suggestion, colors.Suggestion)
+		p.printSuggestion(cr.suggestion, styles.DefaultColors.Suggestion)
 		p.print(line[cr.b.c.Col:], nil)
 		// TODO: use syntax HL
 		return
@@ -116,7 +117,7 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 		if span.End > len(line) {
 			panic(fmt.Errorf("line %d %q, span %s out of range", ln, line, span))
 		}
-		p.print(line[span.Start:span.End], colors.ColorForTokenType(span.TokenType))
+		p.print(line[span.Start:span.End], styles.DefaultColors.ColorForTokenType(span.TokenType))
 		lastIndex = span.End
 	}
 	if lastIndex < len(line) {
@@ -130,7 +131,7 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 		if !hlLine {
 			return nil
 		}
-		cs := colorSpan{color: colors.LineSelectedBg,
+		cs := colorSpan{color: styles.DefaultColors.LineSelectedBg,
 			Start: content.Position{Col: 0, Line: line},
 			End:   content.Position{Col: lineLen, Line: line}}
 		return []colorSpan{cs}
@@ -138,7 +139,7 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 
 	defBg := func() color.Color {
 		if hlLine {
-			return colors.LineSelectedBg
+			return styles.DefaultColors.LineSelectedBg
 		}
 		return nil
 	}
@@ -156,7 +157,7 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 	for i, selSpan := range spans {
 		res = append(res, colorSpan{
 			Span:  selSpan,
-			color: colors.TextSelectedBg,
+			color: styles.DefaultColors.TextSelectedBg,
 		})
 		if i < len(spans)-1 && selSpan.End.Col != spans[i+1].Start.Col {
 			res = append(res, colorSpan{
@@ -249,73 +250,6 @@ func nlDigitsLen(x int) int {
 		l++
 	}
 	return l
-}
-
-type ColorTheme struct {
-	Suggestion     color.Color
-	LineSelected   color.Color
-	LineSelectedBg color.Color
-	TextSelected   color.Color
-	TextSelectedBg color.Color
-
-	syntaxColors map[TokenType]color.Color
-}
-
-func (ct *ColorTheme) ColorForTokenType(t TokenType) color.Color {
-	if ct.syntaxColors == nil {
-		return nil
-	}
-	return ct.syntaxColors[t]
-}
-
-var colors = ColorTheme{
-	Suggestion:     color.Gray{Y: 100},
-	LineSelected:   color.Gray{Y: 200},
-	LineSelectedBg: color.Gray{Y: 70},
-	TextSelected:   color.Gray{Y: 200},
-	TextSelectedBg: parseColor("1010FF"),
-
-	syntaxColors: map[TokenType]color.Color{
-		TtKeyword:         parseColor("CF8E6D"),
-		TtTypeRef:         parseColor("BCBEC4"),
-		TtImportRef:       parseColor("57AAF7"),
-		TtStringLiteral:   parseColor("6AAB73"),
-		TtNumberLiteral:   parseColor("2AACB8"),
-		TtFuncDeclaration: parseColor("56A8F5"),
-		TtCall:            parseColor("56A8F5"),
-		TtComment:         parseColor("7A7E85"),
-		TtConstant:        parseColor("C77DBB"),
-		TtField:           parseColor("C77DBB"),
-		TtEscape:          parseColor("CF8E6D"),
-
-		// Markup. Emphasis and strong text only differ by color: the terminal
-		// writer sets foreground and background, not text attributes.
-		TtPunctuation: parseColor("7A7E85"),
-		TtHeading:     parseColor("56A8F5"),
-		TtEmphasis:    parseColor("BCBEC4"),
-		TtStrong:      parseColor("FFFFFF"),
-		TtLink:        parseColor("C77DBB"),
-		TtURL:         parseColor("548AF7"),
-		TtListMarker:  parseColor("CF8E6D"),
-		TtRawText:     parseColor("6AAB73"),
-		TtQuote:       parseColor("9BA0A8"),
-	},
-}
-
-func parseColor(s string) color.Color {
-	if len(s) != 6 {
-		panic(fmt.Errorf("expected 6 bytes, got %d", len(s)))
-	}
-	r, g, b := hex2i(s[:2]), hex2i(s[2:4]), hex2i(s[4:])
-	return color.RGBA{R: r, G: g, B: b, A: 0xff}
-}
-
-func hex2i(s string) uint8 {
-	res, err := strconv.ParseInt(s, 16, 32)
-	if err != nil {
-		panic(err)
-	}
-	return uint8(res)
 }
 
 func printLineEnding(out io.Writer) {
