@@ -79,7 +79,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 			rightPad := cr.b.w - runeToScreenCol(raw, len(raw), len(cr.tab))
 			if rightPad > 0 {
 				escape.StyleText(out, strings.Repeat(" ", rightPad),
-					styles.TextStyle{BgColor: styles.DefaultColors.TextSelectedBg})
+					styles.TextStyle{BgColor: styles.DefaultColors.LineSelectedBg})
 			}
 		}
 
