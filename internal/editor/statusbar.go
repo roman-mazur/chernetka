@@ -9,11 +9,12 @@ import (
 	"rmazur.io/chernetka/internal/editor/escape"
 )
 
-type statusBar struct {
+type StatusBar struct {
 	buf *Buffer
 }
 
-func (s *statusBar) render(out io.Writer) {
+// Render prints the status bar into the provided output.
+func (s *StatusBar) Render(out io.Writer) {
 	// Set terminal title.
 	if s.buf.Path != "" {
 		title := "che: " + filepath.Base(s.buf.Path)

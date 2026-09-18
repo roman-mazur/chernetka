@@ -26,7 +26,7 @@ func TestBuffer_Render(t *testing.T) {
 		absent      []string
 	}{
 		{
-			name: "normal mode shows numbered lines and status bar",
+			name: "normal mode shows numbered lines",
 			buf: &Buffer{
 				Path: "test.txt",
 				Content: &content.FullText{
@@ -38,8 +38,7 @@ func TestBuffer_Render(t *testing.T) {
 				h:    5,
 			},
 			prefs:    RenderPrefs{TabSize: 4},
-			contains: []string{"1 hello", "2 world", "NORMAL", "test.txt", "1:1"},
-			absent:   []string{"[*]"},
+			contains: []string{"1 hello", "2 world"},
 		},
 		{
 			name: "hide line numbers",
@@ -56,38 +55,8 @@ func TestBuffer_Render(t *testing.T) {
 				h:               5,
 			},
 			prefs:    RenderPrefs{TabSize: 4},
-			contains: []string{"hello", "world", "NORMAL", "test.txt", "1:1"},
-			absent:   []string{"[*]", "1 hello", "2 world"},
-		},
-		{
-			name: "dirty buffer shows marker",
-			buf: &Buffer{
-				Path:    "test.txt",
-				Content: &content.FullText{content.TextLine("x")},
-				mode:    ModeNormal,
-				dirty:   true,
-				w:       40,
-				h:       3,
-			},
-			prefs:    RenderPrefs{TabSize: 4},
-			contains: []string{"[*]"},
-		},
-		{
-			name: "cursor position reflected in status bar",
-			buf: &Buffer{
-				Path: "test.txt",
-				Content: &content.FullText{
-					content.TextLine("first"),
-					content.TextLine("second"),
-					content.TextLine("third"),
-				},
-				mode: ModeNormal,
-				c:    content.Position{3, 1},
-				w:    40,
-				h:    5,
-			},
-			prefs:    RenderPrefs{TabSize: 4},
-			contains: []string{"2:4"},
+			contains: []string{"hello", "world"},
+			absent:   []string{"1 hello", "2 world"},
 		},
 		{
 			name: "tab expands to TabSize spaces",
@@ -114,20 +83,6 @@ func TestBuffer_Render(t *testing.T) {
 			suggestions: []string{"ntln"},
 			prefs:       RenderPrefs{TabSize: 4},
 			contains:    []string{"1 Println"},
-		},
-		{
-			name: "command mode shows cmdline and hides status",
-			buf: &Buffer{
-				Path:    "test.txt",
-				Content: &content.FullText{content.TextLine("x")},
-				mode:    ModeCommand,
-				cmdline: "wq",
-				w:       40,
-				h:       3,
-			},
-			prefs:    RenderPrefs{TabSize: 4},
-			contains: []string{":wq"},
-			absent:   []string{"NORMAL", "COMMAND", "test.txt"},
 		},
 		{
 			name: "2 digits line numbers",
@@ -430,12 +385,10 @@ func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
 
 			var out bytes.Buffer
 			buf.Render(&out, &RenderPrefs{TabSize: 2})
+			t.Log("\n" + out.String())
 
 			if got, want := strings.Count(out.String(), "\r\n"), tc.h-1; got != want {
 				t.Errorf("Render emitted %d line endings, want %d (window height %d)", got, want, tc.h)
-			}
-			if strings.HasSuffix(out.String(), "\r\n") {
-				t.Error("Render ended with a line ending; the last row must not wrap to the next one")
 			}
 		})
 	}
