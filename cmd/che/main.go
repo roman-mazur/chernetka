@@ -24,6 +24,7 @@ func main() {
 	)
 
 	logf, _ := logger.UserLogFile()
+	edit.LogEmbed = logger.Embed(logf)
 	delegate := editDelegate{edit: &edit, logf: logf}
 
 	debugEnv(logf)
@@ -75,7 +76,7 @@ func main() {
 		Writer:             os.Stdout,
 		WindowChangeSignal: windowChangeSignal(),
 	}
-	edit.Run(&inOut, logf)
+	edit.Run(&inOut)
 }
 
 const doDebugEnv = false

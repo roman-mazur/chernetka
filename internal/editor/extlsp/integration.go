@@ -13,6 +13,7 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/lsp"
 )
 
@@ -34,6 +35,8 @@ func defaultLSPStarter(ctx context.Context, rootDir string) (lspClient, error) {
 
 // Integration encapsulates the logic of integrating with an LSP client in an editor.Editor and editor.Buffer.
 type Integration struct {
+	logger.LogEmbed
+
 	Starter lspStarter
 
 	client lspClient
@@ -49,11 +52,13 @@ func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 		return nil
 	}
 
+	le.Logf("initializing an LSP server for Go")
 	absPath, err := filepath.Abs(buf.Path)
 	if err != nil {
 		return nil
 	}
 	if err := le.ensureLSP(filepath.Dir(absPath)); err != nil {
+		le.Logf("ensureLSP failed with %s", err.Error())
 		return nil
 	}
 
@@ -61,6 +66,7 @@ func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	bufData.SetPath(absPath)
 	bufData.version = 1
 	_ = le.client.DidOpen(context.Background(), bufData.docUri, "go", buf.Text(), bufData.version)
+	le.Logf("LSP supported buffer is open")
 	return &bufData
 }
 

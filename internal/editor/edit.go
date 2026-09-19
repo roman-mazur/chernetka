@@ -57,6 +57,7 @@ type InOut struct {
 
 // Editor represents the editor internal state.
 type Editor struct {
+	logger.LogEmbed
 	mouseHandler
 
 	top *bufEntry // stack of open buffers
@@ -76,6 +77,18 @@ type Editor struct {
 }
 
 func (e *Editor) Extend(ext Extension) {
+	if ext == nil {
+		panic("nil extension")
+	}
+	type el interface {
+		EmbeddedLogger() *logger.LogEmbed
+	}
+	if l, ok := ext.(el); ok {
+		// Propagate the logger to the extension.
+		le := l.EmbeddedLogger()
+		*le = logger.Embed(logger.Prefix(e.Logf, ext.ID()+": "))
+		le.LogDebug = e.LogDebug
+	}
 	e.x = append(e.x, ext)
 }
 
@@ -253,10 +266,10 @@ func (be *bufEntry) matches(p string) bool {
 	return be.b.Path == p
 }
 
-func (e *Editor) Run(t *InOut, logf logger.Func) {
+func (e *Editor) Run(t *InOut) {
 	start := time.Now()
 	defer func() {
-		logf("session done %s", time.Since(start))
+		e.Logf("session done %s", time.Since(start))
 		for _, ext := range e.x {
 			if c, ok := ext.(io.Closer); ok {
 				_ = c.Close()
@@ -264,7 +277,7 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 		}
 	}()
 
-	termCleanup := e.initTerminal(t, logf)
+	termCleanup := e.initTerminal(t)
 	defer termCleanup()
 
 	e.rPrefs = newRenderPrefs()
@@ -276,7 +289,7 @@ func (e *Editor) Run(t *InOut, logf logger.Func) {
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 
-	go e.readAndHandleInput(ctx, bufio.NewReader(t), logf)
+	go e.readAndHandleInput(ctx, bufio.NewReader(t))
 	go e.handleWindowChange(ctx, t.WindowChangeSignal)
 
 	out := bufio.NewWriter(t)
@@ -347,10 +360,10 @@ func (e *Editor) render(out *bufio.Writer) {
 	e.mouseHandler.render(out)
 }
 
-func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
+func (e *Editor) initTerminal(t *InOut) (cleanup func()) {
 	f, ok := t.Reader.(*os.File)
 	if !ok {
-		logf("not a terminal")
+		e.Logf("not a terminal")
 		return func() {}
 	}
 
@@ -369,7 +382,7 @@ func (e *Editor) initTerminal(t *InOut, logf logger.Func) (cleanup func()) {
 	e.termFd = fd
 	state, err := term.MakeRaw(fd)
 	if err != nil {
-		logf("cannot initialize terminal (fd %d): %s", fd, err)
+		e.Logf("cannot initialize terminal (fd %d): %s", fd, err)
 		return
 	}
 	e.termSize = func() (int, int, error) { return term.GetSize(fd) }
@@ -414,7 +427,7 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 	}
 }
 
-func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf logger.Func) {
+func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader) {
 	const bufSize = 64
 	bPool := sync.Pool{New: func() any { return make([]byte, bufSize) }}
 	var inBuf [bufSize]byte
@@ -423,7 +436,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		// Get input.
 		n, err := in.Read(inBuf[:])
 		if err != nil {
-			e.handleInputError(err, logf)
+			e.handleInputError(err)
 			break
 		}
 		if n == 0 {
@@ -433,13 +446,13 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		copy(buf, inBuf[:n])
 		input := buf[:n]
 		if debugInput {
-			logf("input: %v", input)
+			e.Logf("input: %v", input)
 		}
 
 		// Check for mouse input.
-		_, k, err := e.readAndHandleMouse(input, logf)
+		_, k, err := e.readAndHandleMouse(input)
 		if err != nil {
-			e.handleInputError(err, logf)
+			e.handleInputError(err)
 			break
 		}
 		input = input[k:]
@@ -451,7 +464,7 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 		// Check for clipboard paste.
 		clipboardContent, detected, err := inputs.ConsumeClipboardPaste(input, in)
 		if err != nil {
-			e.handleInputError(err, logf)
+			e.handleInputError(err)
 			break
 		}
 		if clipboardContent != "" {
@@ -475,12 +488,12 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader, logf 
 	}
 }
 
-func (e *Editor) handleInputError(err error, logf logger.Func) {
-	logf("input error, quitting: %s", err)
+func (e *Editor) handleInputError(err error) {
+	e.Logf("input error, quitting: %s", err)
 	e.cmdChannel <- commandQuit
 }
 
-func (e *Editor) readAndHandleMouse(input []byte, logf logger.Func) (handled bool, n int, err error) {
+func (e *Editor) readAndHandleMouse(input []byte) (handled bool, n int, err error) {
 	var data inputs.Mouse
 	data, n, err = inputs.ReadMouse(input)
 
@@ -492,14 +505,14 @@ func (e *Editor) readAndHandleMouse(input []byte, logf logger.Func) (handled boo
 	}
 
 	handled = true
-	e.cmdChannel <- CommandFunc(func(e *Editor) { e.handleMouse(data, logf) })
+	e.cmdChannel <- CommandFunc(func(e *Editor) { e.handleMouse(data) })
 	return
 }
 
-func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
+func (e *Editor) handleMouse(data inputs.Mouse) {
 	event := e.transformInput(data)
 	if debugInput {
-		logf("mouse: %s", event)
+		e.Logf("mouse: %s", event)
 	}
 
 	buf := e.Top()

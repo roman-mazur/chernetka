@@ -47,7 +47,8 @@ func (h *TestHarness) Run(t *testing.T) {
 	})
 	go func() {
 		defer close(runFinished)
-		h.Editor.Run(&inOut, logger.Prefix(t.Logf, "editor: "))
+		h.Editor.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
+		h.Editor.Run(&inOut)
 	}()
 }
 

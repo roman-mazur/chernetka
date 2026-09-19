@@ -92,7 +92,7 @@ func holdsPlainText(buf *editor.Buffer) bool {
 // Integration implements an editor.Extension that colorizes buffers of the
 // languages it recognizes.
 type Integration struct {
-	logImpl
+	logger.LogEmbed
 }
 
 func (in *Integration) ID() string { return "syntaxhl" }
@@ -103,8 +103,8 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 		return nil
 	}
 
-	in.logf(false, "highlighting %s as %s", buf.Path, lang.name)
-	doc := &document{logImpl: &in.logImpl, lang: lang, hl: lang.newHighlighter()}
+	in.Logf("highlighting %s as %s", buf.Path, lang.name)
+	doc := &document{LogEmbed: &in.LogEmbed, lang: lang, hl: lang.newHighlighter()}
 	doc.reparse(buf.Text())
 	return doc
 }
@@ -114,7 +114,7 @@ func (in *Integration) AfterEdit(_ *editor.Editor, buf *editor.Buffer) {
 	if !ok {
 		return
 	}
-	in.logf(true, "AfterEdit(_, %q)", buf.Path)
+	in.Debugf("AfterEdit(_, %q)", buf.Path)
 	doc.reparse(buf.Text())
 }
 
@@ -125,7 +125,7 @@ func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []
 // document is the per-buffer extension data. It owns the language highlighter
 // and caches the flattened spans of the whole document until the next edit.
 type document struct {
-	*logImpl
+	*logger.LogEmbed
 	lang *language
 	hl   highlighter
 
@@ -149,7 +149,7 @@ func (d *document) build() {
 	d.builder.reset()
 	d.hl.spans(d.src, func(rs rawSpan) { d.builder.add(d.src, rs) })
 	d.spans = d.builder.build(d.spans)
-	d.logf(true, "built %d spans for %d %s lines", len(d.spans), len(d.src.lines), d.lang.name)
+	d.Debugf("built %d spans for %d %s lines", len(d.spans), len(d.src.lines), d.lang.name)
 }
 
 // SyntaxSpans implements editor.SyntaxHighlighter.
@@ -161,18 +161,3 @@ func (d *document) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
 }
 
 func (d *document) Close() error { return d.hl.Close() }
-
-type logImpl struct {
-	LogDebug bool
-	LogF     logger.Func
-}
-
-func (li *logImpl) logf(debug bool, fmt string, args ...any) {
-	if li.LogF == nil {
-		return
-	}
-	if debug && !li.LogDebug {
-		return
-	}
-	li.LogF(fmt, args...)
-}

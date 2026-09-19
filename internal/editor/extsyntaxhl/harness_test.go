@@ -8,6 +8,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/logger"
 )
 
 // hlLine is one line of a test document together with the spans expected for
@@ -54,8 +55,8 @@ func openDoc(t *testing.T, path, text string) (*editor.Buffer, *Integration) {
 	t.Helper()
 
 	ext := new(Integration)
+	ext.LogEmbed = logger.Embed(t.Logf)
 	ext.LogDebug = true
-	ext.LogF = t.Logf
 
 	var edit editor.Editor
 	edit.Extend(ext)

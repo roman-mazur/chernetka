@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/logger"
 )
 
 func TestGoHighlight(t *testing.T) {
@@ -176,7 +177,7 @@ func TestNoHighlightForDirectoryListing(t *testing.T) {
 	}
 
 	ext := new(Integration)
-	ext.LogF = t.Logf
+	ext.LogEmbed = logger.Embed(t.Logf)
 	var edit editor.Editor
 	edit.Extend(ext)
 	edit.OpenDir(dir, noopOpener{})
