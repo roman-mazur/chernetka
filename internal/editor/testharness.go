@@ -68,6 +68,11 @@ func (h *TestHarness) Post(t *testing.T, cmd Command) {
 	}
 }
 
+func (h *TestHarness) DrainCommands(t *testing.T) {
+	t.Helper()
+	h.Post(t, CommandFunc(func(*Editor) {}))
+}
+
 // Commands returns the channel onto which Post delivers commands. Receiving from
 // it lets a test observe commands the editor posts asynchronously.
 func (h *TestHarness) Commands() <-chan Command { return h.cmdChannel }

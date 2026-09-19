@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf16"
@@ -17,11 +18,13 @@ import (
 	"rmazur.io/chernetka/internal/lsp"
 )
 
+const debugImpl = true
+
 // lspClient is the subset of an LSP backend the editor needs. *lsp.Client
 // satisfies it; tests substitute a fake.
 type lspClient interface {
 	DidOpen(ctx context.Context, fileURI uri.URI, languageID, text string, version int32) error
-	DidChange(ctx context.Context, fileURI uri.URI, text string, version int32) error
+	DidChange(ctx context.Context, fileURI uri.URI, version int32, events []protocol.TextDocumentContentChangeEvent) error
 	Completion(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.CompletionItem, error)
 	Shutdown(ctx context.Context) error
 }
@@ -39,10 +42,11 @@ type Integration struct {
 
 	Starter lspStarter
 
-	client lspClient
-	cancel context.CancelFunc
-
-	startError error
+	once           sync.Once
+	client         lspClient
+	cancel         context.CancelFunc
+	startError     error
+	contentChanges chan editorContext
 }
 
 func (le *Integration) ID() string { return "lsp" }
@@ -50,6 +54,9 @@ func (le *Integration) ID() string { return "lsp" }
 func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	if !strings.HasSuffix(buf.Path, ".go") {
 		return nil
+	}
+	if debugImpl {
+		le.LogDebug = true
 	}
 
 	le.Logf("initializing an LSP server for Go")
@@ -61,6 +68,7 @@ func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 		le.Logf("ensureLSP failed with %s", err.Error())
 		return nil
 	}
+	le.Logf("LSP server is ready")
 
 	var bufData BufferData
 	bufData.SetPath(absPath)
@@ -75,7 +83,17 @@ func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
 	if !active {
 		return
 	}
-	le.sendChange(buf, data) // TODO: consider bouncing and doing asynchronously.
+
+	select {
+	// TODO: This limits changes notifications to one at a time.
+	//       However, we risk not having the latest change on LSP side.
+	case le.contentChanges <- editorContext{
+		editor:  e,
+		buf:     buf,
+		bufData: data,
+	}:
+	default:
+	}
 
 	cx, cy := buf.Pos()
 	var line string
@@ -85,7 +103,6 @@ func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
 	if strings.TrimSpace(line) == "" {
 		return
 	}
-	cx = min(cx, len(line))
 	le.askForNewSuggestion(line, cx, cy, e, data)
 }
 
@@ -93,23 +110,47 @@ func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
 // first call, subsequent calls return the cached start error (if any) without
 // retrying — a failed start usually means gopls isn't installed.
 func (le *Integration) ensureLSP(fileDir string) error {
-	if le.client != nil || le.startError != nil {
-		return le.startError
-	}
 	starter := le.Starter
 	if starter == nil {
 		starter = defaultLSPStarter
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	client, err := starter(ctx, findGoModRoot(fileDir))
-	if err != nil {
+
+	le.once.Do(func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		client, err := starter(ctx, findGoModRoot(fileDir))
+		if err != nil {
+			cancel()
+			le.startError = err
+			return
+		}
+		le.client = client
+		le.cancel = cancel
+
+		le.contentChanges = make(chan editorContext)
+		go le.handleContentChanges()
+	})
+
+	return le.startError
+}
+
+func (le *Integration) handleContentChanges() {
+	for editCtx := range le.contentChanges {
+		bufData := editCtx.bufData
+		bufData.version++
+		le.Debugf("change in %s: v%d", filepath.Base(editCtx.buf.Path), bufData.version)
+
+		textCh := make(chan string, 1)
+		editCtx.editor.Send(editor.CommandFunc(func(e *editor.Editor) {
+			textCh <- editCtx.buf.Text()
+		}))
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		events := []protocol.TextDocumentContentChangeEvent{
+			{Text: <-textCh},
+		}
+		_ = le.client.DidChange(ctx, bufData.docUri, bufData.version, events)
 		cancel()
-		le.startError = err
-		return err
 	}
-	le.client = client
-	le.cancel = cancel
-	return nil
 }
 
 func (le *Integration) activeOn(buf *editor.Buffer) (*BufferData, bool) {
@@ -122,11 +163,6 @@ func (le *Integration) activeOn(buf *editor.Buffer) (*BufferData, bool) {
 		return nil, false
 	}
 	return data.(*BufferData), data.(*BufferData).docUri != ""
-}
-
-func (le *Integration) sendChange(buf *editor.Buffer, bufData *BufferData) {
-	bufData.version++
-	_ = le.client.DidChange(context.Background(), bufData.docUri, buf.Text(), bufData.version)
 }
 
 func (le *Integration) askForNewSuggestion(line string, cx, cy int, e *editor.Editor, bufData *BufferData) {
@@ -142,6 +178,7 @@ func (le *Integration) askForNewSuggestion(line string, cx, cy int, e *editor.Ed
 
 	// TODO: replace with smarter logic when to ask for a suggestion.
 	go func() {
+		le.Debugf("asking for %d:%d", cy, cx)
 		items, err := client.Completion(context.Background(), fileURI, ln, ch)
 		if err != nil {
 			return
@@ -151,8 +188,9 @@ func (le *Integration) askForNewSuggestion(line string, cx, cy int, e *editor.Ed
 			if bufData.reqCompletion != req {
 				return // A newer edit superseded this request.
 			}
+			le.Debugf("new suggestions len=%d", len(suggestions))
 			bufData.Assign(suggestions)
-			e.RequestLayout()
+			e.RequestRender()
 		}))
 	}()
 }
@@ -169,6 +207,8 @@ func (le *Integration) Close() error {
 		le.cancel()
 		le.cancel = nil
 	}
+
+	close(le.contentChanges)
 	le.client = nil
 	return err
 }
@@ -235,4 +275,10 @@ func utf16Len(s string) (n uint32) {
 		n += uint32(utf16.RuneLen(r))
 	}
 	return n
+}
+
+type editorContext struct {
+	editor  *editor.Editor
+	buf     *editor.Buffer
+	bufData *BufferData
 }

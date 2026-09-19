@@ -108,13 +108,13 @@ func (c *Client) DidOpen(ctx context.Context, fileURI uri.URI, languageID, text 
 }
 
 // DidChange notifies the server about a full-document content change.
-func (c *Client) DidChange(ctx context.Context, fileURI uri.URI, text string, version int32) error {
+func (c *Client) DidChange(ctx context.Context, fileURI uri.URI, version int32, events []protocol.TextDocumentContentChangeEvent) error {
 	return c.conn.Notify(ctx, protocol.MethodTextDocumentDidChange, &protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{
 			TextDocumentIdentifier: protocol.TextDocumentIdentifier{URI: fileURI},
 			Version:                version,
 		},
-		ContentChanges: []protocol.TextDocumentContentChangeEvent{{Text: text}},
+		ContentChanges: events,
 	})
 }
 

@@ -75,7 +75,10 @@ func TestClient_RoundTrip(t *testing.T) {
 		t.Errorf("server received text %q, want %q", got, "package main\n")
 	}
 
-	if err := c.DidChange(ctx, fileURI, "package main\n\nfunc f() {}\n", 2); err != nil {
+	events := []protocol.TextDocumentContentChangeEvent{
+		{Text: "package main\n\nfunc f() {}\n"},
+	}
+	if err := c.DidChange(ctx, fileURI, 2, events); err != nil {
 		t.Fatalf("DidChange: %v", err)
 	}
 	if got := <-changed; got != 2 {

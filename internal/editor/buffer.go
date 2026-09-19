@@ -80,12 +80,8 @@ func (b *Buffer) clampCursor() {
 	if len(lines) > 0 {
 		line = lines[b.c.Line].String()
 	}
-	maxX := len(line)
-	if b.mode == ModeNormal && maxX > 0 {
-		_, sz := utf8.DecodeLastRuneInString(line)
-		maxX -= sz // Normal mode: cursor sits on a character, not past the last one.
-	}
-	b.c.Col = max(0, min(b.c.Col, maxX))
+	b.c.Col = max(0, min(b.c.Col, len(line)))
+
 	// Vertical movement may land cx mid-rune; snap back to the rune start.
 	for b.c.Col > 0 && b.c.Col < len(line) && !utf8.RuneStart(line[b.c.Col]) {
 		b.c.Col--

@@ -40,7 +40,7 @@ func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
 	findExtData(b, &cr.CodeAssist)
 	findExtData(b, &cr.SyntaxHighlighter)
 
-	if cr.CodeAssist != nil {
+	if cr.CodeAssist != nil && b.mode == ModeInsert {
 		cr.suggestion = cr.TextSuggestion()
 	}
 }

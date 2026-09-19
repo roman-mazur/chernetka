@@ -622,7 +622,7 @@ func (e *Editor) handleAfterEdit(buf *Buffer) {
 	}
 }
 
-func (e *Editor) RequestLayout() {
+func (e *Editor) RequestRender() {
 	e.renderRequested = true
 }
 

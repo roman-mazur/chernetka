@@ -82,6 +82,8 @@ type fakeLSP struct {
 	openVersion    int32
 	changedVersion int32
 	items          []protocol.CompletionItem
+
+	changeSignal chan struct{}
 }
 
 func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, _, _ string, v int32) error {
@@ -89,8 +91,11 @@ func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, _, _ string, v int32) er
 	return nil
 }
 
-func (f *fakeLSP) DidChange(_ context.Context, _ uri.URI, _ string, v int32) error {
+func (f *fakeLSP) DidChange(_ context.Context, _ uri.URI, v int32, _ []protocol.TextDocumentContentChangeEvent) error {
 	f.changedVersion = v
+	if f.changeSignal != nil {
+		close(f.changeSignal)
+	}
 	return nil
 }
 
@@ -132,7 +137,10 @@ func runPosted(t *testing.T, h *editor.TestHarness) {
 }
 
 func TestIntegration_AfterEditSetsSuggestion(t *testing.T) {
-	fake := &fakeLSP{items: []protocol.CompletionItem{{Label: "Println"}}}
+	fake := &fakeLSP{
+		items:        []protocol.CompletionItem{{Label: "Println"}},
+		changeSignal: make(chan struct{}),
+	}
 	var le Integration
 	h, buf, data := newGoBuffer(t, &le, fake, "Pri")
 	h.MoveCursorToLineEnd() // cursor sits right after "Pri"
@@ -141,13 +149,17 @@ func TestIntegration_AfterEditSetsSuggestion(t *testing.T) {
 		t.Errorf("DidOpen version = %d, want 1", fake.openVersion)
 	}
 
-	le.AfterEdit(h.Editor, buf)
+	h.Run(t)
+	h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
+		le.AfterEdit(e, buf)
+	}))
+
+	<-fake.changeSignal
+	h.DrainCommands(t)
 
 	if fake.changedVersion != 2 {
 		t.Errorf("DidChange version = %d, want 2", fake.changedVersion)
 	}
-
-	runPosted(t, h)
 
 	if !data.HasSuggestions() {
 		t.Fatal("no suggestion assigned")
