@@ -102,6 +102,26 @@ func (b *Buffer) clampCursor() {
 	}
 }
 
+func (b *Buffer) screenToContentPosition(row, col int, tabSize int) content.Position {
+	if b.Content.Len() == 0 {
+		return content.Position{}
+	}
+	line := max(0, min(row+b.offset, b.Content.Len()-1))
+	str := b.Content.Lines()[line].String()
+	dx := b.lineNumberPrefixWidth()
+	x := 0
+	for i, r := range str {
+		if x >= col-dx {
+			return content.Position{Line: line, Col: i}
+		}
+		if r == '\t' {
+			dx += tabSize - 1
+		}
+		x++
+	}
+	return content.Position{Line: line, Col: len(str)}
+}
+
 // runeToScreenCol returns the visual column at the given byte index, expanding
 // tabs by tabSize. Used once per render to project cx onto the terminal.
 func runeToScreenCol(line string, runeIdx, tabSize int) int {

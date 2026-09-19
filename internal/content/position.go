@@ -1,9 +1,15 @@
 package content
 
+import "fmt"
+
 // Position indicates a symbol position in the content.
 type Position struct {
 	Col  int // rune offset in the line
 	Line int // 0-indexed line number
+}
+
+func (p Position) String() string {
+	return fmt.Sprintf("l=%d/c=%d", p.Line, p.Col)
 }
 
 // Span represents a pair of positions to refer to a piece of content.

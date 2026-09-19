@@ -537,8 +537,7 @@ func (e *Editor) handleMouse(data inputs.Mouse, logf logger.Func) {
 			return
 		}
 
-		buf.c.Col = data.X - 1 - buf.lineNumberPrefixWidth()
-		buf.c.Line = buf.offset + data.Y - 1
+		buf.c = buf.screenToContentPosition(data.Y-1, data.X-1, e.rPrefs.TabSize)
 		if buf.selecting && event.Mod.HasMotion() && overContent {
 			buf.sel[len(buf.sel)-1].End = buf.c
 		} else if !buf.selecting {

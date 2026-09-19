@@ -4,7 +4,7 @@
 - [x] Commit description syntax highlight
 - [x] Rebase file highlight
 - [x] Text selection: copy / paste / cut
-- [ ] Fix mouse click offset issue (with tabs and utf-8)
+- [x] Fix mouse click offset issue (with tabs and utf-8)
 
 - Better logic for triggering LSP calls
 - Action on md checkboxes

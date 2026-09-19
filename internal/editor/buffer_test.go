@@ -377,7 +377,7 @@ func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf Buffer
-			testContent := content.FullText(slices.Repeat(content.FullText{content.TextLine("test")}, tc.lines))
+			testContent := slices.Repeat(content.FullText{content.TextLine("test")}, tc.lines)
 			buf.Content = &testContent
 			buf.mode = tc.mode
 			buf.cmdline = "w"
@@ -389,6 +389,96 @@ func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
 
 			if got, want := strings.Count(out.String(), "\r\n"), tc.h-1; got != want {
 				t.Errorf("Render emitted %d line endings, want %d (window height %d)", got, want, tc.h)
+			}
+		})
+	}
+}
+
+func TestBuffer_ScreenToContentPosition(t *testing.T) {
+	const tabSize = 2
+	for i, tc := range []struct {
+		x, y      int
+		pos       content.Position
+		content   string
+		bufOffset int
+	}{
+		{
+			content: "hello world",
+		},
+		{
+			content:   "hello\nworld",
+			bufOffset: 1,
+			pos:       content.Position{Line: 1},
+		},
+		{
+			content:   "hello\nworld",
+			bufOffset: 1,
+			x:         4,
+			y:         5,
+			pos:       content.Position{Line: 1, Col: 2},
+		},
+		{
+			content: "hello\nworld",
+			x:       0,
+			y:       5,
+			pos:     content.Position{Line: 1},
+		},
+		{
+			content: "hello\nworld",
+			x:       5,
+			y:       0,
+			pos:     content.Position{Col: 3},
+		},
+		{
+			content: "hello\nworld",
+			x:       100,
+			y:       0,
+			pos:     content.Position{Col: 5},
+		},
+		{
+			content: "\t\t\thello",
+			x:       2,
+			pos:     content.Position{},
+		},
+		{
+			content: "\t\t\thello",
+			x:       3,
+			pos:     content.Position{Col: 1},
+		},
+		{
+			content: "\t\t\thello",
+			x:       4,
+			pos:     content.Position{Col: 1},
+		},
+		{
+			content: "\t\t\thello",
+			x:       5,
+			pos:     content.Position{Col: 2},
+		},
+		{
+			content: "\t\t\thello",
+			x:       10,
+			pos:     content.Position{Col: 5},
+		},
+		{
+			content: "привіт",
+			x:       5,
+			pos:     content.Position{Col: 6},
+		},
+	} {
+		t.Run(fmt.Sprintf("%d/x=%d/y=%d/pos/%s", i, tc.x, tc.y, tc.pos), func(t *testing.T) {
+			data, err := content.LoadFullText(strings.NewReader(tc.content))
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf := Buffer{
+				Content: &data,
+				w:       40,
+				h:       10,
+				offset:  tc.bufOffset,
+			}
+			if res := buf.screenToContentPosition(tc.y, tc.x, tabSize); res != tc.pos {
+				t.Errorf("screenToContentPosition(%d, %d, %d) = %s, want %s", tc.y, tc.x, 2, res, tc.pos)
 			}
 		})
 	}
