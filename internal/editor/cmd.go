@@ -3,6 +3,7 @@ package editor
 import (
 	"os"
 	"slices"
+	"unicode"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -156,7 +157,39 @@ var (
 	// SelectWord adjusts the buffer selection to select the word at the current cursor.
 	SelectWord = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		b.cancelSelection()
-		// TODO: find the word.
+		if b.Content.Len() == 0 {
+			return
+		}
+		line := b.Content.Lines()[b.c.Line].String()
+
+		start := b.c.Col
+		for start > 0 {
+			r, size := utf8.DecodeLastRuneInString(line[:start])
+			if unicode.IsLetter(r) {
+				start -= size
+			} else {
+				break
+			}
+		}
+
+		end := b.c.Col
+		for end < len(line) {
+			r, size := utf8.DecodeRuneInString(line[end:])
+			if unicode.IsLetter(r) {
+				end += size
+			} else {
+				break
+			}
+		}
+
+		if end > start {
+			b.sel = append(b.sel, content.Span{
+				Start: content.Position{Line: b.c.Line, Col: start},
+				End:   content.Position{Line: b.c.Line, Col: end},
+			})
+			b.selecting = true
+			b.c.Col = end
+		}
 	})
 	// SelectLine adjusts the buffer selection to select the whole line at the current cursor.
 	SelectLine = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {

@@ -341,3 +341,27 @@ func TestSave_NotMutable(t *testing.T) {
 		t.Errorf("dirty cleared despite non-mutable content")
 	}
 }
+
+func TestSelectWord(t *testing.T) {
+	const line = "some words"
+	ft := content.FullText{content.TextLine(line)}
+	buf := &Buffer{Content: &ft, c: content.Position{Col: 1, Line: 0}}
+	prefs := RenderPrefs{TabSize: 4}
+
+	SelectWord.DoOnBuffer(buf, prefs)
+	if res := buf.SelectedText(); res != "some" {
+		t.Errorf("got %q, want %q", res, "some")
+	}
+	if buf.c.Col != 4 {
+		t.Errorf("cursor didn't move on first word selection: %s", buf.c)
+	}
+
+	buf.c.Col = 5
+	SelectWord.DoOnBuffer(buf, prefs)
+	if res := buf.SelectedText(); res != "words" {
+		t.Errorf("got %q, want %q", res, "words")
+	}
+	if buf.c.Col != len(line) {
+		t.Errorf("cursor didn't move on second word selection: %s", buf.c)
+	}
+}
