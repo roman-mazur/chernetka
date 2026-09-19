@@ -447,17 +447,17 @@ func TestBuffer_ScreenToContentPosition(t *testing.T) {
 		},
 		{
 			content: "\t\t\thello",
-			x:       4,
+			x:       2 + tabSize,
 			pos:     content.Position{Col: 1},
 		},
 		{
 			content: "\t\t\thello",
-			x:       5,
+			x:       2 + tabSize + 1,
 			pos:     content.Position{Col: 2},
 		},
 		{
 			content: "\t\t\thello",
-			x:       10,
+			x:       2 + 3*tabSize + 2,
 			pos:     content.Position{Col: 5},
 		},
 		{
