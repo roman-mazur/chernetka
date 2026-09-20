@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/term"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/debugflags"
 	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/logger"
@@ -30,8 +31,6 @@ const (
 	ModeInsert
 	ModeCommand
 )
-
-const debugInput = true
 
 func (m Mode) String() string {
 	switch m {
@@ -75,6 +74,8 @@ type Editor struct {
 
 	x []Extension // extensions
 }
+
+var debugInput = debugflags.IsEnabled("loginputs")
 
 func (e *Editor) Extend(ext Extension) {
 	if ext == nil {

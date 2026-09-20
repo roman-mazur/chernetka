@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/debugflags"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/extlsp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
@@ -25,6 +26,7 @@ func main() {
 
 	logf, _ := logger.UserLogFile()
 	edit.LogEmbed = logger.Embed(logf)
+	edit.LogDebug = debugflags.IsEnabled("logdebug")
 	delegate := editDelegate{edit: &edit, logf: logf}
 
 	debugEnv(logf)
