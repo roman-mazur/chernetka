@@ -10,7 +10,7 @@ import (
 )
 
 // Save writes the content to the destination path.
-func Save(content Interface, dst string) error {
+func Save(content Document, dst string) error {
 	tmpPath := filepath.Join(tmpDir(), fmt.Sprintf("%s-%d", filepath.Base(dst), time.Now().Unix()))
 	f, err := os.Create(tmpPath)
 	if err != nil {
@@ -32,7 +32,10 @@ func Save(content Interface, dst string) error {
 	return os.Rename(tmpPath, dst)
 }
 
-func SaveToWriter(content Interface, out io.Writer) error {
+func SaveToWriter(content Document, out io.Writer) error {
+	if content == nil {
+		return nil
+	}
 	for i, line := range content.Lines() {
 		if i > 0 {
 			if _, err := out.Write([]byte("\n")); err != nil {

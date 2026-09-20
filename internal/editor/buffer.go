@@ -13,7 +13,7 @@ import (
 
 type Buffer struct {
 	Path    string
-	Content content.Interface
+	Content content.Document
 
 	hideLineNumbers bool
 	noCurrentLineHL bool

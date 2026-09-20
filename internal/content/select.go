@@ -3,7 +3,7 @@ package content
 import "bytes"
 
 // Select returns the text delimited by the given spans, concatenated in order.
-func Select(c Interface, spans []Span) string {
+func Select(c Document, spans []Span) string {
 	if len(spans) == 0 {
 		return ""
 	}

@@ -27,7 +27,7 @@ func LoadFolder(dir string, open OpenFile) *FsContent {
 	return fc
 }
 
-// FsContent implements the content Interface for a particular directory path.
+// FsContent implements the content Document for a particular directory path.
 type FsContent struct {
 	rootPath string
 	root     fs.FS

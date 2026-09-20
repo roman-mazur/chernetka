@@ -4,8 +4,8 @@ package content
 
 import "io"
 
-// Interface defines the minimal set of methods needed to get the content visualized by the editor.
-type Interface interface {
+// Document defines the minimal set of methods needed to get the content visualized by the editor.
+type Document interface {
 	// Lines returns the lines that should currently be displayed by the editor.
 	Lines() []Line
 	// Len returns the total number of lines.
@@ -13,10 +13,10 @@ type Interface interface {
 	Len() int
 }
 
-// Seekable extends the Interface with methods that allow the implementation to track where the user is and load
+// Seekable extends the Document with methods that allow the implementation to track where the user is and load
 // more data on demand.
 type Seekable interface {
-	Interface
+	Document
 
 	UpdateUserCursor(lineNumber int) error
 }
@@ -29,14 +29,14 @@ type Line interface {
 }
 
 type Mutable interface {
-	Interface
+	Document
 
 	Insert(pos int, line Line)
 	Update(pos int, line Line)
 	Delete(pos int)
 }
 
-func Print(out io.Writer, data Interface, i, j int) {
+func Print(out io.Writer, data Document, i, j int) {
 	lines := data.Lines()
 	_ = lines[i:j] // boundary check
 	for x := i; x < j; x++ {

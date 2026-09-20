@@ -11,10 +11,14 @@ import (
 type TextLine string
 
 func (ti TextLine) String() string   { return string(ti) }
-func (ti TextLine) MimeType() string { return "text/plain" }
+func (ti TextLine) MimeType() string { return MimeTypeTextPlain }
 func (ti TextLine) Len() int         { return len(ti) }
 
-// FullText implements the Interface exposing a text file fully loaded in the memory.
+func (ti TextLine) copy() Line { return ti }
+
+const MimeTypeTextPlain = "text/plain"
+
+// FullText implements the Document exposing a text file fully loaded in the memory.
 type FullText []Line
 
 // LoadFullText reads the input reader until the end using the system line delimiter.
@@ -40,6 +44,11 @@ func LoadFullText(in io.Reader) (FullText, error) {
 func (ft *FullText) Len() int      { return len(*ft) }
 func (ft *FullText) Lines() []Line { return *ft }
 
+func (ft *FullText) copy() Document {
+	res := slices.Clone(*ft)
+	return &res
+}
+
 func (ft *FullText) Insert(pos int, line Line) {
 	*ft = slices.Insert(*ft, pos, line)
 }
@@ -51,7 +60,7 @@ func (ft *FullText) Delete(pos int) {
 }
 
 // Empty returns an implementation of an empty content.
-func Empty() Interface {
+func Empty() Document {
 	ft := FullText{TextLine("")}
 	return &ft
 }

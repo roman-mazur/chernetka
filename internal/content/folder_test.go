@@ -142,7 +142,7 @@ func (tw *testWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (tw *testWriter) printContent(c Interface) {
+func (tw *testWriter) printContent(c Document) {
 	out := bufio.NewWriter(tw)
 	defer out.Flush()
 	Print(out, c, 0, c.Len())
