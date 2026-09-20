@@ -80,6 +80,14 @@ func (t *tracker) Update(pos int, line content.Line) {
 	prevLine := t.Mutable.Lines()[pos]
 	t.Mutable.Update(pos, line)
 
+	if len(t.list.Items) > 0 {
+		lastChange := &t.list.Items[len(t.list.Items)-1]
+		if lastChange.Line != nil && !lastChange.Insert && pos == lastChange.Span.Start.Line {
+			lastChange.Line = content.CopyLine(line)
+			return
+		}
+	}
+
 	chStart, chEnd := 0, prevLine.Len()
 	if prevLine.MimeType() == content.MimeTypeTextPlain {
 		// TODO: this could happen concurrently.

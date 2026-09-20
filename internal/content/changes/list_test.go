@@ -20,9 +20,11 @@ func TestHistory_Track(t *testing.T) {
 	m.Insert(1, content.TextLine("line 2"))
 	m.Update(1, content.TextLine("update line 2"))
 	m.Delete(0)
+	m.Update(0, content.TextLine("update line 2 v2"))
+	m.Update(0, content.TextLine("update line 2 v3")) // modifies the last change
 
-	if editsLen := len(h[0].Items); editsLen != 4 {
-		t.Errorf("expected history of 4 items, got %d", editsLen)
+	if editsLen := len(h[0].Items); editsLen != 5 {
+		t.Errorf("expected history of 5 items, got %d", editsLen)
 	}
 
 	var out bytes.Buffer
@@ -34,7 +36,7 @@ func TestHistory_Track(t *testing.T) {
 	if err := content.SaveToWriter(h[0].Replay(), &replayOut); err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(replayOut.String(), out.String()); diff != "" {
+	if diff := cmp.Diff(out.String(), replayOut.String()); diff != "" {
 		t.Errorf("replay mismatch (-want +got):\n%s", diff)
 	}
 }
