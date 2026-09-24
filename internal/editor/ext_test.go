@@ -171,3 +171,76 @@ func checkData[T comparable](t *testing.T, ch chan T) T {
 		return zero
 	}
 }
+
+// TestEditor_AfterEditOnClipboard verifies that the edits made with the clipboard
+// notify the extensions like the typed ones do, while copying text does not.
+func TestEditor_AfterEditOnClipboard(t *testing.T) {
+	ext := initRecordingExt("rec", false)
+	h := editor.NewTestHarness()
+	h.Extend(ext)
+	if err := h.OpenReader("a.txt", strings.NewReader("first\nsecond")); err != nil {
+		t.Fatalf("OpenReader: %v", err)
+	}
+	h.Run(t)
+
+	selectFirstLine := editor.CommandFunc(func(e *editor.Editor) {
+		editor.SelectLine.DoOnBuffer(e.Top(), editor.RenderPrefs{})
+	})
+	checkText := func(want string) {
+		t.Helper()
+		text := make(chan string, 1)
+		h.Post(t, editor.CommandFunc(func(e *editor.Editor) { text <- e.Top().Text() }))
+		if got := checkData(t, text); got != want {
+			t.Errorf("buffer text = %q, want %q", got, want)
+		}
+	}
+
+	for _, step := range []struct {
+		name      string
+		prepare   editor.Command
+		input     string
+		wantAfter bool
+		wantText  string
+	}{
+		{
+			name:      "bracketed paste",
+			input:     "\x1b[200~pasted \x1b[201~",
+			wantAfter: true,
+			wantText:  "pasted first\nsecond",
+		},
+		{
+			name:      "copy",
+			prepare:   selectFirstLine,
+			input:     "\x03", // Ctrl+C
+			wantAfter: false,
+			wantText:  "pasted first\nsecond",
+		},
+		{
+			name:      "cut",
+			prepare:   selectFirstLine,
+			input:     "\x18", // Ctrl+X
+			wantAfter: true,
+			wantText:  "\nsecond",
+		},
+		{
+			name:      "paste",
+			input:     "\x16", // Ctrl+V
+			wantAfter: true,
+			wantText:  "pasted first\nsecond",
+		},
+	} {
+		if step.prepare != nil {
+			h.Post(t, step.prepare)
+		}
+		h.SendInput(t, []byte(step.input))
+
+		timeout := time.Second
+		if !step.wantAfter {
+			timeout = 50 * time.Millisecond
+		}
+		if called := checkCallbackInvoked(ext.afterEdit, timeout); called != step.wantAfter {
+			t.Errorf("%s: AfterEdit called = %t, want %t", step.name, called, step.wantAfter)
+		}
+		checkText(step.wantText)
+	}
+}

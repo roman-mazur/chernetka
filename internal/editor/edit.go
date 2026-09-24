@@ -186,16 +186,19 @@ func (e *Editor) Send(cmd Command) {
 }
 
 func (e *Editor) sendBufferCmd(cmd BufferCommand) {
-	e.cmdChannel <- CommandFunc(func(e *Editor) { e.execBufferCmd(cmd) })
+	e.cmdChannel <- CommandFunc(func(e *Editor) { e.execBufferCmd(cmd, true) })
 }
 
-func (e *Editor) execBufferCmd(cmd BufferCommand) {
+func (e *Editor) execBufferCmd(cmd BufferCommand, mutated bool) {
 	b := e.Top()
 	if b == nil {
 		return
 	}
 	cmd.DoOnBuffer(b, e.rPrefs)
 	e.renderRequested = true
+	if mutated {
+		e.handleAfterEdit(b)
+	}
 }
 
 func (e *Editor) push(buf *Buffer) {
@@ -528,22 +531,22 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 	switch event.eventType {
 	case mouseEventTypeScroll:
 		dir := event.Mod.SrollDirection(event.Mouse)
-		e.execBufferCmd(Scroll(dir))
+		e.execBufferCmd(Scroll(dir), false)
 
 	case mouseEventTypeDragStart:
 		if buf.CheckContentCoordinates(event.Y, event.X) {
-			e.execBufferCmd(StartTextSelection)
+			e.execBufferCmd(StartTextSelection, false)
 		}
 		e.renderRequested = true
 
 	case mouseEventTypeDragEnd:
-		e.execBufferCmd(StopTextSelection)
+		e.execBufferCmd(StopTextSelection, false)
 
 	case mouseEventTypeDoubleClick:
-		e.execBufferCmd(SelectWord)
+		e.execBufferCmd(SelectWord, false)
 
 	case mouseEventTypeTripleClick:
-		e.execBufferCmd(SelectLine)
+		e.execBufferCmd(SelectLine, false)
 
 	case mouseEventTypeRaw:
 		overContent := buf.CheckContentCoordinates(event.Y, event.X)
@@ -570,7 +573,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 
 	// Ctrl+S saves the current buffer in any mode.
 	if inputs.IsSaveCommand(input) {
-		e.execBufferCmd(&Save{buf.Path})
+		e.execBufferCmd(&Save{buf.Path}, false)
 		return false
 	}
 
@@ -585,7 +588,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	var clipboardOp inputs.ClipboardOp
 	if inputs.IsClipboardOp(input, &clipboardOp) {
 		if cmd := ClipboardCommand(clipboardOp); cmd != nil {
-			e.execBufferCmd(cmd)
+			e.execBufferCmd(cmd, true)
 		}
 		return false
 	}
