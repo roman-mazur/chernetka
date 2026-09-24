@@ -5,6 +5,11 @@ type LineAction interface {
 	Engage()
 }
 
+// LineActionFunc is convenient adapter to implement LineAction with a function.
+type LineActionFunc func()
+
+func (f LineActionFunc) Engage() { f() }
+
 // LineActions provides actions for the lines that are not actionable by themselves.
 // It lets an action depend on the document as a whole rather than on the line alone:
 // for example, only the first line of a diagram file triggers visualizing the diagram.
