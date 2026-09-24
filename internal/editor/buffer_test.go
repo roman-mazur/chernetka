@@ -520,8 +520,9 @@ func TestBuffer_Render_ActionMarker(t *testing.T) {
 		name        string
 		actionLines []int
 		cursorLine  int
+		offset      int
 		hide        bool
-		wantMarked  []bool
+		wantMarked  []bool // for every rendered row
 	}{
 		{
 			name:       "no actions",
@@ -540,6 +541,13 @@ func TestBuffer_Render_ActionMarker(t *testing.T) {
 			wantMarked:  []bool{false, true, false},
 		},
 		{
+			// The marker is positioned on the screen row, not on the content line.
+			name:        "scrolled",
+			actionLines: []int{2},
+			offset:      1,
+			wantMarked:  []bool{false, true},
+		},
+		{
 			name:        "hidden markers",
 			actionLines: []int{0, 1, 2},
 			hide:        true,
@@ -550,6 +558,7 @@ func TestBuffer_Render_ActionMarker(t *testing.T) {
 			buf, _ := newActionsTestBuffer("first\nsecond line that does not fit the window\nthird", tc.actionLines...)
 			buf.hideLineActions = tc.hide
 			buf.c.Line = tc.cursorLine
+			buf.offset = tc.offset
 
 			var out bytes.Buffer
 			buf.Render(&out, &RenderPrefs{TabSize: 2})

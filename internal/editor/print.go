@@ -99,7 +99,8 @@ func (cr *contentPrinter) renderActionMarker(out io.Writer, lineHL bool, ln int)
 	if lineHL {
 		style.BgColor = styles.DefaultColors.LineSelectedBg
 	}
-	escape.SetCursorPosition(out, ln+1, cr.b.w)
+	screenRow := ln - cr.i + 1 // lines are rendered starting from the buffer offset
+	escape.SetCursorPosition(out, screenRow, cr.b.w)
 	escape.StyleText(out, actionMarker, style)
 }
 
