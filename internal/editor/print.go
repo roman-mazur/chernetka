@@ -37,8 +37,8 @@ func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
 	cr.tab = strings.Repeat(" ", prefs.TabSize)
 	cr.lnDigits = nlDigitsLen(j)
 
-	findExtData(b, &cr.CodeAssist)
-	findExtData(b, &cr.SyntaxHighlighter)
+	cr.CodeAssist, _ = FindExtData[CodeAssist](b)
+	cr.SyntaxHighlighter, _ = FindExtData[SyntaxHighlighter](b)
 
 	if cr.CodeAssist != nil && b.mode == ModeInsert {
 		cr.suggestion = cr.TextSuggestion()

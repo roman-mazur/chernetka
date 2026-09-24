@@ -76,15 +76,13 @@ func (be *bufExtensions) close(allErrors *[]error) {
 	}
 }
 
-func findExtData[T BufferExtData](b *Buffer, out *T) {
-	if b.ext.xData == nil {
-		return
-	}
+// FindExtData returns the data associated with the buffer by any extension that implements T.
+// It lets extensions use each other's data without knowing their IDs.
+func FindExtData[T any](b *Buffer) (res T, ok bool) {
 	for _, data := range b.ext.xData {
-		if res, ok := data.(T); ok {
-			*out = res
-			return
+		if res, ok = data.(T); ok {
+			return res, true
 		}
 	}
-	return
+	return res, false
 }
