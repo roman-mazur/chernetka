@@ -6,11 +6,10 @@ import (
 	"errors"
 	"io"
 	"net"
-	"path/filepath"
+	"os"
 	"strings"
 	"sync"
 
-	"rmazur.io/chernetka/internal"
 	"rmazur.io/chernetka/internal/logger"
 )
 
@@ -23,18 +22,35 @@ type Executor interface {
 	ExecuteCommand(cmd CommandData)
 }
 
-const socketName = "ctl.socket"
-
-func NewServer() (*Server, error) {
-	p, err := internal.UserDir()
+// NewServer starts listening on the endpoint socket.
+// A socket file left by a process that did not shut down gracefully is replaced.
+func NewServer(ep Endpoint) (*Server, error) {
+	p, err := ep.path()
 	if err != nil {
 		return nil, err
 	}
-	l, err := net.Listen("unix", filepath.Join(p, socketName))
+	l, err := net.Listen("unix", p)
+	if err != nil && isStaleSocket(p) {
+		_ = os.Remove(p)
+		l, err = net.Listen("unix", p)
+	}
 	if err != nil {
 		return nil, err
 	}
 	return &Server{l: l}, nil
+}
+
+// isStaleSocket checks whether the socket file exists but nobody listens on it.
+func isStaleSocket(p string) bool {
+	if _, err := os.Stat(p); err != nil {
+		return false
+	}
+	conn, err := net.Dial("unix", p)
+	if err != nil {
+		return true
+	}
+	_ = conn.Close()
+	return false
 }
 
 func (c *Server) Close() error {

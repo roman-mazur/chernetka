@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"path/filepath"
-
-	"rmazur.io/chernetka/internal"
 )
 
 // CommandData encodes an action that can be sent to a Server.
@@ -15,12 +12,13 @@ type CommandData struct {
 	Args   []string `json:"args"`
 }
 
-func SendCommand(cmd *CommandData) error {
-	p, err := internal.UserDir()
+// SendCommand delivers the command to the Server listening on the endpoint.
+func SendCommand(ep Endpoint, cmd *CommandData) error {
+	p, err := ep.path()
 	if err != nil {
 		return err
 	}
-	conn, err := net.Dial("unix", filepath.Join(p, socketName))
+	conn, err := net.Dial("unix", p)
 	if err != nil {
 		return err
 	}
