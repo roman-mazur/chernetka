@@ -9,7 +9,7 @@ import (
 func TestBlock_ContentLines(t *testing.T) {
 	block := func(open, end int, closed bool) Block {
 		return Block{
-			Span:   content.Span{Start: content.Position{Line: open}, End: content.Position{Line: end}},
+			Start: content.Position{Line: open}, End: content.Position{Line: end},
 			Closed: closed,
 		}
 	}
