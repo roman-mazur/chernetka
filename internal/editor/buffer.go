@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/changes"
 	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
@@ -34,6 +35,9 @@ type Buffer struct {
 
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
+
+	history  changes.History
+	_mutator content.Mutable
 }
 
 // NewScratchBuffer constructs a new Buffer with empty content.
@@ -295,11 +299,14 @@ func (b *Buffer) cancelSelection() {
 // Mutate is used to start changing the buffer content.
 // If underlying Content is not mutable, the returned implementation is a noop.
 func (b *Buffer) Mutate() content.Mutable {
-	m, _ := b.Content.(content.Mutable)
-	return bufMutator{
-		Mutable: m,
-		Buffer:  b,
+	if b._mutator == nil {
+		m, _ := b.Content.(content.Mutable)
+		b._mutator = b.history.Track(bufMutator{
+			Mutable: m,
+			Buffer:  b,
+		})
 	}
+	return b._mutator
 }
 
 func (b *Buffer) setMutated() {
