@@ -159,3 +159,8 @@ func UpdateProgress(out io.Writer, state ProgressState, progress int) {
 	_, _ = out.Write(stateData[:])
 	_, _ = io.WriteString(out, "\x07")
 }
+
+// ClearScreen erases the screen content and moves the cursor to the top left corner.
+func ClearScreen(out io.Writer) {
+	_, _ = io.WriteString(out, "\x1b[2J\x1b[H")
+}
