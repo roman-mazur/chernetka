@@ -127,6 +127,30 @@ func TestFsContent_SyncState(t *testing.T) {
 	}
 }
 
+// TestFsContent_SyncState_Error covers the directory being removed while its content is displayed.
+func TestFsContent_SyncState_Error(t *testing.T) {
+	var openFile testOpenFile
+	origin := LoadFolder("testdata/dirs/sample1", &openFile)
+	origin.Lines()[1].(LineAction).Engage()
+	missing := LoadFolder("testdata/dirs/missing", &openFile)
+
+	confirmMissinState := func() {
+		if missing.Len() != 1 || !strings.Contains(missing.Lines()[0].String(), "no such file") {
+			t.Errorf("missing directory content: %v", missing.Lines())
+		}
+	}
+	confirmMissinState()
+
+	missing.SyncState(origin)
+	confirmMissinState()
+
+	fc := LoadFolder("testdata/dirs/sample1", &openFile)
+	fc.SyncState(missing)
+	if fc.Len() != 4 {
+		t.Errorf("synced content length = %d, want 4 collapsed entries", fc.Len())
+	}
+}
+
 type testOpenFile struct {
 	lastPath string
 }

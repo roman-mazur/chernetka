@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-// LineAction extends the Line adding a possibility to interact with it (after pressing Enter).
-type LineAction interface {
-	Engage()
-}
-
 type OpenFile interface {
 	OpenFile(p string)
 }
@@ -58,7 +53,7 @@ func (fc *FsContent) SyncState(origin *FsContent) {
 
 		if (c == nil && o.level > 0) || (c != nil && o.level > c.level) {
 			prev := fc.lines[i-1].(*fsEntryLine)
-			if prev.entry.IsDir() {
+			if prev.isDir() {
 				prev.Engage()
 				if i < len(fc.lines) {
 					c = fc.lines[i].(*fsEntryLine)
@@ -71,7 +66,7 @@ func (fc *FsContent) SyncState(origin *FsContent) {
 			}
 		}
 
-		if c != nil && c.entry.Name() < o.entry.Name() {
+		if c != nil && c.name() < o.name() {
 			i++
 		} else {
 			j++
@@ -173,7 +168,7 @@ func (fl *fsEntryLine) String() string {
 			fl.display = []byte(prefix + fl.entry.Name())
 		}
 	}
-	if fl.entry.IsDir() {
+	if fl.isDir() {
 		fl.display[fl.level] = signExpanded[fl.expIdx]
 	}
 	return string(fl.display)
@@ -183,8 +178,18 @@ func (fl *fsEntryLine) samePath(another *fsEntryLine) bool {
 	if fl == nil || another == nil {
 		return false
 	}
-	return fl.dir == another.dir && fl.entry.Name() == another.entry.Name()
+	return fl.dir == another.dir && fl.entry != nil && another.entry != nil && fl.name() == another.name()
 }
+
+// name returns the entry name or an empty string for the lines showing errors.
+func (fl *fsEntryLine) name() string {
+	if fl.entry == nil {
+		return ""
+	}
+	return fl.entry.Name()
+}
+
+func (fl *fsEntryLine) isDir() bool { return fl.entry != nil && fl.entry.IsDir() }
 
 func (fl *fsEntryLine) Len() int { return len(fl.display) }
 
