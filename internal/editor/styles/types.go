@@ -34,6 +34,7 @@ type ColorTheme struct {
 	LineSelectedBg color.Color
 	TextSelected   color.Color
 	TextSelectedBg color.Color
+	LineAction     color.Color // marker of the lines that can be engaged
 
 	syntaxColors map[code.TokenType]color.Color
 }

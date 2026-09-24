@@ -14,6 +14,7 @@ var DefaultColors = ColorTheme{
 	LineSelectedBg: color.Gray{Y: 70},
 	TextSelected:   color.Gray{Y: 200},
 	TextSelectedBg: parseColor("1010FF"),
+	LineAction:     parseColor("6AAB73"),
 
 	syntaxColors: map[code.TokenType]color.Color{
 		code.TtKeyword:         parseColor("CF8E6D"),
