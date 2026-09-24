@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
 )
@@ -104,8 +105,8 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	}
 
 	in.Logf("highlighting %s as %s", buf.Path, lang.name)
-	doc := &document{LogEmbed: &in.LogEmbed, lang: lang, hl: lang.newHighlighter()}
-	doc.reparse(buf.Text())
+	doc := &document{LogEmbed: &in.LogEmbed, buf: buf, lang: lang, hl: lang.newHighlighter()}
+	doc.ensureParsed(buf.Text())
 	return doc
 }
 
@@ -115,7 +116,7 @@ func (in *Integration) AfterEdit(_ *editor.Editor, buf *editor.Buffer) {
 		return
 	}
 	in.Debugf("AfterEdit(_, %q)", buf.Path)
-	doc.reparse(buf.Text())
+	doc.ensureParsed(buf.Text())
 }
 
 func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []byte) (handled bool) {
@@ -126,6 +127,7 @@ func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []
 // and caches the flattened spans of the whole document until the next edit.
 type document struct {
 	*logger.LogEmbed
+	buf  *editor.Buffer
 	lang *language
 	hl   highlighter
 
@@ -135,7 +137,11 @@ type document struct {
 	built   bool
 }
 
-func (d *document) reparse(text string) {
+func (d *document) ensureParsed(text string) {
+	if d.src != nil && d.src.text == text {
+		// Already parsed, e.g. code blocks were requested before the edit notification reached this extension.
+		return
+	}
 	d.src = newSource(text)
 	d.hl.reparse(d.src)
 	// Spans are rebuilt lazily: a buffer that is edited several times between
@@ -158,6 +164,20 @@ func (d *document) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
 		d.build()
 	}
 	return clipSpans(spansOfLine(d.spans, ln), line)
+}
+
+// CodeBlocks implements code.Blocks for the languages embedding code blocks, it's empty for others.
+// The document is brought up to date with the buffer first. So, another extension can use the
+// blocks in its AfterEdit regardless of whether this extension has been notified about the edit yet.
+func (d *document) CodeBlocks() []code.Block {
+	d.ensureParsed(d.buf.Text())
+	if !d.built {
+		d.build()
+	}
+	if blocks, ok := d.hl.(code.Blocks); ok {
+		return blocks.CodeBlocks()
+	}
+	return nil
 }
 
 func (d *document) Close() error { return d.hl.Close() }

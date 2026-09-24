@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 )
 
@@ -16,20 +17,30 @@ import (
 // implementation. It aims to colorize what someone writing notes actually
 // types, and it never fails: text it does not recognize is simply left
 // unhighlighted.
-type markdown struct{}
+//
+// Besides the highlighted regions, the scanner finds the fenced code blocks,
+// which markdown exposes implementing code.Blocks.
+type markdown struct {
+	blocks []code.Block // found by the last spans call
+}
 
-func newMarkdown() highlighter { return markdown{} }
+func newMarkdown() highlighter { return new(markdown) }
 
 // reparse does nothing: scanning a document is cheap enough that all the work
 // happens in spans, which also runs once per revision.
-func (markdown) reparse(*source) {}
+func (*markdown) reparse(*source) {}
 
-func (markdown) Close() error { return nil }
+func (*markdown) Close() error { return nil }
 
-func (markdown) spans(src *source, emit func(rawSpan)) {
+func (m *markdown) spans(src *source, emit func(rawSpan)) {
 	s := mdScanner{src: src, emit: emit, paragraph: -1}
 	s.run()
+	// A new slice for every revision: the previous one may still be in use.
+	m.blocks = s.blocks
 }
+
+// CodeBlocks implements code.Blocks. It reports the blocks found by the last spans call.
+func (m *markdown) CodeBlocks() []code.Block { return m.blocks }
 
 // mdScanner walks a document line by line, carrying the little bit of state
 // that spills across line boundaries.
@@ -46,6 +57,8 @@ type mdScanner struct {
 	paragraph   int  // line number of the last paragraph line, or -1
 	inTable     bool // the previous line was part of a table
 	listContent int  // content column of the innermost open list item, or 0
+
+	blocks []code.Block // fenced code blocks found so far
 }
 
 func (s *mdScanner) run() {
@@ -55,6 +68,7 @@ func (s *mdScanner) run() {
 			if s.closesFence(line) {
 				s.mark(ln, 0, len(line), code.TtPunctuation)
 				s.inFence = false
+				s.closeBlock(ln, len(line), true)
 			} else {
 				s.mark(ln, 0, len(line), code.TtRawText)
 			}
@@ -62,6 +76,17 @@ func (s *mdScanner) run() {
 		}
 		s.scanBlock(ln, line, 0)
 	}
+	if s.inFence {
+		last := len(s.src.lines) - 1
+		s.closeBlock(last, len(s.src.lines[last]), false)
+	}
+}
+
+// closeBlock ends the last found code block at the given position.
+func (s *mdScanner) closeBlock(ln, col int, closed bool) {
+	block := &s.blocks[len(s.blocks)-1]
+	block.End = content.Position{Line: ln, Col: col}
+	block.Closed = closed
 }
 
 // scanBlock highlights the block construct that starts at or after col. col is
@@ -124,12 +149,24 @@ func (s *mdScanner) scanFenceOpen(ln int, line string, indent int) bool {
 	if i-indent < 3 {
 		return false
 	}
+	// Whatever follows the fence is the info string naming the language.
+	info := line[i:]
+	if c == '`' && strings.IndexByte(info, '`') >= 0 {
+		return false // Inline code rather than a fence.
+	}
 
 	s.mark(ln, indent, i, code.TtPunctuation)
-	// Whatever follows the fence is the info string naming the language.
 	s.mark(ln, i, len(line), code.TtKeyword)
 
 	s.inFence, s.fenceChar, s.fenceLen, s.fenceIndent = true, c, i-indent, indent
+	var lang string
+	if fields := strings.Fields(info); len(fields) > 0 {
+		lang = fields[0]
+	}
+	s.blocks = append(s.blocks, code.Block{
+		Start: content.Position{Line: ln, Col: indent},
+		Lang:  lang,
+	})
 	return true
 }
 
