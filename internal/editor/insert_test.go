@@ -77,6 +77,15 @@ func TestInsertInput_HandleAutoClosingBracket(t *testing.T) {
 			t.Errorf("i=%d, buf.Text()=%q, want %q", i, buf.Text(), pair)
 		}
 	}
+
+	t.Log("regression check: insert at 0 pos")
+	MoveHome.DoOnBuffer(&buf, prefs)
+	insertInput(&buf, []byte{'}'}, &prefs)
+	MoveHome.DoOnBuffer(&buf, prefs)
+	insertInput(&buf, []byte{'}'}, &prefs)
+	if buf.Text() != "}}"+expected {
+		t.Errorf("buf.Text()=%q, want %q", buf.Text(), "}}"+expected)
+	}
 }
 
 func TestInsertInput_AcceptUTF8(t *testing.T) {

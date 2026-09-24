@@ -95,7 +95,8 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 }
 
 func isRepeatedBracket(buf *Buffer, line string, ch byte) bool {
-	return len(line) > buf.c.Col && line[buf.c.Col] == ch && line[buf.c.Col-1] == bracketPair(ch)
+	return 0 < buf.c.Col && buf.c.Col < len(line) &&
+		line[buf.c.Col] == ch && line[buf.c.Col-1] == bracketPair(ch)
 }
 
 func insertContent(buf *Buffer, b []byte, mut content.Mutable, line string, advanceCursor int) {
