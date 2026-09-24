@@ -124,6 +124,10 @@ func IsSaveCommand(b []byte) bool {
 	return len(b) == 1 && b[0] == 0x13 // Ctrl+S
 }
 
+func IsRerunCommand(b []byte) bool {
+	return len(b) == 1 && b[0] == 0x12 // Ctrl+R
+}
+
 // ClipboardOp encodes one of the clipboard operations (copy/paste/cut).
 type ClipboardOp byte
 
