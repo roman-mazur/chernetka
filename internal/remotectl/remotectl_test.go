@@ -13,10 +13,11 @@ import (
 // Unix socket paths are limited in length, so the directory is not based on t.TempDir.
 func useTempSocketDir(t *testing.T) {
 	t.Helper()
-	dir, err := os.MkdirTemp(t.TempDir(), "rctl")
+	dir, err := os.MkdirTemp("", "rctl")
 	if err != nil {
 		t.Fatal("failed to create a tmp dir for sockets:", err)
 	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 
 	prev := socketDir
 	socketDir = func() (string, error) { return dir, nil }
