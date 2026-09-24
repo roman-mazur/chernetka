@@ -83,10 +83,27 @@ func (cr *contentPrinter) render(out io.Writer) {
 			}
 		}
 
+		if !cr.b.hideLineActions && cr.b.lineAction(ln) != nil {
+			cr.renderActionMarker(out, lineHL, ln)
+		}
+
 		printLineEnding(out)
 	}
 
 }
+
+// renderActionMarker shows that the line can be engaged placing a marker in the last column.
+// The marker overwrites the line content if it's too long to fit the window.
+func (cr *contentPrinter) renderActionMarker(out io.Writer, lineHL bool, ln int) {
+	style := styles.TextStyle{TextColor: styles.DefaultColors.LineAction}
+	if lineHL {
+		style.BgColor = styles.DefaultColors.LineSelectedBg
+	}
+	escape.SetCursorPosition(out, ln+1, cr.b.w)
+	escape.StyleText(out, actionMarker, style)
+}
+
+const actionMarker = "▶"
 
 func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine bool) {
 	p := colorLinePrinter{
@@ -233,19 +250,6 @@ func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
 	}
 
 	escape.StyleText(clp.out, clp.printedText(txt), style)
-}
-
-func findExtData[T BufferExtData](b *Buffer, out *T) {
-	if b.xData == nil {
-		return
-	}
-	for _, data := range b.xData {
-		if res, ok := data.(T); ok {
-			*out = res
-			return
-		}
-	}
-	return
 }
 
 func nlDigitsLen(x int) int {

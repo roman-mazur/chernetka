@@ -16,6 +16,7 @@ type Buffer struct {
 	Content content.Document
 
 	hideLineNumbers bool
+	hideLineActions bool // don't mark actionable lines
 	noCurrentLineHL bool
 
 	mode       Mode
@@ -30,7 +31,9 @@ type Buffer struct {
 	sel       []content.Span // selected text
 	selecting bool
 
-	xData map[string]BufferExtData // data associated with the extensions
+	engaged content.LineAction // action engaged by the last input, taken over by the Editor
+
+	ext bufExtensions // extensions registered for this buffer
 
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
@@ -45,12 +48,7 @@ func NewScratchBuffer() *Buffer {
 
 // ExtensionData returns an object managed by the Extension with the provided id.
 // Can be nil if such object of Extension does not exist.
-func (b *Buffer) ExtensionData(id string) BufferExtData {
-	if b.xData == nil {
-		return nil
-	}
-	return b.xData[id]
-}
+func (b *Buffer) ExtensionData(id string) BufferExtData { return b.ext.data(id) }
 
 // Pos provides a pair of coordinates pointing to the current cursor location.
 // cx is the symbol offset within the content line.
@@ -59,15 +57,11 @@ func (b *Buffer) Pos() (cx, cy int) { return b.c.Col, b.c.Line }
 
 // Close propagates the call to the Content and extension objects if they implement io.Closer.
 func (b *Buffer) Close() error {
-	allErrors := make([]error, 0, len(b.xData)+1)
+	allErrors := make([]error, 0, len(b.ext.xData)+1)
 	if closer, ok := b.Content.(io.Closer); ok {
 		allErrors = append(allErrors, closer.Close())
 	}
-	for _, x := range b.xData {
-		if closer, ok := x.(io.Closer); ok {
-			allErrors = append(allErrors, closer.Close())
-		}
-	}
+	b.ext.close(&allErrors)
 	return errors.Join(allErrors...)
 }
 
@@ -188,6 +182,12 @@ func (b *Buffer) lineNumberPrefixWidth() int {
 		return 0
 	}
 	return nlDigitsLen(b.offset+b.printableLinesCount()) + 1
+}
+
+// lineAction returns the action for the content line at the given index, if any.
+// Beside the content itself, actions can be provided by the extensions data implementing content.LineActions.
+func (b *Buffer) lineAction(lineNumber int) content.LineAction {
+	return content.ActionAt(b.Content, lineNumber, b.ext.actionProviders...)
 }
 
 func (b *Buffer) selectionsOnLine(line int) (res []content.Span) {

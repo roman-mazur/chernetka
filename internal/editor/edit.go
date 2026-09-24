@@ -72,6 +72,8 @@ type Editor struct {
 	termSize func() (w, h int, err error)
 	rPrefs   RenderPrefs
 
+	lastAction content.LineAction // the last engaged line action, can be re-run
+
 	x []Extension // extensions
 }
 
@@ -113,9 +115,9 @@ func (e *Editor) OpenReader(path string, in io.Reader) error {
 }
 
 func (e *Editor) prepareExt(b *Buffer) {
-	b.xData = make(map[string]BufferExtData, len(e.x))
+	b.ext.xData = make(map[string]BufferExtData, len(e.x))
 	for _, ext := range e.x {
-		b.xData[ext.ID()] = ext.MakeBufferData(b)
+		b.ext.extend(ext.ID(), ext.MakeBufferData(b))
 	}
 }
 
@@ -132,6 +134,7 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 		Content: content.LoadFolder(path, open),
 
 		hideLineNumbers: true,
+		hideLineActions: true,
 	}
 	e.push(buf)
 
@@ -571,6 +574,14 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
+	// Ctrl+R re-runs the last engaged line action in any mode.
+	if inputs.IsRerunCommand(input) {
+		if e.lastAction != nil {
+			e.lastAction.Engage()
+		}
+		return false
+	}
+
 	var clipboardOp inputs.ClipboardOp
 	if inputs.IsClipboardOp(input, &clipboardOp) {
 		if cmd := ClipboardCommand(clipboardOp); cmd != nil {
@@ -582,6 +593,10 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	switch buf.mode {
 	case ModeNormal:
 		quit = normalInput(buf, input, &e.rPrefs)
+		if buf.engaged != nil {
+			// TODO: Consider different ownership.
+			e.lastAction, buf.engaged = buf.engaged, nil
+		}
 		e.handleAfterEdit(buf)
 		return
 

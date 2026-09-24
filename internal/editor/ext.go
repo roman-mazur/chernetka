@@ -2,7 +2,9 @@ package editor
 
 import (
 	"fmt"
+	"io"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 )
 
@@ -42,4 +44,47 @@ type SyntaxSpan struct {
 
 func (ss SyntaxSpan) String() string {
 	return fmt.Sprintf("%d:%d:%d:%s", ss.LineNumber, ss.Start, ss.End, ss.TokenType)
+}
+
+type bufExtensions struct {
+	xData           map[string]BufferExtData // data associated with the extensions
+	actionProviders []content.LineActions
+}
+
+func (be *bufExtensions) data(id string) BufferExtData {
+	if be.xData == nil {
+		return nil
+	}
+	return be.xData[id]
+}
+
+func (be *bufExtensions) extend(id string, ext BufferExtData) {
+	if be.xData == nil {
+		be.xData = make(map[string]BufferExtData)
+	}
+	be.xData[id] = ext
+	if p, ok := ext.(content.LineActions); ok {
+		be.actionProviders = append(be.actionProviders, p)
+	}
+}
+
+func (be *bufExtensions) close(allErrors *[]error) {
+	for _, x := range be.xData {
+		if closer, ok := x.(io.Closer); ok {
+			*allErrors = append(*allErrors, closer.Close())
+		}
+	}
+}
+
+func findExtData[T BufferExtData](b *Buffer, out *T) {
+	if b.ext.xData == nil {
+		return
+	}
+	for _, data := range b.ext.xData {
+		if res, ok := data.(T); ok {
+			*out = res
+			return
+		}
+	}
+	return
 }

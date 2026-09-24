@@ -121,8 +121,7 @@ func TestBuffer_Render(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.buf.xData = make(map[string]BufferExtData)
-			tc.buf.xData["lsp"] = testSuggestionExt(tc.suggestions)
+			tc.buf.ext.extend("lsp", testSuggestionExt(tc.suggestions))
 
 			var out bytes.Buffer
 			tc.buf.Render(&out, &tc.prefs)
@@ -482,4 +481,175 @@ func TestBuffer_ScreenToContentPosition(t *testing.T) {
 			}
 		})
 	}
+}
+
+// testActionsExt is extension data that provides a counting action for the listed lines.
+type testActionsExt map[int]*countingAction
+
+func (tae testActionsExt) LineAction(lineNumber int) content.LineAction {
+	if action, ok := tae[lineNumber]; ok {
+		return action
+	}
+	return nil
+}
+
+type countingAction struct{ engaged int }
+
+func (ca *countingAction) Engage() { ca.engaged++ }
+
+func newActionsTestBuffer(text string, actionLines ...int) (*Buffer, testActionsExt) {
+	data, err := content.LoadFullText(strings.NewReader(text))
+	if err != nil {
+		panic(err)
+	}
+	actions := make(testActionsExt)
+	for _, ln := range actionLines {
+		actions[ln] = new(countingAction)
+	}
+	buf := &Buffer{
+		Content: &data,
+		w:       20,
+		h:       data.Len() + 1,
+	}
+	buf.ext.extend("actions", actions)
+	return buf, actions
+}
+
+func TestBuffer_Render_ActionMarker(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		actionLines []int
+		cursorLine  int
+		hide        bool
+		wantMarked  []bool
+	}{
+		{
+			name:       "no actions",
+			wantMarked: []bool{false, false, false},
+		},
+		{
+			name:        "marked lines",
+			actionLines: []int{0, 2},
+			cursorLine:  1,
+			wantMarked:  []bool{true, false, true},
+		},
+		{
+			name:        "marked current line",
+			actionLines: []int{1},
+			cursorLine:  1,
+			wantMarked:  []bool{false, true, false},
+		},
+		{
+			name:        "hidden markers",
+			actionLines: []int{0, 1, 2},
+			hide:        true,
+			wantMarked:  []bool{false, false, false},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, _ := newActionsTestBuffer("first\nsecond line that does not fit the window\nthird", tc.actionLines...)
+			buf.hideLineActions = tc.hide
+			buf.c.Line = tc.cursorLine
+
+			var out bytes.Buffer
+			buf.Render(&out, &RenderPrefs{TabSize: 2})
+			t.Log("\n" + out.String())
+
+			rows := strings.Split(out.String(), "\r\n")
+			for i, wantMarked := range tc.wantMarked {
+				var cursorPosSeq strings.Builder
+				escape.SetCursorPosition(&cursorPosSeq, i+1, buf.w)
+				// The marker is placed in the last window column regardless of the line length.
+				marked := strings.HasSuffix(escape.Clean(rows[i]), actionMarker) &&
+					strings.Contains(rows[i], cursorPosSeq.String())
+				if marked != wantMarked {
+					t.Errorf("line %d %q marked = %t, want %t", i, escape.Clean(rows[i]), marked, wantMarked)
+				}
+			}
+		})
+	}
+}
+
+func TestNormalInput_EngageAction(t *testing.T) {
+	buf, actions := newActionsTestBuffer("one\ntwo\nthree", 1)
+	prefs := newRenderPrefs()
+
+	normalInput(buf, []byte{'\r'}, &prefs)
+	if buf.c.Line != 1 {
+		t.Fatalf("Enter on a plain line moved the cursor to %d, want 1", buf.c.Line)
+	}
+
+	normalInput(buf, []byte{'\r'}, &prefs)
+	if got := actions[1].engaged; got != 1 {
+		t.Errorf("action engaged %d times, want 1", got)
+	}
+	if buf.c.Line != 1 {
+		t.Errorf("Enter on an actionable line moved the cursor to %d", buf.c.Line)
+	}
+}
+
+func TestEditor_OpenDir_HidesActionMarkers(t *testing.T) {
+	var e Editor
+	e.OpenDir(t.TempDir(), nil)
+	if !e.Top().hideLineActions {
+		t.Error("directory buffer is configured to mark actionable lines")
+	}
+}
+
+// actionsExt is an Extension providing actions for the listed lines of every buffer.
+type actionsExt struct {
+	noopExt
+	actions testActionsExt
+}
+
+func (ae *actionsExt) MakeBufferData(*Buffer) BufferExtData { return ae.actions }
+
+type noopExt struct{}
+
+func (noopExt) ID() string                                           { return "actions" }
+func (noopExt) AfterEdit(*Editor, *Buffer)                           {}
+func (noopExt) HandleInsertInput(*Buffer, *RenderPrefs, []byte) bool { return false }
+
+func TestEditor_RerunAction(t *testing.T) {
+	const ctrlR = 0x12
+	first, second := new(countingAction), new(countingAction)
+	h := NewTestHarness()
+	h.Extend(&actionsExt{actions: testActionsExt{0: first, 2: second}})
+	if err := h.OpenReader("a.txt", strings.NewReader("action\ntext\naction")); err != nil {
+		t.Fatal(err)
+	}
+	h.Run(t)
+
+	check := func(wantFirst, wantSecond int) {
+		t.Helper()
+		// Commands are drained by SendInput: the counters are not modified concurrently.
+		if first.engaged != wantFirst || second.engaged != wantSecond {
+			t.Errorf("engaged %d and %d times, want %d and %d",
+				first.engaged, second.engaged, wantFirst, wantSecond)
+		}
+	}
+
+	h.SendInput(t, []byte{ctrlR})
+	check(0, 0) // Nothing to re-run yet.
+
+	h.SendInput(t, []byte{'\r'})
+	check(1, 0)
+
+	h.SendInputSequence(t, "jj")
+	h.SendInput(t, []byte{ctrlR})
+	check(2, 0) // The cursor position does not matter.
+
+	h.SendInput(t, []byte{'\r'})
+	h.SendInput(t, []byte{ctrlR})
+	check(2, 2)
+
+	h.SendInput(t, []byte{'i'})
+	h.SendInput(t, []byte{ctrlR})
+	check(2, 3) // Works in insert mode too.
+
+	h.Post(t, CommandFunc(func(e *Editor) {
+		if text := e.Top().Text(); text != "action\ntext\naction" {
+			t.Errorf("Ctrl+R changed the text: %q", text)
+		}
+	}))
 }

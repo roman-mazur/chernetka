@@ -68,8 +68,9 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 
 		// Engage.
 		case '\r':
-			if action, ok := lines[buf.c.Line].(content.LineAction); ok {
+			if action := buf.lineAction(buf.c.Line); action != nil {
 				action.Engage()
+				buf.engaged = action
 			} else {
 				RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
 			}
