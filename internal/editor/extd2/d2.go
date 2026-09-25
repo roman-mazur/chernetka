@@ -12,17 +12,17 @@ import (
 	"slices"
 	"strings"
 
+	"rmazur.io/chernetka/internal/cheimg"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
-	"rmazur.io/chernetka/internal/d2play"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
 )
 
-// Viewer shows diagrams, usually in the d2play process.
+// Viewer shows diagrams, usually in the che-img process.
 type Viewer interface {
 	// Show displays the diagram. It's called by the editor and must not block.
-	Show(d d2play.Diagram)
+	Show(d cheimg.Item)
 }
 
 // Integration implements an editor.Extension that provides line actions for the d2 diagrams.
@@ -57,7 +57,7 @@ func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []
 	return false
 }
 
-func (in *Integration) show(d d2play.Diagram) {
+func (in *Integration) show(d cheimg.Item) {
 	if abs, err := filepath.Abs(d.Path); err == nil {
 		// The viewer runs in another process that may have a different working directory.
 		d.Path = abs
@@ -84,7 +84,7 @@ func (df *diagramFile) LineAction(lineNumber int) content.LineAction {
 		return nil
 	}
 	return content.LineActionFunc(func() {
-		df.show(d2play.Diagram{Path: df.buf.Path, Source: df.buf.Text()})
+		df.show(cheimg.Item{Path: df.buf.Path, Source: df.buf.Text()})
 	})
 }
 
@@ -179,7 +179,7 @@ func (md *markdown) showBlock(lineNumber int) {
 		return
 	}
 	start, end := md.blocks[i].ContentLines()
-	md.show(d2play.Diagram{Path: md.buf.Path, Source: strings.Join(md.lines[start:end], "\n")})
+	md.show(cheimg.Item{Path: md.buf.Path, Source: strings.Join(md.lines[start:end], "\n")})
 }
 
 func compareOpenLine(b code.Block, lineNumber int) int { return b.Start.Line - lineNumber }

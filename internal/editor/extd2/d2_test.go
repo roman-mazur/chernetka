@@ -8,26 +8,26 @@ import (
 	"testing"
 	"time"
 
+	"rmazur.io/chernetka/internal/cheimg"
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/d2play"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 	"rmazur.io/chernetka/internal/logger"
 )
 
 // recordingViewer collects the diagrams it's asked to show.
-type recordingViewer chan d2play.Diagram
+type recordingViewer chan cheimg.Item
 
-func (rv recordingViewer) Show(d d2play.Diagram) { rv <- d }
+func (rv recordingViewer) Show(d cheimg.Item) { rv <- d }
 
-func (rv recordingViewer) receive(t *testing.T) d2play.Diagram {
+func (rv recordingViewer) receive(t *testing.T) cheimg.Item {
 	t.Helper()
 	select {
 	case d := <-rv:
 		return d
 	case <-time.After(time.Second):
 		t.Fatal("no diagram shown")
-		return d2play.Diagram{}
+		return cheimg.Item{}
 	}
 }
 
@@ -94,7 +94,7 @@ func TestDiagramFile(t *testing.T) {
 	}
 
 	engage(t, buf, ext, 0)
-	want := d2play.Diagram{Path: absPath(t, "docs/arch.D2"), Source: src}
+	want := cheimg.Item{Path: absPath(t, "docs/arch.D2"), Source: src}
 	if got := viewer.receive(t); got != want {
 		t.Errorf("shown %+v, want %+v", got, want)
 	}
@@ -126,7 +126,7 @@ func TestMarkdown(t *testing.T) {
 	}
 
 	engage(t, buf, ext, 1)
-	want := d2play.Diagram{Path: "/notes/README.md", Source: "a -> b\nb -> c"}
+	want := cheimg.Item{Path: "/notes/README.md", Source: "a -> b\nb -> c"}
 	if got := viewer.receive(t); got != want {
 		t.Errorf("shown %+v, want %+v", got, want)
 	}
