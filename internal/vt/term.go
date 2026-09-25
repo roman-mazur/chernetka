@@ -33,43 +33,41 @@ func (ws WindowSize) CellSize() (w, h float64, ok bool) {
 	return float64(ws.XPixel) / float64(ws.Cols), float64(ws.YPixel) / float64(ws.Rows), true
 }
 
+// SystemTerminal returns the terminal the process is attached to.
+// Input is read from stdin and output is written to stderr or stdout, when they are terminals.
+// Otherwise, the controlling terminal device is opened.
+// The input side is switched to raw mode until the terminal is closed.
 func SystemTerminal() (Terminal, error) {
-	tf := findTerminalFile(os.Stderr, os.Stdout, os.Stdin)
-	shouldClose := false
-	if tf == nil {
-		ttyFile, err := os.Open("/dev/tty")
+	st := &sysTerminal{
+		in:  findTerminalFile(os.Stdin),
+		out: findTerminalFile(os.Stderr, os.Stdout),
+	}
+	if st.in == nil || st.out == nil {
+		in, out, closeTTY, err := openTTY()
 		if err != nil {
 			return nil, err
 		}
-		tf = findTerminalFile(ttyFile)
-		if tf == nil {
-			_ = ttyFile.Close()
-			return nil, fmt.Errorf("/dev/tty is not a terminal")
+		st.cleanup = append(st.cleanup, closeTTY)
+		if st.in == nil {
+			st.in = in
 		}
-		shouldClose = true
-	}
-
-	sysTerm := &sysTerminal{File: tf, fd: int(tf.Fd())}
-	if shouldClose {
-		sysTerm.cleanup = append(sysTerm.cleanup, func() {
-			_ = tf.Close()
-		})
+		if st.out == nil {
+			st.out = out
+		}
 	}
 
 	// Enable raw mode.
-	sysTerm.Configure(func(io.Writer) (restore func()) {
-		state, err := term.MakeRaw(sysTerm.fd)
-		if err != nil {
-			_ = sysTerm.Close()
-			return
-		}
-		restore = func() {
-			_ = term.Restore(sysTerm.fd, state)
-		}
-		return
+	fd := int(st.in.Fd())
+	state, err := term.MakeRaw(fd)
+	if err != nil {
+		_ = st.Close()
+		return nil, fmt.Errorf("enable raw mode: %w", err)
+	}
+	st.cleanup = append(st.cleanup, func() {
+		_ = term.Restore(fd, state)
 	})
 
-	return sysTerm, nil
+	return st, nil
 }
 
 func findTerminalFile(files ...*os.File) *os.File {
@@ -81,11 +79,16 @@ func findTerminalFile(files ...*os.File) *os.File {
 	return nil
 }
 
+// sysTerminal reads from in and writes to out.
+// On Unix both are usually the same tty, but on Windows the console input and output are separate handles:
+// raw mode applies to the input handle, while the window size is queried from the output one.
 type sysTerminal struct {
-	*os.File
+	in, out *os.File
 	cleanup []func()
-	fd      int
 }
+
+func (st *sysTerminal) Read(p []byte) (int, error)  { return st.in.Read(p) }
+func (st *sysTerminal) Write(p []byte) (int, error) { return st.out.Write(p) }
 
 func (st *sysTerminal) Configure(opts ...escape.ConfigFunc) {
 	for _, opt := range opts {
@@ -98,7 +101,7 @@ func (st *sysTerminal) WindowSizeChanges() <-chan struct{} {
 }
 
 func (st *sysTerminal) Size() (WindowSize, error) {
-	return windowSize(st.fd)
+	return windowSize(int(st.out.Fd()))
 }
 
 func (st *sysTerminal) Close() error {
