@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 type Buffer struct {

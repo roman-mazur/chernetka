@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package vt
 
 func windowChangeSignal() <-chan struct{} {
 	return nil // TODO: Implement window change event on Windows.

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"rmazur.io/chernetka/internal/logger"
+	"rmazur.io/chernetka/internal/vt"
 )
 
 // TestHarness wraps an Editor so tests — including those in extension packages —
@@ -34,10 +35,17 @@ func NewTestHarness() *TestHarness {
 
 // Run initializes the test IO and launches the Editor UI loop in a new go routine, then exits.
 func (h *TestHarness) Run(t *testing.T) {
-	inOut := InOut{
-		Writer: io.Discard,
-		Reader: h.pipeReader,
+	type inOut struct {
+		io.Reader
+		io.Writer
 	}
+	term := vt.TestTerminal(80, 40, inOut{
+		Reader: h.pipeReader,
+		Writer: io.Discard,
+	})
+	t.Cleanup(func() {
+		_ = term.Close()
+	})
 
 	runFinished := make(chan struct{})
 	t.Cleanup(func() {
@@ -48,7 +56,7 @@ func (h *TestHarness) Run(t *testing.T) {
 	go func() {
 		defer close(runFinished)
 		h.Editor.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
-		h.Editor.Run(&inOut)
+		h.Editor.Run(term)
 	}()
 }
 

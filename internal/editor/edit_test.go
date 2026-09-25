@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/vt"
 )
 
 func TestEditor_OpenReader(t *testing.T) {
@@ -243,7 +244,11 @@ func TestEditor_LayoutWindowSize(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var e Editor
-			e.termSize = tc.termSize
+			if tc.termSize != nil {
+				term := vt.TestTerminal(0, 0, nil)
+				term.SizeFunc = tc.termSize
+				e.term = term
+			}
 			if err := e.OpenReader("a.txt", strings.NewReader("hello\nworld")); err != nil {
 				t.Fatalf("OpenReader: %v", err)
 			}

@@ -11,6 +11,8 @@ import (
 	"rmazur.io/chernetka/internal/editor/styles"
 )
 
+type ConfigFunc func(out io.Writer) (restore func())
+
 func SyncOutput(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?2026h", "\x1b[?2026l")
 }

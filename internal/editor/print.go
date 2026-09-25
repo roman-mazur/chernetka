@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/styles"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 type contentPrinter struct {

@@ -3,18 +3,18 @@ package logger
 type LogEmbed struct {
 	LogDebug bool
 
-	logf Func
+	Func
 }
 
 func Embed(logf Func) LogEmbed {
-	return LogEmbed{logf: logf}
+	return LogEmbed{Func: logf}
 }
 
 func (le *LogEmbed) Logf(format string, args ...any) {
-	if le.logf == nil {
+	if le.Func == nil {
 		return
 	}
-	le.logf(format, args...)
+	le.Func(format, args...)
 }
 
 func (le *LogEmbed) Debugf(fmt string, args ...any) {

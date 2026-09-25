@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
-	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 // mouseEvent wraps the raw mouse input extending it with the event type derived from the saved state.

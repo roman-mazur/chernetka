@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/term"
-	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 var (

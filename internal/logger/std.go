@@ -22,3 +22,10 @@ func (w logWriter) Write(p []byte) (n int, err error) {
 	Func(w)("%s", string(p))
 	return len(p), nil
 }
+
+func (f Func) CloseAndLog(c io.Closer, name string) {
+	err := c.Close()
+	if err != nil {
+		f("error on closing %s: %s", name, err)
+	}
+}

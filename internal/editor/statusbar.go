@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 type StatusBar struct {

@@ -8,18 +8,16 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"time"
 
-	"golang.org/x/term"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
-	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/logger"
+	"rmazur.io/chernetka/internal/vt"
+	"rmazur.io/chernetka/internal/vt/escape"
 	"rmazur.io/watch/dirwatch"
 )
 
@@ -45,15 +43,6 @@ func (m Mode) String() string {
 	}
 }
 
-// InOut exposes Reader and Writer for the Editor.
-// Reader is used to receive user input. Writer is used to show the terminal UI.
-type InOut struct {
-	io.Reader
-	io.Writer
-
-	WindowChangeSignal <-chan struct{}
-}
-
 // Editor represents the editor internal state.
 type Editor struct {
 	logger.LogEmbed
@@ -65,12 +54,8 @@ type Editor struct {
 	cmdChannel      chan Command
 	quitRequested   bool
 
-	termFd int // terminal file descriptor used to toggle raw mode
-	// termSize reports the current terminal dimensions.
-	// It stays nil when there is no real terminal (test/mock environment).
-	// fd 0 is a valid tty (stdin), so termFd cannot serve as that sentinel.
-	termSize func() (w, h int, err error)
-	rPrefs   RenderPrefs
+	term   vt.Terminal
+	rPrefs RenderPrefs
 
 	lastAction content.LineAction // the last engaged line action, can be re-run
 
@@ -273,7 +258,7 @@ func (be *bufEntry) matches(p string) bool {
 	return be.b.Path == p
 }
 
-func (e *Editor) Run(t *InOut) {
+func (e *Editor) Run(t vt.Terminal) {
 	start := time.Now()
 	defer func() {
 		e.Logf("session done %s", time.Since(start))
@@ -284,8 +269,9 @@ func (e *Editor) Run(t *InOut) {
 		}
 	}()
 
-	termCleanup := e.initTerminal(t)
-	defer termCleanup()
+	e.term = t
+	configureTerminal(t)
+	defer e.CloseAndLog(t, "term")
 
 	e.rPrefs = newRenderPrefs()
 
@@ -297,7 +283,7 @@ func (e *Editor) Run(t *InOut) {
 	defer stop()
 
 	go e.readAndHandleInput(ctx, bufio.NewReader(t))
-	go e.handleWindowChange(ctx, t.WindowChangeSignal)
+	go e.handleWindowChange(ctx, t.WindowSizeChanges())
 
 	out := bufio.NewWriter(t)
 
@@ -367,38 +353,12 @@ func (e *Editor) render(out *bufio.Writer) {
 	e.mouseHandler.render(out)
 }
 
-func (e *Editor) initTerminal(t *InOut) (cleanup func()) {
-	f, ok := t.Reader.(*os.File)
-	if !ok {
-		e.Logf("not a terminal")
-		return func() {}
-	}
-
-	var cleanupOps []func()
-	cleanup = func() {
-		for _, cleanupOp := range slices.Backward(cleanupOps) {
-			cleanupOp()
-		}
-	}
-
-	cleanupOps = append(cleanupOps, escape.EnableAlternativeBuffer(f))
-	cleanupOps = append(cleanupOps, escape.DisableLineWrapping(f))
-	cleanupOps = append(cleanupOps, escape.EnableBracketedPasteMode(f))
-
-	fd := int(f.Fd())
-	e.termFd = fd
-	state, err := term.MakeRaw(fd)
-	if err != nil {
-		e.Logf("cannot initialize terminal (fd %d): %s", fd, err)
-		return
-	}
-	e.termSize = func() (int, int, error) { return term.GetSize(fd) }
-	cleanupOps = append(cleanupOps, func() {
-		_ = term.Restore(e.termFd, state)
-	})
-
-	cleanupOps = append(cleanupOps, escape.EnableMouse(f))
-	return
+func configureTerminal(t vt.Terminal) {
+	t.Configure(
+		escape.EnableAlternativeBuffer,
+		escape.DisableLineWrapping,
+		escape.EnableBracketedPasteMode,
+	)
 }
 
 // handleWindowChange reads signals typically wired to SIGWINCH and propagates a layout request.
@@ -656,10 +616,10 @@ type layoutState struct {
 }
 
 func (lps *layoutState) resolveWindowSize() (w int, h int) {
-	if lps.editor.termSize == nil {
-		return 80, 40 // real terminal is not resolved - test/mock environment
+	if lps.editor.term == nil {
+		return 80, 40 // Tests only.
 	}
-	w, h, err := lps.editor.termSize()
+	w, h, err := lps.editor.term.Size()
 	if err != nil || (w == 0 && h == 0) {
 		return 80, 42 // TODO: Resolve window size issues on Windows.
 	}

@@ -8,8 +8,8 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
-	"rmazur.io/chernetka/internal/editor/escape"
 	"rmazur.io/chernetka/internal/editor/styles"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 // TestVisual renders highlighted buffers into the test log so the colors can be

@@ -14,12 +14,18 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/remotectl"
+	"rmazur.io/chernetka/internal/vt"
 )
 
 func main() {
+	term, err := vt.SystemTerminal()
+	if err != nil {
+		log.Fatal("no terminal detected:", err)
+	}
+	defer term.Close()
+
 	flag.Parse()
 	var (
-		ttyFile = os.Stdin
 		edit    editor.Editor
 		skipCtl bool
 	)
@@ -41,10 +47,6 @@ func main() {
 		}
 		if pipeUsed := stat.Mode()&os.ModeCharDevice == 0; pipeUsed {
 			_ = edit.OpenReader("", os.Stdin)
-			ttyFile, err = os.Open("/dev/tty")
-			if err != nil {
-				panic(err)
-			}
 		} else {
 			edit.New()
 		}
@@ -64,7 +66,7 @@ func main() {
 	}
 
 	if !skipCtl {
-		srv, err := remotectl.NewServer()
+		srv, err := remotectl.NewServer(remotectl.EditorEndpoint)
 		if err == nil {
 			defer srv.Close()
 			go srv.Run(&delegate, logf)
@@ -73,12 +75,7 @@ func main() {
 		}
 	}
 
-	inOut := editor.InOut{
-		Reader:             ttyFile,
-		Writer:             os.Stdout,
-		WindowChangeSignal: windowChangeSignal(),
-	}
-	edit.Run(&inOut)
+	edit.Run(term)
 }
 
 const doDebugEnv = false
@@ -155,7 +152,7 @@ func (ed *editDelegate) openFileInNewBuffer(path string) {
 }
 
 func (ed *editDelegate) sendOpenCommand(path string) error {
-	return remotectl.SendCommand(&remotectl.CommandData{
+	return remotectl.SendCommand(remotectl.EditorEndpoint, &remotectl.CommandData{
 		Action: "open",
 		Args:   []string{path},
 	})

@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/escape"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 var thousandLines = slices.Repeat(content.FullText{content.TextLine("test")}, 1000)
