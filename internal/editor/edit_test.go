@@ -219,7 +219,7 @@ func TestEditor_Run(t *testing.T) {
 func TestEditor_LayoutWindowSize(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
-		termSize     func() (int, int, error)
+		termSize     func() (vt.WindowSize, error)
 		wantW, wantH int
 	}{
 		{
@@ -228,17 +228,17 @@ func TestEditor_LayoutWindowSize(t *testing.T) {
 		},
 		{
 			name:     "split pane on stdin",
-			termSize: func() (int, int, error) { return 120, 21, nil },
+			termSize: func() (vt.WindowSize, error) { return vt.WindowSize{Cols: 120, Rows: 21}, nil },
 			wantW:    120, wantH: 21,
 		},
 		{
 			name:     "size query fails",
-			termSize: func() (int, int, error) { return 0, 0, os.ErrInvalid },
+			termSize: func() (vt.WindowSize, error) { return vt.WindowSize{}, os.ErrInvalid },
 			wantW:    80, wantH: 42,
 		},
 		{
 			name:     "zero size reported",
-			termSize: func() (int, int, error) { return 0, 0, nil },
+			termSize: func() (vt.WindowSize, error) { return vt.WindowSize{}, nil },
 			wantW:    80, wantH: 42,
 		},
 	} {

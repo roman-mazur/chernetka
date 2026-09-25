@@ -13,8 +13,24 @@ import (
 type Terminal interface {
 	io.ReadWriteCloser
 	WindowSizeChanges() <-chan struct{}
-	Size() (width, height int, err error)
+	Size() (WindowSize, error)
 	Configure(f ...escape.ConfigFunc)
+}
+
+// WindowSize describes the terminal window dimensions.
+// The size in pixels is zero if the terminal does not report it.
+type WindowSize struct {
+	Cols, Rows     int
+	XPixel, YPixel int
+}
+
+// CellSize returns the size of one character cell in pixels.
+// ok is false if the terminal does not report its size in pixels.
+func (ws WindowSize) CellSize() (w, h float64, ok bool) {
+	if ws.Cols <= 0 || ws.Rows <= 0 || ws.XPixel <= 0 || ws.YPixel <= 0 {
+		return 0, 0, false
+	}
+	return float64(ws.XPixel) / float64(ws.Cols), float64(ws.YPixel) / float64(ws.Rows), true
 }
 
 func SystemTerminal() (Terminal, error) {
@@ -81,8 +97,8 @@ func (st *sysTerminal) WindowSizeChanges() <-chan struct{} {
 	return windowChangeSignal()
 }
 
-func (st *sysTerminal) Size() (width, height int, err error) {
-	return term.GetSize(st.fd)
+func (st *sysTerminal) Size() (WindowSize, error) {
+	return windowSize(st.fd)
 }
 
 func (st *sysTerminal) Close() error {
@@ -96,23 +112,24 @@ func (st *sysTerminal) Close() error {
 
 // TestTerminal produces a test Terminal that never emits a window change event.
 // Reader and writer are provided in the arguments. If it's also an io.Closer, it will be closed in Close.
+// The terminal does not report its size in pixels, set SizeFunc to change it.
 func TestTerminal(w, h int, rw io.ReadWriter) *MockTerminal {
 	return &MockTerminal{
 		ReadWriter: rw,
-		SizeFunc: func() (int, int, error) {
-			return w, h, nil
+		SizeFunc: func() (WindowSize, error) {
+			return WindowSize{Cols: w, Rows: h}, nil
 		},
 	}
 }
 
 type MockTerminal struct {
 	io.ReadWriter
-	SizeFunc func() (int, int, error)
+	SizeFunc func() (WindowSize, error)
 }
 
-func (t *MockTerminal) WindowSizeChanges() <-chan struct{}   { return nil }
-func (t *MockTerminal) Size() (width, height int, err error) { return t.SizeFunc() }
-func (t *MockTerminal) Configure(...escape.ConfigFunc)       {}
+func (t *MockTerminal) WindowSizeChanges() <-chan struct{} { return nil }
+func (t *MockTerminal) Size() (WindowSize, error)          { return t.SizeFunc() }
+func (t *MockTerminal) Configure(...escape.ConfigFunc)     {}
 
 func (t *MockTerminal) Close() error {
 	if c, ok := t.ReadWriter.(io.Closer); ok {

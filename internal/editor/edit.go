@@ -619,11 +619,11 @@ func (lps *layoutState) resolveWindowSize() (w int, h int) {
 	if lps.editor.term == nil {
 		return 80, 40 // Tests only.
 	}
-	w, h, err := lps.editor.term.Size()
-	if err != nil || (w == 0 && h == 0) {
+	size, err := lps.editor.term.Size()
+	if err != nil || (size.Cols == 0 && size.Rows == 0) {
 		return 80, 42 // TODO: Resolve window size issues on Windows.
 	}
-	return w, h
+	return size.Cols, size.Rows
 }
 
 func (lps *layoutState) Pass() iter.Seq[*Buffer] {
