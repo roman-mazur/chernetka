@@ -14,3 +14,8 @@ var errorTerminalNotSupported = errors.New("terminal not supported")
 func openMainEditor(_ *editor.Editor, _ string) error {
 	return errorTerminalNotSupported
 }
+
+// launchImageViewer does nothing
+func launchImageViewer() error {
+	return errorTerminalNotSupported
+}

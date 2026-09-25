@@ -3,13 +3,17 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"rmazur.io/chernetka/internal/cheimg"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/extd2"
 	"rmazur.io/chernetka/internal/editor/extlsp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 	"rmazur.io/chernetka/internal/logger"
@@ -33,12 +37,21 @@ func main() {
 	logf, _ := logger.UserLogFile()
 	edit.LogEmbed = logger.Embed(logf)
 	edit.LogDebug = debugflags.IsEnabled("logdebug")
-	delegate := editDelegate{edit: &edit, logf: logf}
+	viewer := newImageViewer(logf)
+	delegate := editDelegate{
+		edit:   &edit,
+		logf:   logf,
+		viewer: viewer,
+		replaceWithViewer: func(path string) error {
+			return replaceWithImageViewer(path, func() { _ = term.Close() })
+		},
+	}
 
 	debugEnv(logf)
 
 	edit.Extend(new(extlsp.Integration))
 	edit.Extend(new(extsyntaxhl.Integration))
+	edit.Extend(&extd2.Integration{Viewer: viewer})
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
@@ -61,7 +74,7 @@ func main() {
 			edit.OpenDir(path, &delegate)
 			skipCtl = true
 		} else {
-			(&editor.OpenFile{Path: path}).DoOnEditor(&edit)
+			delegate.openFile(path)
 		}
 	}
 
@@ -96,8 +109,39 @@ func debugEnv(logf logger.Func) {
 }
 
 type editDelegate struct {
-	edit *editor.Editor
-	logf logger.Func
+	edit   *editor.Editor
+	logf   logger.Func
+	viewer extd2.Viewer
+
+	// replaceWithViewer turns che into che-img showing the image at path.
+	// It returns only if che-img cannot be found.
+	replaceWithViewer func(path string) error
+}
+
+// openFile opens the file at path in the editor. Images are shown with che-img instead,
+// and diagrams are shown with che-img in addition to being opened for editing.
+// If nothing is open in the editor yet, che turns into che-img to show an image.
+// It must be called on the editor goroutine or before the editor runs.
+func (ed *editDelegate) openFile(path string) {
+	imgKind := cheimg.KindOf(path)
+	if imgKind == cheimg.KindImage && ed.edit.Top() == nil {
+		ed.logf("replacing the editor with che-img for %s", path)
+		err := fmt.Errorf("cannot start che-img: %w", ed.replaceWithViewer(path))
+		ed.logf("%s", err)
+		ed.edit.OpenBuffer(&editor.Buffer{Path: path, Content: &content.ErrorContent{Error: err}})
+		return
+	}
+
+	if imgKind != cheimg.KindUnsupported {
+		if abs, err := filepath.Abs(path); err == nil {
+			// The viewer runs in another process that may have a different working directory.
+			path = abs
+		}
+		ed.viewer.Show(cheimg.Item{Path: path})
+	}
+	if imgKind != cheimg.KindImage {
+		(&editor.OpenFile{Path: path}).DoOnEditor(ed.edit)
+	}
 }
 
 func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
@@ -105,7 +149,8 @@ func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
 
 	switch cmd.Action {
 	case "open":
-		editorCommand = &editor.OpenFile{Path: cmd.Args[0]}
+		path := cmd.Args[0]
+		editorCommand = editor.CommandFunc(func(*editor.Editor) { ed.openFile(path) })
 	default:
 		ed.logf("ignore remote cmd: %s", cmd.Action)
 		return
@@ -125,30 +170,12 @@ func (ed *editDelegate) OpenFile(path string) {
 		err := openMainEditor(ed.edit, path)
 		if err != nil {
 			ed.logf("error with main editor: %s", err)
-			ed.openFileInNewBuffer(path)
+			ed.openFile(path)
 		}
 	} else {
 		ed.logf("cannot send a command: %s", err)
-		ed.openFileInNewBuffer(path)
+		ed.openFile(path)
 	}
-}
-
-func (ed *editDelegate) openFileInNewBuffer(path string) {
-	f, err := os.Open(path)
-
-	defer func() {
-		if err != nil {
-			ed.edit.OpenBuffer(&editor.Buffer{
-				Content: &content.ErrorContent{Error: err},
-			})
-		}
-	}()
-
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	err = ed.edit.OpenReader(path, f)
 }
 
 func (ed *editDelegate) sendOpenCommand(path string) error {

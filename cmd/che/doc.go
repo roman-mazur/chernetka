@@ -13,6 +13,13 @@
 // to navigate the directory tree. Pressing Enter on a file will attempt opening this
 // file in the right pane of your terminal.
 //
+// # Images and diagrams
+//
+// PNG images and d2 diagrams are shown with che-img (see its docs in cmd/che-img).
+// If che-img is not running, che launches it in a new terminal pane below.
+// A .d2 file is also opened for editing. When che is started with an image and has
+// nothing else open, it turns into che-img in the same pane.
+//
 // # Normal mode
 //
 // The editor starts in normal mode. The cursor rests on a character (never
@@ -32,7 +39,17 @@
 //	+ / =    increase tab width
 //	-        decrease tab width
 //	:        enter command mode
+//	Enter    engage the line action if the line is marked with ▶, move down otherwise
+//	Ctrl+R   re-run the last engaged line action
 //	q        quit
+//
+// # Line actions
+//
+// Some lines can be engaged with Enter, they are marked with a green ▶ on the right.
+//
+// d2 diagrams: the first line of a .d2 file and the line opening a ```d2 code block in
+// a Markdown file show the diagram with che-img. After editing the diagram, press Ctrl+R
+// to show it again.
 //
 // # Insert mode
 //
@@ -44,6 +61,7 @@
 //	Enter      split the line at the cursor
 //	← → ↑ ↓   move the cursor without leaving insert mode
 //	Ctrl+S     save the current buffer
+//	Ctrl+R     re-run the last engaged line action
 //
 // # Command mode
 //
