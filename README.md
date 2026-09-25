@@ -16,6 +16,11 @@ Install with
 go install rmazur.io/chernetka/cmd/che
 ```
 
+To view images and d2 diagrams from the editor, install `che-img` as well:
+```bash
+go install rmazur.io/chernetka/cmd/che-img
+```
+
 Then start with opening your project directory
 ```
 che .
