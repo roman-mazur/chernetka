@@ -13,12 +13,13 @@ See docs of the `cmd/che` command for keybinding details (`cmd/che/doc.go`).
 
 Install with
 ```bash
-go install rmazur.io/chernetka/cmd/che
+go install rmazur.io/chernetka/cmd/che@latest
 ```
+A C compile is needed on the machine as syntax highlight currently depends on [treesitter](https://tree-sitter.github.io/).
 
 To view images and d2 diagrams from the editor, install `che-img` as well:
 ```bash
-go install rmazur.io/chernetka/cmd/che-img
+go install rmazur.io/chernetka/cmd/che-img@latest
 ```
 
 Then start with opening your project directory
