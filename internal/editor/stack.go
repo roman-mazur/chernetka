@@ -3,6 +3,7 @@ package editor
 import (
 	"io"
 	"iter"
+	"os"
 	"path/filepath"
 	"slices"
 
@@ -34,6 +35,41 @@ func (e *Editor) prepareExt(b *Buffer) {
 	for _, ext := range e.x {
 		b.ext.extend(ext.ID(), ext.MakeBufferData(b))
 	}
+}
+
+// OpenFile opens a new file via Editor.OpenReader.
+// The buffer content is reloaded when the file is changed outside the editor.
+type OpenFile struct {
+	Path string
+}
+
+func (of *OpenFile) DoOnEditor(e *Editor) {
+	e.renderRequested = true
+	if e.findAndActivateBuffer(of.Path) {
+		return
+	}
+
+	f, err := os.Open(of.Path)
+	if err != nil {
+		of.handleError(e, err)
+		return
+	}
+	defer func() { _ = f.Close() }()
+
+	if err := e.OpenReader(of.Path, f); err != nil {
+		of.handleError(e, err)
+		return
+	}
+	buf := e.Top()
+	buf.fileText = buf.Text()
+	e.watchFile(buf)
+}
+
+func (of *OpenFile) handleError(e *Editor, err error) {
+	e.push(&Buffer{
+		Path:    of.Path,
+		Content: &content.ErrorContent{Error: err},
+	})
 }
 
 // OpenDir adds a new buffer to the Editor by reading the directory content.

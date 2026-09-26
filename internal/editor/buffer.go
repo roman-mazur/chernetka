@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"unicode/utf8"
 
+	"github.com/fsnotify/fsnotify"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/vt/escape"
@@ -39,6 +40,9 @@ type Buffer struct {
 
 	version uint64 // internal edits version
 
+	fileText string            // the file content as of the last load or save
+	watcher  *fsnotify.Watcher // reloads the content changed outside the editor
+
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
 }
@@ -63,8 +67,12 @@ func (b *Buffer) Pos() (cx, cy int) { return b.c.Col, b.c.Line }
 func (b *Buffer) Mode() Mode { return b.mode }
 
 // Close propagates the call to the Content and extension objects if they implement io.Closer.
+// It also stops watching the file changes.
 func (b *Buffer) Close() error {
-	allErrors := make([]error, 0, len(b.ext.xData)+1)
+	allErrors := make([]error, 0, len(b.ext.xData)+2)
+	if b.watcher != nil {
+		allErrors = append(allErrors, b.watcher.Close())
+	}
 	if closer, ok := b.Content.(io.Closer); ok {
 		allErrors = append(allErrors, closer.Close())
 	}

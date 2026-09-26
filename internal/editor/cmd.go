@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"os"
 	"slices"
 	"strings"
 	"unicode"
@@ -279,35 +278,11 @@ func (s *Save) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
 	err := content.Save(buf.Content, s.DstPath)
 	if err == nil {
 		buf.dirty = false
+		if samePath(s.DstPath, buf.Path) {
+			buf.fileText = buf.Text()
+		}
 	}
 	// TODO: Visualize the error.
-}
-
-// OpenFile opens a new file via Editor.OpenReader.
-type OpenFile struct {
-	Path string
-}
-
-func (of *OpenFile) DoOnEditor(e *Editor) {
-	e.renderRequested = true
-
-	f, err := os.Open(of.Path)
-	if err != nil {
-		of.handleError(e, err)
-		return
-	}
-	defer func() { _ = f.Close() }()
-
-	if err := e.OpenReader(of.Path, f); err != nil {
-		of.handleError(e, err)
-	}
-}
-
-func (of *OpenFile) handleError(e *Editor, err error) {
-	e.push(&Buffer{
-		Path:    of.Path,
-		Content: &content.ErrorContent{Error: err},
-	})
 }
 
 type CommandFunc func(e *Editor)
