@@ -279,17 +279,24 @@ func (s *Save) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
 	err := content.Save(buf.Content, s.DstPath)
 	if err == nil {
 		buf.dirty = false
+		if samePath(s.DstPath, buf.Path) {
+			buf.fileText = buf.Text()
+		}
 	}
 	// TODO: Visualize the error.
 }
 
 // OpenFile opens a new file via Editor.OpenReader.
+// The buffer content is reloaded when the file is changed outside the editor.
 type OpenFile struct {
 	Path string
 }
 
 func (of *OpenFile) DoOnEditor(e *Editor) {
 	e.renderRequested = true
+	if e.findAndActivateBuffer(of.Path) {
+		return
+	}
 
 	f, err := os.Open(of.Path)
 	if err != nil {
@@ -300,7 +307,11 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 
 	if err := e.OpenReader(of.Path, f); err != nil {
 		of.handleError(e, err)
+		return
 	}
+	buf := e.Top()
+	buf.fileText = buf.Text()
+	e.watchFile(buf)
 }
 
 func (of *OpenFile) handleError(e *Editor, err error) {

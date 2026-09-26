@@ -87,6 +87,8 @@
 //
 // Unsaved changes of a file are saved automatically when switching to another
 // buffer or when the terminal loses focus (if the terminal supports focus reporting).
+// When an open file is changed outside the editor, its buffer is reloaded,
+// discarding the unsaved changes.
 //
 // # Search and replace
 //
