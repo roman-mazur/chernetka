@@ -26,7 +26,7 @@ var DefaultColors = ColorTheme{
 		code.TtCall:            parseColor("56A8F5"),
 		code.TtComment:         parseColor("7A7E85"),
 		code.TtConstant:        parseColor("C77DBB"),
-		code.TtField:           parseColor("C77DBB"),
+		code.TtField:           parseColor("BCBEC4"),
 		code.TtEscape:          parseColor("CF8E6D"),
 
 		// Markup. Emphasis and strong text only differ by color: the terminal
