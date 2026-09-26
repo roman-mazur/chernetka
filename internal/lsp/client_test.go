@@ -3,7 +3,9 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +27,7 @@ func TestClient_RoundTrip(t *testing.T) {
 	var (
 		initialized = make(chan struct{})
 		opened      = make(chan string, 1)
-		changed     = make(chan int32, 1)
+		changed     = make(chan json.RawMessage, 1)
 	)
 	serverConn.Go(ctx, jsonrpc2.ReplyHandler(func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
 		switch req.Method() {
@@ -40,9 +42,7 @@ func TestClient_RoundTrip(t *testing.T) {
 			opened <- p.TextDocument.Text
 			return reply(ctx, nil, nil)
 		case protocol.MethodTextDocumentDidChange:
-			var p protocol.DidChangeTextDocumentParams
-			_ = jsonrpc2DecodeParams(req, &p)
-			changed <- p.TextDocument.Version
+			changed <- req.Params()
 			return reply(ctx, nil, nil)
 		case protocol.MethodTextDocumentCompletion:
 			return reply(ctx, &protocol.CompletionList{
@@ -56,7 +56,7 @@ func TestClient_RoundTrip(t *testing.T) {
 		return reply(ctx, nil, nil)
 	}))
 
-	c, err := newClient(ctx, clientConn, "/tmp")
+	c, err := newClient(ctx, clientConn, "/tmp", Options{})
 	if err != nil {
 		t.Fatalf("newClient: %v", err)
 	}
@@ -75,14 +75,22 @@ func TestClient_RoundTrip(t *testing.T) {
 		t.Errorf("server received text %q, want %q", got, "package main\n")
 	}
 
-	events := []protocol.TextDocumentContentChangeEvent{
-		{Text: "package main\n\nfunc f() {}\n"},
-	}
-	if err := c.DidChange(ctx, fileURI, 2, events); err != nil {
+	if err := c.DidChange(ctx, fileURI, 2, TextChange{Text: "package main\n\nfunc f() {}\n"}); err != nil {
 		t.Fatalf("DidChange: %v", err)
 	}
-	if got := <-changed; got != 2 {
-		t.Errorf("server received version %d, want 2", got)
+	raw := <-changed
+	var p protocol.DidChangeTextDocumentParams
+	_ = json.Unmarshal(raw, &p)
+	if p.TextDocument.Version != 2 {
+		t.Errorf("server received version %d, want 2", p.TextDocument.Version)
+	}
+	if len(p.ContentChanges) != 1 || p.ContentChanges[0].Text != "package main\n\nfunc f() {}\n" {
+		t.Errorf("server received changes %+v", p.ContentChanges)
+	}
+	// A full content change must not have a range: with incremental sync, an
+	// empty range means inserting the text at the start of the document.
+	if strings.Contains(string(raw), `"range"`) {
+		t.Errorf("full content change sent with a range: %s", raw)
 	}
 
 	items, err := c.Completion(ctx, fileURI, 0, 0)
@@ -115,4 +123,36 @@ func pipeConns(t *testing.T) (clientConn, serverConn jsonrpc2.Conn) {
 		_ = serverConn.Close()
 	})
 	return
+}
+
+// TestClient_LogsServerErrors checks that errors the server reports on its own
+// (like a failed workspace load) reach the log instead of being dropped.
+func TestClient_LogsServerErrors(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	clientConn, serverConn := pipeConns(t)
+	serverConn.Go(ctx, jsonrpc2.ReplyHandler(func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		if req.Method() == protocol.MethodInitialize {
+			return reply(ctx, &protocol.InitializeResult{}, nil)
+		}
+		return reply(ctx, nil, nil)
+	}))
+
+	logged := make(chan string, 10)
+	logf := func(format string, args ...any) { logged <- fmt.Sprintf(format, args...) }
+	if _, err := newClient(ctx, clientConn, "/tmp", Options{Logf: logf}); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = serverConn.Notify(ctx, protocol.MethodWindowLogMessage, &protocol.LogMessageParams{Type: protocol.MessageTypeInfo, Message: "all good"})
+	_ = serverConn.Notify(ctx, protocol.MethodWindowShowMessage, &protocol.ShowMessageParams{Type: protocol.MessageTypeError, Message: "load failed\n"})
+	select {
+	case got := <-logged:
+		if got != "server error: load failed" {
+			t.Errorf("logged %q", got)
+		}
+	case <-ctx.Done():
+		t.Fatal("server error not logged")
+	}
 }

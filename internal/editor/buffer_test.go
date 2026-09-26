@@ -344,6 +344,13 @@ func TestBuffer_ReplaceText(t *testing.T) {
 			wantCursor: pos(0, 3),
 		},
 		{
+			name:   "reversed span",
+			lines:  []string{"hello world"},
+			cursor: pos(0, 11), start: pos(0, 5), end: pos(0, 0), text: "bye",
+			wantText:   "bye world",
+			wantCursor: pos(0, 9),
+		},
+		{
 			name:   "out of range is ignored",
 			lines:  []string{"ab"},
 			cursor: pos(0, 1), start: pos(0, 0), end: pos(1, 0), text: "zz",
@@ -358,7 +365,7 @@ func TestBuffer_ReplaceText(t *testing.T) {
 				text = append(text, content.TextLine(l))
 			}
 			buf := &Buffer{Content: &text, c: tc.cursor}
-			buf.ReplaceText(tc.start, tc.end, tc.text)
+			buf.ReplaceText(content.Span{Start: tc.start, End: tc.end}, tc.text)
 			if got := buf.Text(); got != tc.wantText {
 				t.Errorf("text = %q, want %q", got, tc.wantText)
 			}

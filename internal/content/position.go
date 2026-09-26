@@ -4,7 +4,7 @@ import "fmt"
 
 // Position indicates a symbol position in the content.
 type Position struct {
-	Col  int // rune offset in the line
+	Col  int // byte offset in the line
 	Line int // 0-indexed line number
 }
 

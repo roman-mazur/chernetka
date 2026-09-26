@@ -49,6 +49,12 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 			wantText:    "Pri",
 		},
 		{
+			name:        "arrow down with a single suggestion moves the cursor",
+			suggestions: s("a"),
+			input:       keyArrowDown,
+			wantText:    "Pri",
+		},
+		{
 			name:        "left arrow dismisses suggestions",
 			suggestions: s("a", "b"),
 			input:       keyArrowLeft,
@@ -61,6 +67,7 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 			wantText:    "Pri",
 		},
 		{
+			// Handled so that the editor stays in the insert mode.
 			name:        "escape dismisses suggestions",
 			suggestions: s("a", "b"),
 			input:       keyEscape,
@@ -95,8 +102,8 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 				if data.HasSuggestions() {
 					t.Errorf("suggestions still present: %v", data.suggestions)
 				}
-			} else if got := data.CurrentSuggestion(); got != tc.wantCurrent {
-				t.Errorf("CurrentSuggestion = %q, want %q", got, tc.wantCurrent)
+			} else if got := data.TextSuggestion().Text; got != tc.wantCurrent {
+				t.Errorf("TextSuggestion().Text = %q, want %q", got, tc.wantCurrent)
 			}
 			if got := buf.Text(); got != tc.wantText {
 				t.Errorf("buffer text = %q, want %q", got, tc.wantText)

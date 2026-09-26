@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"strings"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -219,44 +218,28 @@ func (b *Buffer) AcceptSuggestion(sug string, cursor int) {
 	b.c.Col += min(max(cursor, 0), len(sug))
 }
 
-// ReplaceText replaces the text between start and end (byte columns) with text,
-// which may span several lines. The cursor stays on the same content: it moves
-// along if the change is before it, or lands at the end of the new text if it
-// was inside the replaced range. It is a no-op for a read-only buffer or
-// positions outside the content.
-func (b *Buffer) ReplaceText(start, end content.Position, text string) {
+// ReplaceText replaces the text of span with text, which may span several
+// lines. The cursor stays on the same content: it moves along if the change is
+// before it, or lands at the end of the new text if it was inside the span.
+// It is a no-op for a read-only buffer or a span outside the content.
+func (b *Buffer) ReplaceText(span content.Span, text string) {
+	start, end := span.Min(), span.Max()
 	lines := b.Content.Lines()
-	if !b.canEdit() || start.Line > end.Line || end.Line >= len(lines) ||
-		start.Col > lines[start.Line].Len() || end.Col > lines[end.Line].Len() ||
-		(start.Line == end.Line && start.Col > end.Col) {
+	if !b.canEdit() || end.Line >= len(lines) ||
+		start.Col > lines[start.Line].Len() || end.Col > lines[end.Line].Len() {
 		return
 	}
-	prefix := lines[start.Line].String()[:start.Col]
-	suffix := lines[end.Line].String()[end.Col:]
-	newLines := strings.Split(prefix+text+suffix, "\n")
-
 	mut := b.Mutate()
-	oldCount := end.Line - start.Line + 1
-	for i, l := range newLines {
-		if i < oldCount {
-			mut.Update(start.Line+i, content.TextLine(l))
-		} else {
-			mut.Insert(start.Line+i, content.TextLine(l))
-		}
-	}
-	for range oldCount - len(newLines) {
-		mut.Delete(start.Line + len(newLines))
-	}
+	content.DeleteSpan(mut, content.Span{Start: start, End: end})
+	newEnd := content.InsertText(mut, start, text)
 
-	lastLine := start.Line + len(newLines) - 1
-	lastCol := len(newLines[len(newLines)-1]) - len(suffix)
 	switch c := b.c; {
 	case c.Line > end.Line:
-		b.c.Line += len(newLines) - oldCount
+		b.c.Line += (newEnd.Line - start.Line) - (end.Line - start.Line)
 	case c.Line == end.Line && c.Col >= end.Col:
-		b.c = content.Position{Line: lastLine, Col: lastCol + c.Col - end.Col}
+		b.c = content.Position{Line: newEnd.Line, Col: newEnd.Col + c.Col - end.Col}
 	case c.Line > start.Line || (c.Line == start.Line && c.Col > start.Col):
-		b.c = content.Position{Line: lastLine, Col: lastCol}
+		b.c = newEnd
 	}
 }
 
