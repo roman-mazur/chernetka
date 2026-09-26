@@ -56,6 +56,19 @@ var languages = []language{
 		newHighlighter: newTreeSitter(cueGrammar),
 	},
 	{
+		name: "json",
+		matcher: func(filePath string) bool {
+			// Nix flakes pin their inputs in JSON.
+			return matchExtensions(".json", ".jsonc", ".jsonl")(filePath) || filepath.Base(filePath) == "flake.lock"
+		},
+		newHighlighter: newTreeSitter(jsonGrammar),
+	},
+	{
+		name:           "yaml",
+		matcher:        matchExtensions(".yaml", ".yml"),
+		newHighlighter: newTreeSitter(yamlGrammar),
+	},
+	{
 		name:           "markdown",
 		matcher:        matchExtensions(".md", ".markdown"),
 		newHighlighter: newMarkdown,

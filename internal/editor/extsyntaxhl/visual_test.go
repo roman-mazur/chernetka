@@ -25,6 +25,8 @@ func TestVisual(t *testing.T) {
 		{"visual.go", visualGo},
 		{"visual.nix", visualNix},
 		{"visual.cue", visualCUE},
+		{"visual.json", visualJSON},
+		{"visual.yaml", visualYAML},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -208,6 +210,42 @@ svc: #Service & {
 	items: [for i, x in sorted {"\(base)-\(i)": x}]
 	id: string @go(ID)
 }
+`
+
+const visualJSON = `{
+  // JSONC allows comments.
+  "name": "chernetka",
+  "version": 1.5e3,
+  "escaped \"key\"": "tab\there \u00e9",
+  "tags": ["editor", "go"],
+  "nested": {"enabled": true, "disabled": false, "missing": null}
+}
+`
+
+const visualYAML = `%YAML 1.2
+---
+# A workflow, to be looked at.
+name: CI
+on:
+  push:
+    branches: [main, "release/*"]
+defaults: &defaults
+  timeout: 30
+  retries: 2.5
+  enabled: yes
+  nothing: ~
+  since: 2026-09-26
+jobs:
+  test:
+    <<: *defaults
+    runs-on: 'ubuntu-latest'
+    env: !!map {GOFLAGS: -mod=mod, "CGO": "1"}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          go test ./...
+          echo "done\n"
+...
 `
 
 const visualGitMsg = `some/path: change title

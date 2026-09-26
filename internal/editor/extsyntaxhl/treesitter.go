@@ -6,8 +6,10 @@ import (
 	"strings"
 	"sync"
 
+	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
+	jsonsitter "github.com/tree-sitter/tree-sitter-json/bindings/go"
 	"rmazur.io/chernetka/internal/content/code"
 	cuesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
 	nixsitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
@@ -24,6 +26,26 @@ var goQuery string
 var goGrammar = &tsGrammar{
 	load:   func() *treesitter.Language { return treesitter.NewLanguage(gositter.Language()) },
 	query:  goQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/json.scm
+var jsonQuery string
+
+// jsonGrammar highlights JSON using the upstream tree-sitter grammar.
+var jsonGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(jsonsitter.Language()) },
+	query:  jsonQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/yaml.scm
+var yamlQuery string
+
+// yamlGrammar highlights YAML using the upstream tree-sitter grammar.
+var yamlGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(yamlsitter.Language()) },
+	query:  yamlQuery,
 	tokens: defaultCaptureTokens,
 }
 

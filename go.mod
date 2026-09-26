@@ -7,8 +7,10 @@ tool golang.org/x/tools/cmd/stringer
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/kanrichan/resvg-go v0.0.1
+	github.com/tree-sitter-grammars/tree-sitter-yaml v0.7.2
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-go v0.25.0
+	github.com/tree-sitter/tree-sitter-json v0.24.8
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/pkg v0.0.0-20210717090340-384b27a52fb2
 	go.lsp.dev/protocol v0.12.0

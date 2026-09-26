@@ -142,6 +142,45 @@ func TestCUEHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestJSONHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"{", nil},
+		{"  // A comment.", []string{"2:15:Comment"}},
+		{"  \"a\\\"b\": \"x\\ty\",", []string{
+			"2:4:Field", "4:6:Escape", "6:8:Field", "10:12:StringLiteral", "12:14:Escape", "14:16:StringLiteral",
+		}},
+		{"  \"n\": [1.5e3, true, false, null]", []string{
+			"2:5:Field", "8:13:NumberLiteral", "15:19:Constant", "21:26:Constant", "28:32:Constant",
+		}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "package.json", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestYAMLHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"---", []string{"0:3:Keyword"}},
+		{"# A comment.", []string{"0:12:Comment"}},
+		{"name: CI", []string{"0:4:Field", "6:8:StringLiteral"}},
+		{"base: &base", []string{"0:4:Field", "6:11:Constant"}},
+		{"  n: 30", []string{"2:3:Field", "5:7:NumberLiteral"}},
+		{"  f: 2.5", []string{"2:3:Field", "5:8:NumberLiteral"}},
+		{"  ok: true", []string{"2:4:Field", "6:10:Constant"}},
+		{"  \"quoted key\": 'v'", []string{"2:14:Field", "16:19:StringLiteral"}},
+		{"job:", []string{"0:3:Field"}},
+		{"  <<: *base", []string{"2:4:Field", "6:11:Constant"}},
+		{"  env: !!map {A: \"1\\n\"}", []string{
+			"2:5:Field", "7:12:TypeRef", "14:15:Field", "17:19:StringLiteral", "19:21:Escape", "21:22:StringLiteral",
+		}},
+		{"  steps: [checkout, test]", []string{"2:7:Field", "10:18:StringLiteral", "20:24:StringLiteral"}},
+	}
+
+	buf, ext := openDoc(t, "ci.yaml", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestGrammarsPrepare checks that every tree-sitter grammar loads and that its
 // highlight query compiles. A broken query leaves the language uncolored
 // without any other sign of trouble.
@@ -165,6 +204,12 @@ func TestLanguageForPath(t *testing.T) {
 		"a/b/main.GO":     "go",
 		"flake.nix":       "nix",
 		"schema.CUE":      "cue",
+		"package.json":    "json",
+		"settings.jsonc":  "json",
+		"a/flake.lock":    "json",
+		"Cargo.lock":      "",
+		"ci.yaml":         "yaml",
+		"ci.yml":          "yaml",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",
