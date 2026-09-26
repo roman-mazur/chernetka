@@ -63,6 +63,12 @@
 //	Ctrl+S     save the current buffer
 //	Ctrl+R     re-run the last engaged line action
 //
+// # Code suggestions
+//
+//	Tab        accept the suggestion (adding a missing import if needed)
+//	↑ ↓        cycle through the alternatives, if there are several
+//	Esc        dismiss the suggestion (press again to return to normal mode)
+//
 // # Command mode
 //
 // Entered by pressing : in normal mode. Type a command and press Enter to run it.
