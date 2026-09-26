@@ -180,8 +180,7 @@ func (q *quickOpen) refresh(e *Editor) {
 	// switching to the previous buffer takes just Enter.
 	open := make(map[string]bool)
 	var current []quickMatch
-	for entry := range e.buffers() {
-		b := entry.b
+	for b := range e.buffers() {
 		if b.Path == "" {
 			continue
 		}

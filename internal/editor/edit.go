@@ -9,6 +9,7 @@ import (
 	"io"
 	"iter"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -58,7 +59,7 @@ type Editor struct {
 	logger.LogEmbed
 	mouseHandler
 
-	top    *bufEntry // stack of open buffers
+	bufs   []*Buffer // stack of open buffers, the active one is the last
 	status StatusBar // shown below the top buffer
 
 	renderRequested bool
@@ -161,20 +162,18 @@ func (e *Editor) OpenBuffer(b *Buffer) {
 
 // Top returns the currently active Buffer.
 func (e *Editor) Top() *Buffer {
-	if e.top == nil {
+	if len(e.bufs) == 0 {
 		return nil
 	}
-	return e.top.b
+	return e.bufs[len(e.bufs)-1]
 }
 
 func (e *Editor) findAndActivateBuffer(p string) bool {
-	for entry := range e.buffers() {
-		if entry.matches(p) {
-			e.selectBuffer(entry)
-			return true
-		}
+	i := slices.IndexFunc(e.bufs, func(b *Buffer) bool { return samePath(b.Path, p) })
+	if i >= 0 {
+		e.selectBuffer(i)
 	}
-	return false
+	return i >= 0
 }
 
 // Send submits the command to a commands channel to be executed on the Editor's loop.
@@ -202,77 +201,40 @@ func (e *Editor) push(buf *Buffer) {
 	e.closeQuickOpen()
 	e.saveTop()
 	e.prepareExt(buf)
-
-	entry := &bufEntry{
-		b:    buf,
-		next: e.top,
-	}
-	if e.top != nil {
-		e.top.prev = entry
-	}
-	e.top = entry
+	e.bufs = append(e.bufs, buf)
 }
 
 func (e *Editor) pop() (empty bool) {
-	if e.top == nil {
+	top := e.Top()
+	if top == nil {
 		return true
 	}
-
 	e.closeQuickOpen()
-	_ = e.top.b.Close() // TODO: log/handle the error.
-
-	e.top = e.top.next
-	if e.top == nil {
-		return true
-	}
-	e.top.prev = nil
-	return false
+	_ = top.Close() // TODO: log/handle the error.
+	e.bufs = e.bufs[:len(e.bufs)-1]
+	return len(e.bufs) == 0
 }
 
-// selectBuffer moves the selected buffer to the top of the stack.
-func (e *Editor) selectBuffer(entry *bufEntry) {
-	if entry == e.top {
+// selectBuffer moves the buffer with index i to the top of the stack.
+func (e *Editor) selectBuffer(i int) {
+	if i == len(e.bufs)-1 {
 		return
 	}
 	e.closeQuickOpen()
 	e.saveTop()
-	if e.top.prev != nil {
-		panic("top has prev")
-	}
-
-	if entry.next != nil {
-		entry.next.prev = entry.prev
-	}
-	if entry.prev != nil {
-		entry.prev.next = entry.next
-	}
-
-	entry.prev = nil
-	entry.next = e.top
-
-	e.top.prev = entry
-	e.top = entry
+	buf := e.bufs[i]
+	e.bufs = append(slices.Delete(e.bufs, i, i+1), buf)
 }
 
-func (e *Editor) buffers() iter.Seq[*bufEntry] {
-	cur := e.top
-	return func(yield func(*bufEntry) bool) {
-		for cur != nil {
-			if !yield(cur) {
+// buffers iterates over the open buffers from the top of the stack.
+func (e *Editor) buffers() iter.Seq[*Buffer] {
+	return func(yield func(*Buffer) bool) {
+		for _, b := range slices.Backward(e.bufs) {
+			if !yield(b) {
 				return
 			}
-			cur = cur.next
 		}
 	}
-}
-
-type bufEntry struct {
-	b          *Buffer
-	next, prev *bufEntry
-}
-
-func (be *bufEntry) matches(p string) bool {
-	return samePath(be.b.Path, p)
 }
 
 // samePath checks whether both paths point to the same file, resolving relative paths
@@ -578,7 +540,7 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 }
 
 func (e *Editor) handleInput(input []byte) (quit bool) {
-	buf := e.top.b
+	buf := e.Top()
 	// Any input may edit the buffer: the extensions are notified about it once.
 	defer e.handleAfterEdit(buf)
 
@@ -754,7 +716,7 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 			return
 		}
 		// TODO: consider rendering multiple buffers.
-		buf := lps.editor.top.b
+		buf := lps.editor.Top()
 		buf.w = w
 		buf.h = max(h-lps.editor.status.Height(), 0)
 

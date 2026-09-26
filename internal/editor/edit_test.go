@@ -482,7 +482,7 @@ func TestEditor_AutoSave(t *testing.T) {
 		edit(&e)
 		e.handleInput([]byte("\x1b[O")) // Must not panic.
 		e.New()
-		if !e.top.next.b.dirty {
+		if !e.bufs[0].dirty {
 			t.Error("scratch buffer is not dirty anymore")
 		}
 	})
