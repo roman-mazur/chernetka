@@ -185,19 +185,17 @@ func (e *Editor) Send(cmd Command) {
 // SendBufferCmd queues a command changing the active buffer. The extensions
 // are notified about the change like they are about the user edits.
 func (e *Editor) SendBufferCmd(cmd BufferCommand) {
-	e.cmdChannel <- CommandFunc(func(e *Editor) { e.execBufferCmd(cmd, true) })
+	e.cmdChannel <- CommandFunc(func(e *Editor) { e.execBufferCmd(cmd) })
 }
 
-func (e *Editor) execBufferCmd(cmd BufferCommand, mutated bool) {
+func (e *Editor) execBufferCmd(cmd BufferCommand) {
 	b := e.Top()
 	if b == nil {
 		return
 	}
 	cmd.DoOnBuffer(b, e.rPrefs)
 	e.renderRequested = true
-	if mutated {
-		e.handleAfterEdit(b)
-	}
+	e.handleAfterEdit(b)
 }
 
 func (e *Editor) push(buf *Buffer) {
@@ -542,22 +540,22 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 	switch event.eventType {
 	case mouseEventTypeScroll:
 		dir := event.Mod.SrollDirection(event.Mouse)
-		e.execBufferCmd(Scroll(dir), false)
+		e.execBufferCmd(Scroll(dir))
 
 	case mouseEventTypeDragStart:
 		if buf.CheckContentCoordinates(event.Y, event.X) {
-			e.execBufferCmd(StartTextSelection, false)
+			e.execBufferCmd(StartTextSelection)
 		}
 		e.renderRequested = true
 
 	case mouseEventTypeDragEnd:
-		e.execBufferCmd(StopTextSelection, false)
+		e.execBufferCmd(StopTextSelection)
 
 	case mouseEventTypeDoubleClick:
-		e.execBufferCmd(SelectWord, false)
+		e.execBufferCmd(SelectWord)
 
 	case mouseEventTypeTripleClick:
-		e.execBufferCmd(SelectLine, false)
+		e.execBufferCmd(SelectLine)
 
 	case mouseEventTypeRaw:
 		overContent := buf.CheckContentCoordinates(event.Y, event.X)
@@ -581,6 +579,8 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 
 func (e *Editor) handleInput(input []byte) (quit bool) {
 	buf := e.top.b
+	// Any input may edit the buffer: the extensions are notified about it once.
+	defer e.handleAfterEdit(buf)
 
 	// Save the changes when the terminal loses focus, so the file system is in sync
 	// for the tools used outside the editor.
@@ -594,7 +594,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 
 	// Ctrl+S saves the current buffer in any mode.
 	if inputs.IsSaveCommand(input) {
-		e.execBufferCmd(&Save{buf.Path}, true) // Formatting may change it.
+		e.execBufferCmd(&Save{buf.Path}) // Formatting may change it.
 		return false
 	}
 
@@ -632,7 +632,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	var clipboardOp inputs.ClipboardOp
 	if inputs.IsClipboardOp(input, &clipboardOp) {
 		if cmd := ClipboardCommand(clipboardOp); cmd != nil {
-			e.execBufferCmd(cmd, true)
+			e.execBufferCmd(cmd)
 		}
 		return false
 	}
@@ -644,7 +644,6 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 			// TODO: Consider different ownership.
 			e.lastAction, buf.engaged = buf.engaged, nil
 		}
-		e.handleAfterEdit(buf)
 		return
 
 	case ModeInsert:
@@ -652,7 +651,6 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		if !handled {
 			insertInput(buf, input, &e.rPrefs)
 		}
-		e.handleAfterEdit(buf)
 		return false
 
 	case ModeCommand:
@@ -660,14 +658,11 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 			return false
 		}
 		if buf.search.typing && searchInput(buf, input) {
-			e.handleAfterEdit(buf) // Replacing changes the buffer.
 			return false
 		}
 		quit = commandInput(buf, input, &e.rPrefs)
 		e.syncQuickOpen(buf)
 		buf.syncSearch()
-		// TODO: this should be called by save only.
-		e.handleAfterEdit(buf) // Saving formats the buffer.
 		return quit
 	default:
 		return false
@@ -700,7 +695,7 @@ func (e *Editor) saveTop() {
 	if _, isDir := buf.Content.(*content.FsContent); isDir {
 		return // Its path is only a display name.
 	}
-	e.execBufferCmd(&Save{buf.Path}, true) // Formatting may change it.
+	e.execBufferCmd(&Save{buf.Path}) // Formatting may change it.
 }
 
 func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled bool) {

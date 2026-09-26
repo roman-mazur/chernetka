@@ -211,7 +211,7 @@ func TestEditor_Run(t *testing.T) {
 			t.Errorf("selected text is empty")
 		}
 		te.Post(t, CommandFunc(func(e *Editor) {
-			e.execBufferCmd(MoveHome, false)
+			e.execBufferCmd(MoveHome)
 		}))
 	})
 
