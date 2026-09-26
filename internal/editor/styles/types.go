@@ -35,6 +35,8 @@ type ColorTheme struct {
 	TextSelected   color.Color
 	TextSelectedBg color.Color
 	LineAction     color.Color // marker of the lines that can be engaged
+	SearchMatchBg  color.Color // search matches
+	SearchCursorBg color.Color // the search match at the cursor
 
 	syntaxColors map[code.TokenType]color.Color
 }

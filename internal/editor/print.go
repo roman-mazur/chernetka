@@ -184,7 +184,26 @@ func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, line
 }
 
 func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []colorSpan {
-	spans := cr.b.selectionsOnLine(line)
+	var spans []colorSpan
+	sel := cr.b.selectionsOnLine(line)
+	for _, span := range sel {
+		spans = append(spans, colorSpan{Span: span, color: styles.DefaultColors.TextSelectedBg})
+	}
+	// The selection takes priority over the search matches.
+	for _, match := range cr.b.searchMatchesOnLine(line, cr.lines[line].String()) {
+		overlaps := slices.ContainsFunc(sel, func(s content.Span) bool {
+			return s.Start.Col < match.End.Col && match.Start.Col < s.End.Col
+		})
+		if overlaps {
+			continue
+		}
+		bg := styles.DefaultColors.SearchMatchBg
+		if match.Start == cr.b.c {
+			bg = styles.DefaultColors.SearchCursorBg
+		}
+		spans = append(spans, colorSpan{Span: match, color: bg})
+	}
+
 	if len(spans) == 0 {
 		if !hlLine {
 			return nil
@@ -194,46 +213,32 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 			End:   content.Position{Col: lineLen, Line: line}}
 		return []colorSpan{cs}
 	}
+	slices.SortFunc(spans, func(a, b colorSpan) int { return a.Start.Col - b.Start.Col })
 
-	defBg := func() color.Color {
-		if hlLine {
-			return styles.DefaultColors.LineSelectedBg
-		}
-		return nil
+	var defBg color.Color
+	if hlLine {
+		defBg = styles.DefaultColors.LineSelectedBg
 	}
-
-	res := make([]colorSpan, 0, len(spans)+2)
-
-	if spans[0].Start.Col != 0 {
-		res = append(res, colorSpan{
-			Start: content.Position{0, line},
-			End:   content.Position{spans[0].Start.Col, line},
-			color: defBg(),
-		})
-	}
-
-	for i, selSpan := range spans {
-		res = append(res, colorSpan{
-			Span:  selSpan,
-			color: styles.DefaultColors.TextSelectedBg,
-		})
-		if i < len(spans)-1 && selSpan.End.Col != spans[i+1].Start.Col {
-			res = append(res, colorSpan{
-				Start: content.Position{selSpan.End.Col, line},
-				End:   content.Position{spans[i+1].Start.Col, line},
-				color: defBg(),
-			})
+	gap := func(from, to int) colorSpan {
+		return colorSpan{
+			Start: content.Position{Col: from, Line: line},
+			End:   content.Position{Col: to, Line: line},
+			color: defBg,
 		}
 	}
 
-	if spans[len(spans)-1].End.Col != lineLen {
-		res = append(res, colorSpan{
-			Start: content.Position{spans[len(spans)-1].End.Col, line},
-			End:   content.Position{lineLen, line},
-			color: defBg(),
-		})
+	res := make([]colorSpan, 0, 2*len(spans)+1)
+	last := 0
+	for _, span := range spans {
+		if span.Start.Col != last {
+			res = append(res, gap(last, span.Start.Col))
+		}
+		res = append(res, span)
+		last = span.End.Col
 	}
-
+	if last != lineLen {
+		res = append(res, gap(last, lineLen))
+	}
 	return res
 }
 

@@ -44,7 +44,11 @@
 //	+ / =    increase tab width
 //	-        decrease tab width
 //	:        enter command mode
+//	/        search (see below)
+//	n / N    move to the next / previous search match
+//	Esc      clear the selection and the search highlights
 //	Ctrl+O   quick open a file or switch to a buffer (in any mode)
+//	Ctrl+F   search (in any mode)
 //	Ctrl+D   save the current file and show its git diff in a new pane on the right (in any mode)
 //	Enter    engage the line action if the line is marked with ▶, move down otherwise
 //	Ctrl+R   re-run the last engaged line action
@@ -83,6 +87,21 @@
 //
 // Unsaved changes of a file are saved automatically when switching to another
 // buffer or when the terminal loses focus (if the terminal supports focus reporting).
+//
+// # Search and replace
+//
+// Type a regular expression (Go syntax) after / to search. The cursor moves to the
+// first match from its position as you type, and all the matches are highlighted.
+//
+//	Tab / ↓ / Ctrl+F  move to the next match
+//	Shift+Tab / ↑     move to the previous match
+//	Enter             keep the cursor at the match and the matches highlighted
+//	Esc               cancel and return the cursor where it was
+//
+// Like in sed, /pattern/replacement replaces the matches when Enter is pressed:
+// all of them in the buffer, like with the g flag. In the replacement, & is the
+// whole match, \1..\9 are the groups, \n and \t are a new line and a tab, and
+// \/ is a slash (in the pattern too).
 //
 // # Command mode
 //

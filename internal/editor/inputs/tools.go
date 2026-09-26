@@ -132,6 +132,10 @@ func IsQuickOpenCommand(b []byte) bool {
 	return len(b) == 1 && b[0] == 0x0f // Ctrl+O
 }
 
+func IsFindCommand(b []byte) bool {
+	return len(b) == 1 && b[0] == 0x06 // Ctrl+F
+}
+
 func IsShowDiffCommand(b []byte) bool {
 	return len(b) == 1 && b[0] == 0x04 // Ctrl+D
 }

@@ -31,9 +31,18 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		case '-':
 			prefs.tabsScaleDown()
 
-		// Esc: clear selection.
+		// Esc: clear selection and search highlights.
 		case inputs.Escape:
 			buf.cancelSelection()
+			buf.cancelSearch()
+
+		// Search.
+		case '/':
+			buf.startSearch()
+		case 'n':
+			buf.searchMove(1)
+		case 'N':
+			buf.searchMove(-1)
 
 		// Copy to clipboard.
 		case 'y':

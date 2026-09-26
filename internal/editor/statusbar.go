@@ -37,7 +37,29 @@ func (s *StatusBar) picker() *quickOpen {
 
 // RenderCursorPosition places the cursor at the end of the command line.
 func (s *StatusBar) RenderCursorPosition(out io.Writer) {
-	escape.SetCursorPosition(out, s.buf.h+s.Height(), len(s.buf.cmdline)+2)
+	escape.SetCursorPosition(out, s.buf.h+s.Height(), len(s.cmdPrefix())+len(s.buf.cmdline)+1)
+}
+
+// cmdPrefix is shown before the typed command. The search pattern is typed after its own "/" prefix.
+func (s *StatusBar) cmdPrefix() string {
+	if s.buf.search.typing {
+		return ""
+	}
+	return ":"
+}
+
+// searchInfo describes the state of the typed search.
+func (s *StatusBar) searchInfo() string {
+	search := s.buf.search
+	switch {
+	case !search.typing:
+		return ""
+	case search.failure != "":
+		return search.failure + " "
+	case search.replace && search.re != nil:
+		return "Enter: replace all "
+	}
+	return ""
 }
 
 // Render prints the status bar into the provided output.
@@ -59,8 +81,13 @@ func (s *StatusBar) Render(out io.Writer) {
 	if s.buf.mode == ModeCommand {
 		// In command mode, the status bar becomes the command line.
 		escape.ClearLine(out)
-		_, _ = io.WriteString(out, ":")
-		_, _ = io.WriteString(out, s.buf.cmdline)
+		cmd := s.cmdPrefix() + s.buf.cmdline
+		_, _ = io.WriteString(out, cmd)
+		if info := s.searchInfo(); info != "" {
+			padding := max(s.buf.w-len(cmd)-len(info), 1)
+			_, _ = io.WriteString(out, strings.Repeat(" ", padding))
+			_, _ = io.WriteString(out, info)
+		}
 		return
 	}
 
@@ -70,6 +97,9 @@ func (s *StatusBar) Render(out io.Writer) {
 		dirtyMark = " [*]"
 	}
 	status := fmt.Sprintf(" %s  %s%s", modeLabel, s.buf.Path, dirtyMark)
+	if re := s.buf.search.re; re != nil {
+		status += "  /" + re.String()
+	}
 	pos := fmt.Sprintf("%d:%d ", s.buf.c.Line+1, s.buf.c.Col+1)
 	padding := max(s.buf.w-len(status)-len(pos), 0)
 	_, _ = io.WriteString(out, status)

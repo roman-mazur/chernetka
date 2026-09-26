@@ -612,6 +612,17 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
+	// Ctrl+F starts the search in any mode, or moves to the next match while the pattern is typed.
+	if inputs.IsFindCommand(input) {
+		if buf.search.typing {
+			buf.searchMove(1)
+		} else {
+			e.closeQuickOpen()
+			buf.startSearch()
+		}
+		return false
+	}
+
 	// Ctrl+D shows the changes of the current file in any mode.
 	if inputs.IsShowDiffCommand(input) {
 		e.showDiff(buf)
@@ -648,8 +659,13 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		if e.status.quick != nil && e.quickOpenInput(input) {
 			return false
 		}
+		if buf.search.typing && searchInput(buf, input) {
+			e.handleAfterEdit(buf) // Replacing changes the buffer.
+			return false
+		}
 		quit = commandInput(buf, input, &e.rPrefs)
 		e.syncQuickOpen(buf)
+		buf.syncSearch()
 		// TODO: this should be called by save only.
 		e.handleAfterEdit(buf) // Saving formats the buffer.
 		return quit

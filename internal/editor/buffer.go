@@ -31,6 +31,8 @@ type Buffer struct {
 	sel       []content.Span // selected text
 	selecting bool
 
+	search bufSearch
+
 	engaged content.LineAction // action engaged by the last input, taken over by the Editor
 
 	ext bufExtensions // extensions registered for this buffer
