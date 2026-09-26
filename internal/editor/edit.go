@@ -361,6 +361,7 @@ func configureTerminal(t vt.Terminal) {
 		escape.EnableAlternativeBuffer,
 		escape.DisableLineWrapping,
 		escape.EnableBracketedPasteMode,
+		escape.EnableMouse,
 	)
 }
 
