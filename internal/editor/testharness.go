@@ -53,9 +53,13 @@ func (h *TestHarness) Run(t *testing.T) {
 		_ = h.pipeReader.CloseWithError(io.EOF)
 		<-runFinished
 	})
+	// Extensions may already log from their goroutines: keep a logger
+	// that is set, and set one before the loop starts otherwise.
+	if h.Editor.Func == nil {
+		h.Editor.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
+	}
 	go func() {
 		defer close(runFinished)
-		h.Editor.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 		h.Editor.Run(term)
 	}()
 }

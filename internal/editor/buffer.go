@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -54,6 +55,9 @@ func (b *Buffer) ExtensionData(id string) BufferExtData { return b.ext.data(id) 
 // cx is the symbol offset within the content line.
 // cy is the line index in the Content.
 func (b *Buffer) Pos() (cx, cy int) { return b.c.Col, b.c.Line }
+
+// Mode returns the current editing mode.
+func (b *Buffer) Mode() Mode { return b.mode }
 
 // Close propagates the call to the Content and extension objects if they implement io.Closer.
 func (b *Buffer) Close() error {
@@ -201,9 +205,9 @@ func (b *Buffer) selectionsOnLine(line int) (res []content.Span) {
 }
 
 // AcceptSuggestion inserts the active inline suggestion at the cursor and
-// advances past it. It is a no-op when there is no suggestion or the buffer is
-// read-only.
-func (b *Buffer) AcceptSuggestion(sug string) {
+// moves the cursor to the given offset in it (len(sug) to advance past it).
+// It is a no-op when there is no suggestion or the buffer is read-only.
+func (b *Buffer) AcceptSuggestion(sug string, cursor int) {
 	if sug == "" || !b.canEdit() {
 		return
 	}
@@ -212,7 +216,48 @@ func (b *Buffer) AcceptSuggestion(sug string) {
 		b.c.Col = len(line)
 	}
 	b.Mutate().Update(b.c.Line, content.TextLine(line[:b.c.Col]+sug+line[b.c.Col:]))
-	b.c.Col += len(sug)
+	b.c.Col += min(max(cursor, 0), len(sug))
+}
+
+// ReplaceText replaces the text between start and end (byte columns) with text,
+// which may span several lines. The cursor stays on the same content: it moves
+// along if the change is before it, or lands at the end of the new text if it
+// was inside the replaced range. It is a no-op for a read-only buffer or
+// positions outside the content.
+func (b *Buffer) ReplaceText(start, end content.Position, text string) {
+	lines := b.Content.Lines()
+	if !b.canEdit() || start.Line > end.Line || end.Line >= len(lines) ||
+		start.Col > lines[start.Line].Len() || end.Col > lines[end.Line].Len() ||
+		(start.Line == end.Line && start.Col > end.Col) {
+		return
+	}
+	prefix := lines[start.Line].String()[:start.Col]
+	suffix := lines[end.Line].String()[end.Col:]
+	newLines := strings.Split(prefix+text+suffix, "\n")
+
+	mut := b.Mutate()
+	oldCount := end.Line - start.Line + 1
+	for i, l := range newLines {
+		if i < oldCount {
+			mut.Update(start.Line+i, content.TextLine(l))
+		} else {
+			mut.Insert(start.Line+i, content.TextLine(l))
+		}
+	}
+	for range oldCount - len(newLines) {
+		mut.Delete(start.Line + len(newLines))
+	}
+
+	lastLine := start.Line + len(newLines) - 1
+	lastCol := len(newLines[len(newLines)-1]) - len(suffix)
+	switch c := b.c; {
+	case c.Line > end.Line:
+		b.c.Line += len(newLines) - oldCount
+	case c.Line == end.Line && c.Col >= end.Col:
+		b.c = content.Position{Line: lastLine, Col: lastCol + c.Col - end.Col}
+	case c.Line > start.Line || (c.Line == start.Line && c.Col > start.Col):
+		b.c = content.Position{Line: lastLine, Col: lastCol}
+	}
 }
 
 func (b *Buffer) canEdit() bool {

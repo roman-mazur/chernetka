@@ -7,8 +7,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -22,7 +24,7 @@ type contentPrinter struct {
 	lines []content.Line
 	i, j  int // lines range
 
-	suggestion string
+	suggestion code.Suggestion
 
 	lnDigits int      // number of digits for line numbers
 	lnBuf    [10]byte // buffer for line numbers
@@ -74,14 +76,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 
 		lineHL := ln == cr.b.c.Line && !cr.b.noCurrentLineHL
 		cr.renderLine(out, ln, raw, lineHL)
-
-		if lineHL {
-			rightPad := cr.b.w - runeToScreenCol(raw, len(raw), len(cr.tab))
-			if rightPad > 0 {
-				escape.StyleText(out, strings.Repeat(" ", rightPad),
-					styles.TextStyle{BgColor: styles.DefaultColors.LineSelectedBg})
-			}
-		}
+		cr.renderLineTail(out, ln, raw, lineHL)
 
 		if !cr.b.hideLineActions && cr.b.lineAction(ln) != nil {
 			cr.renderActionMarker(out, lineHL, ln)
@@ -115,32 +110,76 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 		bg:   cr.buildBgSpans(ln, len(line), hlLine),
 	}
 
-	if ln == cr.b.c.Line && cr.suggestion != "" && cr.b.c.Col <= len(line) {
-		p.print(line[:cr.b.c.Col], styles.TextStyle{})
-		p.printSuggestion(cr.suggestion, styles.DefaultColors.Suggestion)
-		p.print(line[cr.b.c.Col:], styles.TextStyle{})
-		// TODO: use syntax HL
-		return
+	// The suggestion is shown as ghost text at the cursor, in the middle of
+	// the highlighted segments.
+	ghostAt := -1
+	if cr.hasGhost(ln, line) {
+		ghostAt = cr.b.c.Col
 	}
-
-	if cr.SyntaxHighlighter == nil {
-		p.print(line, styles.TextStyle{})
-		return
+	printSegment := func(from, to int, style styles.TextStyle) {
+		if from <= ghostAt && ghostAt < to {
+			if from < ghostAt {
+				p.print(line[from:ghostAt], style)
+			}
+			p.printSuggestion(cr.suggestion.Text, styles.DefaultColors.Suggestion)
+			from, ghostAt = ghostAt, -1
+		}
+		p.print(line[from:to], style)
 	}
 
 	lastIndex := 0
-	for _, span := range cr.SyntaxSpans(ln, line) {
-		if span.Start > lastIndex {
-			p.print(line[lastIndex:span.Start], styles.TextStyle{})
+	if cr.SyntaxHighlighter != nil {
+		for _, span := range cr.SyntaxSpans(ln, line) {
+			if span.Start > lastIndex {
+				printSegment(lastIndex, span.Start, styles.TextStyle{})
+			}
+			if span.End > len(line) {
+				panic(fmt.Errorf("line %d %q, span %s out of range", ln, line, span))
+			}
+			printSegment(span.Start, span.End, styles.ResolveTokenStyle(span.TokenType))
+			lastIndex = span.End
 		}
-		if span.End > len(line) {
-			panic(fmt.Errorf("line %d %q, span %s out of range", ln, line, span))
-		}
-		p.print(line[span.Start:span.End], styles.ResolveTokenStyle(span.TokenType))
-		lastIndex = span.End
 	}
 	if lastIndex < len(line) {
-		p.print(line[lastIndex:], styles.TextStyle{})
+		printSegment(lastIndex, len(line), styles.TextStyle{})
+	}
+	if ghostAt != -1 {
+		p.printSuggestion(cr.suggestion.Text, styles.DefaultColors.Suggestion)
+	}
+}
+
+func (cr *contentPrinter) hasGhost(ln int, line string) bool {
+	return ln == cr.b.c.Line && cr.suggestion.Text != "" && cr.b.c.Col <= len(line)
+}
+
+// renderLineTail fills the rest of the line after its content: the current
+// line background, and the suggestion info aligned to the right.
+func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, lineHL bool) {
+	used := runeToScreenCol(raw, len(raw), len(cr.tab))
+	var info string
+	if cr.hasGhost(ln, raw) {
+		used += utf8.RuneCountInString(cr.suggestion.Text)
+		info = cr.suggestion.Info
+	}
+	free := cr.b.w - used
+	if !cr.b.hideLineNumbers {
+		free -= cr.lnDigits + 1
+	}
+
+	var bg styles.TextStyle
+	if lineHL {
+		bg.BgColor = styles.DefaultColors.LineSelectedBg
+	}
+	const gap, margin = 4, 2 // keep the info off the text and the action marker
+	if infoLen := utf8.RuneCountInString(info); info != "" && free >= infoLen+gap+margin {
+		escape.StyleText(out, strings.Repeat(" ", free-infoLen-margin), bg)
+		infoStyle := bg
+		infoStyle.TextColor = styles.DefaultColors.Suggestion
+		escape.StyleText(out, info, infoStyle)
+		free = margin
+	}
+	if lineHL && free > 0 {
+		escape.StyleText(out, strings.Repeat(" ", free), bg)
 	}
 }
 

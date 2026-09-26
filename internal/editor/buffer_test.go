@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
@@ -264,11 +266,11 @@ func makeSpan(s content.Span) escape.Span        { return escape.Span{makePos(s.
 
 type testSuggestionExt []string
 
-func (tse testSuggestionExt) TextSuggestion() string {
+func (tse testSuggestionExt) TextSuggestion() (s code.Suggestion) {
 	if len(tse) == 0 {
-		return ""
+		return
 	}
-	return tse[0]
+	return code.Suggestion{Text: tse[0]}
 }
 
 func TestBuffer_AcceptSuggestion(t *testing.T) {
@@ -277,12 +279,93 @@ func TestBuffer_AcceptSuggestion(t *testing.T) {
 		c:       content.Position{3, 0},
 	}
 
-	buf.AcceptSuggestion("ntln")
+	buf.AcceptSuggestion("ntln", 4)
 	if got := buf.Content.Lines()[0].String(); got != "Println" {
 		t.Errorf("line = %q, want %q", got, "Println")
 	}
 	if buf.c.Col != 7 {
 		t.Errorf("cx = %d, want 7", buf.c.Col)
+	}
+
+	buf.AcceptSuggestion("()", 1)
+	if got := buf.Content.Lines()[0].String(); got != "Println()" {
+		t.Errorf("line = %q, want %q", got, "Println()")
+	}
+	if buf.c.Col != 8 {
+		t.Errorf("cx = %d, want 8 (inside the brackets)", buf.c.Col)
+	}
+}
+
+func TestBuffer_ReplaceText(t *testing.T) {
+	pos := func(line, col int) content.Position { return content.Position{Col: col, Line: line} }
+	cases := []struct {
+		name       string
+		lines      []string
+		cursor     content.Position
+		start, end content.Position
+		text       string
+		wantText   string
+		wantCursor content.Position
+	}{
+		{
+			name:  "insert import line above the cursor",
+			lines: []string{"import (", "\t\"fmt\"", ")", "", "strings.Sp"},
+			// gopls style: insert before the closing paren.
+			cursor: pos(4, 10), start: pos(1, 6), end: pos(1, 6), text: "\n\t\"strings\"",
+			wantText:   "import (\n\t\"fmt\"\n\t\"strings\"\n)\n\nstrings.Sp",
+			wantCursor: pos(5, 10),
+		},
+		{
+			name:   "collapse lines above the cursor",
+			lines:  []string{"a", "b", "c", "x"},
+			cursor: pos(3, 1), start: pos(0, 1), end: pos(2, 0), text: "",
+			wantText:   "ac\nx",
+			wantCursor: pos(1, 1),
+		},
+		{
+			name:   "edit before the cursor on its line",
+			lines:  []string{"foo(bar)"},
+			cursor: pos(0, 7), start: pos(0, 0), end: pos(0, 3), text: "fmt.Println",
+			wantText:   "fmt.Println(bar)",
+			wantCursor: pos(0, 15),
+		},
+		{
+			name:   "edit after the cursor",
+			lines:  []string{"ab", "cd"},
+			cursor: pos(0, 1), start: pos(1, 0), end: pos(1, 2), text: "x\ny",
+			wantText:   "ab\nx\ny",
+			wantCursor: pos(0, 1),
+		},
+		{
+			name:   "cursor inside replaced range",
+			lines:  []string{"hello world"},
+			cursor: pos(0, 3), start: pos(0, 0), end: pos(0, 5), text: "bye",
+			wantText:   "bye world",
+			wantCursor: pos(0, 3),
+		},
+		{
+			name:   "out of range is ignored",
+			lines:  []string{"ab"},
+			cursor: pos(0, 1), start: pos(0, 0), end: pos(1, 0), text: "zz",
+			wantText:   "ab",
+			wantCursor: pos(0, 1),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var text content.FullText
+			for _, l := range tc.lines {
+				text = append(text, content.TextLine(l))
+			}
+			buf := &Buffer{Content: &text, c: tc.cursor}
+			buf.ReplaceText(tc.start, tc.end, tc.text)
+			if got := buf.Text(); got != tc.wantText {
+				t.Errorf("text = %q, want %q", got, tc.wantText)
+			}
+			if buf.c != tc.wantCursor {
+				t.Errorf("cursor = %s, want %s", buf.c, tc.wantCursor)
+			}
+		})
 	}
 }
 
@@ -661,4 +744,54 @@ func TestEditor_RerunAction(t *testing.T) {
 			t.Errorf("Ctrl+R changed the text: %q", text)
 		}
 	}))
+}
+
+// ghostAssist is a CodeAssist with a syntax highlighter and suggestion info.
+type ghostAssist struct {
+	suggestion, info string
+	spans            []SyntaxSpan
+}
+
+func (g ghostAssist) TextSuggestion() code.Suggestion {
+	return code.Suggestion{Text: g.suggestion, Info: g.info}
+}
+func (g ghostAssist) SyntaxSpans(int, string) []SyntaxSpan { return g.spans }
+
+func TestBuffer_RenderGhostKeepsSyntaxHighlight(t *testing.T) {
+	keyword := SyntaxSpan{Start: 0, End: 3, TokenType: code.TtKeyword}
+	ext := ghostAssist{suggestion: "intln", info: "func(a ...any)", spans: []SyntaxSpan{keyword}}
+	buf := &Buffer{
+		Path:    "test.go",
+		Content: &content.FullText{content.TextLine("fmt.Pr()")},
+		mode:    ModeInsert,
+		c:       content.Position{Col: 6},
+		w:       40,
+		h:       3,
+
+		noCurrentLineHL: true,
+	}
+	buf.ext.extend("lsp", ext)
+
+	var out bytes.Buffer
+	buf.Render(&out, &RenderPrefs{TabSize: 4})
+
+	var styled bytes.Buffer
+	escape.StyleText(&styled, "fmt", styles.ResolveTokenStyle(code.TtKeyword))
+	if !strings.Contains(out.String(), styled.String()) {
+		t.Errorf("syntax highlight is lost with a suggestion shown:\n%q", out.String())
+	}
+	got := escape.Clean(out.String())
+	if !strings.Contains(got, "1 fmt.Println()") {
+		t.Errorf("ghost text missing:\n%s", got)
+	}
+	if !strings.Contains(got, "func(a ...any)") {
+		t.Errorf("suggestion info missing:\n%s", got)
+	}
+
+	buf.w = 20 // Too narrow for the info.
+	out.Reset()
+	buf.Render(&out, &RenderPrefs{TabSize: 4})
+	if got := escape.Clean(out.String()); strings.Contains(got, "func(") {
+		t.Errorf("suggestion info shown on a narrow screen:\n%s", got)
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 )
 
@@ -54,7 +55,7 @@ func (r *recordingExt) HandleInsertInput(_ *editor.Buffer, _ *editor.RenderPrefs
 // it under the extension's ID.
 type stubExtData struct{}
 
-func (stubExtData) TextSuggestion() string { return "" }
+func (stubExtData) TextSuggestion() code.Suggestion { return code.Suggestion{} }
 
 // TestEditor_MakeBufferDataOnOpen verifies the editor asks each extension to
 // build its per-buffer data whenever a buffer is opened.

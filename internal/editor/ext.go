@@ -22,7 +22,7 @@ type BufferExtData any
 
 // CodeAssist can be optionally implemented by BufferExtData.
 type CodeAssist interface {
-	TextSuggestion() string
+	TextSuggestion() code.Suggestion
 }
 
 // SyntaxHighlighter can be optionally implemented by BufferExtData.

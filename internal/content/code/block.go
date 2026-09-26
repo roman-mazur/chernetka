@@ -27,3 +27,9 @@ type Blocks interface {
 	// The result must not be modified.
 	CodeBlocks() []Block
 }
+
+// Suggestion defines what data can be provided to an editor to assist with typing the code.
+type Suggestion struct {
+	Text string // text to insert
+	Info string // extra info like type of func signature
+}
