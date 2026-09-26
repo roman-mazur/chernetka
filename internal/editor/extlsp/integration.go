@@ -30,6 +30,7 @@ type lspClient interface {
 	DidChange(ctx context.Context, fileURI uri.URI, version int32, changes ...lsp.TextChange) error
 	Completion(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.CompletionItem, error)
 	OrganizeImports(ctx context.Context, fileURI uri.URI) ([]protocol.TextEdit, error)
+	Formatting(ctx context.Context, fileURI uri.URI, opts protocol.FormattingOptions) ([]protocol.TextEdit, error)
 	Shutdown(ctx context.Context) error
 }
 
@@ -55,6 +56,8 @@ func (le *Integration) startLSP(ctx context.Context, rootDir string) (lspClient,
 // cursor is in the middle of typing an identifier (or right after a selector
 // dot) the edit is followed by a completion request. The best candidates are
 // shown as an inline suggestion that can be accepted with Tab.
+//
+// Saving a Go buffer formats it with the server first.
 type Integration struct {
 	logger.LogEmbed
 
@@ -65,6 +68,7 @@ type Integration struct {
 	queue    syncQueue
 	loopDone chan struct{}
 	client   lspClient   // owned by the sync loop until it's done
+	ready    atomic.Bool // the server has started
 	failed   atomic.Bool // the server couldn't start
 }
 
@@ -81,7 +85,7 @@ func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	}
 	le.startLoop()
 
-	var bufData BufferData
+	bufData := BufferData{integration: le, buf: buf}
 	bufData.SetPath(absPath)
 	bufData.version = 1
 	// The server gets the document once it's ready.
@@ -220,6 +224,7 @@ func (le *Integration) start(ctx context.Context, rootDir string) bool {
 	}
 	le.Logf("LSP server is ready in %s", time.Since(started).Round(time.Millisecond))
 	le.client = client
+	le.ready.Store(true)
 	return true
 }
 
@@ -229,13 +234,16 @@ func (le *Integration) sync(ctx context.Context, client lspClient, req syncReq) 
 
 	uri := req.bufData.docUri
 	data := req.bufData
-	if !data.serverOpen {
-		if err := client.DidOpen(ctx, uri, "go", req.text, req.version); err != nil {
-			le.Debugf("didOpen failed: %s", err)
-			return
+	synced := le.syncText(ctx, client, req)
+	if req.format != nil {
+		// Reply before anything else: the editor is waiting.
+		var edits []protocol.TextEdit
+		if synced {
+			edits = le.formatting(ctx, client, req)
 		}
-		data.serverOpen, data.serverText, data.serverSynced = true, req.text, true
-	} else if err := le.sendChange(ctx, client, req); err != nil {
+		req.format.res <- edits
+	}
+	if !synced {
 		return
 	}
 	if req.addImports {
@@ -268,6 +276,69 @@ func (le *Integration) sync(ctx context.Context, client lspClient, req syncReq) 
 		data.assign(suggestions, at)
 		e.RequestRender()
 	}))
+}
+
+// syncText sends the server the text of req.
+func (le *Integration) syncText(ctx context.Context, client lspClient, req syncReq) bool {
+	data := req.bufData
+	if data.serverOpen {
+		return le.sendChange(ctx, client, req) == nil
+	}
+	if err := client.DidOpen(ctx, data.docUri, "go", req.text, req.version); err != nil {
+		le.Debugf("didOpen failed: %s", err)
+		return false
+	}
+	data.serverOpen, data.serverText, data.serverSynced = true, req.text, true
+	return true
+}
+
+// formatTimeout is how long saving a buffer waits for the server to format it.
+const formatTimeout = time.Second
+
+// format formats the buffer with the server. It blocks the editor loop until
+// the server replies, which usually takes milliseconds, but no longer than
+// formatTimeout. The buffer is left as is if the server isn't ready, fails
+// (as it does on syntax errors), or is too slow.
+func (le *Integration) format(buf *editor.Buffer, data *BufferData, prefs editor.RenderPrefs) {
+	if !le.ready.Load() {
+		return // Saving doesn't wait for the server to start.
+	}
+	text := buf.Text()
+	res := make(chan []protocol.TextEdit, 1)
+	data.version++
+	le.queue.push(syncReq{
+		buf:     buf,
+		bufData: data,
+		text:    text,
+		version: data.version,
+		format:  &formatReq{res: res, opts: protocol.FormattingOptions{TabSize: uint32(prefs.TabSize)}},
+	})
+
+	timer := time.NewTimer(formatTimeout)
+	defer timer.Stop()
+	var edits []protocol.TextEdit
+	select {
+	case edits = <-res:
+	case <-timer.C:
+		le.Logf("formatting timed out")
+		return
+	}
+	if len(edits) == 0 || buf.Text() != text {
+		return
+	}
+	applyEdits(buf, edits)
+}
+
+// formatting returns the edits formatting the text of req.
+func (le *Integration) formatting(ctx context.Context, client lspClient, req syncReq) []protocol.TextEdit {
+	started := time.Now()
+	edits, err := client.Formatting(ctx, req.bufData.docUri, req.format.opts)
+	if err != nil {
+		le.Debugf("formatting failed: %s", err)
+		return nil
+	}
+	le.Debugf("formatting: %d edits in %s", len(edits), time.Since(started).Round(time.Millisecond))
+	return edits
 }
 
 // addImports adds the imports missing for the packages used in the text of
@@ -369,11 +440,17 @@ type syncReq struct {
 
 	completion *completionReq // nil if no completion is needed
 	addImports bool           // add the imports missing after the change
+	format     *formatReq     // nil if no formatting is needed
 }
 
 type completionReq struct {
 	id int
 	at anchor
+}
+
+type formatReq struct {
+	res  chan<- []protocol.TextEdit // receives the formatting edits
+	opts protocol.FormattingOptions
 }
 
 // syncQueue keeps the latest syncReq per buffer.
@@ -389,7 +466,10 @@ func (q *syncQueue) push(req syncReq) {
 	for i := range q.pending {
 		if q.pending[i].bufData == req.bufData {
 			// The latest state wins, but the imports must still be checked.
-			req.addImports = req.addImports || q.pending[i].addImports
+			if prev := q.pending[i]; prev.addImports && !req.addImports {
+				req.addImports = true
+				req.editor = prev.editor // A format request has no editor.
+			}
 			q.pending[i] = req
 			replaced = true
 		}

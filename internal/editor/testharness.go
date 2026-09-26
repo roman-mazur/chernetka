@@ -27,7 +27,8 @@ type TestHarness struct {
 // NewTestHarness returns a harness around a fresh editor with an initialized
 // command queue, so Post never blocks even without a running event loop.
 func NewTestHarness() *TestHarness {
-	edit := &Editor{cmdChannel: make(chan Command, 1), rPrefs: newRenderPrefs()}
+	edit := &Editor{cmdChannel: make(chan Command, 1)}
+	edit.rPrefs = newRenderPrefs()
 
 	r, w := io.Pipe()
 	return &TestHarness{Editor: edit, pipeReader: r, pipeWriter: w}

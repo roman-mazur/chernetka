@@ -251,14 +251,18 @@ func (pt PasteText) DoOnBuffer(b *Buffer, _ RenderPrefs) {
 	b.c = content.InsertText(b.Mutate(), b.c, string(pt))
 }
 
-// Save stores the boffer content in the destination path.
+// Save stores the buffer content in the destination path, formatting it first
+// with the extensions implementing Formatter.
 type Save struct {
 	DstPath string
 }
 
-func (s *Save) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
+func (s *Save) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
 	if s.DstPath == "" {
 		return
+	}
+	if f, ok := FindExtData[Formatter](buf); ok {
+		f.Format(prefs)
 	}
 	err := content.Save(buf.Content, s.DstPath)
 	if err == nil {

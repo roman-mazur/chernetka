@@ -69,6 +69,8 @@
 //	↑ ↓        cycle through the alternatives, if there are several
 //	Esc        dismiss the suggestion (press again to return to normal mode)
 //
+// Go files are formatted with gopls when saved.
+//
 // # Command mode
 //
 // Entered by pressing : in normal mode. Type a command and press Enter to run it.

@@ -248,6 +248,37 @@ func TestSave_WritesFileAndClearsDirty(t *testing.T) {
 	}
 }
 
+// formatterData upper-cases the buffer when formatting it.
+type formatterData struct{ buf *Buffer }
+
+func (fd formatterData) Format(RenderPrefs) {
+	buf := fd.buf
+	lines := buf.Content.Lines()
+	for i, l := range lines {
+		span := content.Span{Start: content.Position{Line: i}, End: content.Position{Line: i, Col: l.Len()}}
+		buf.ReplaceText(span, strings.ToUpper(l.String()))
+	}
+}
+
+func TestSave_Formats(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "out.txt")
+	ft := content.FullText{content.TextLine("first"), content.TextLine("")}
+	buf := &Buffer{Path: path, Content: &ft}
+	buf.ext.extend("fmt", formatterData{buf})
+
+	(&Save{path}).DoOnBuffer(buf, RenderPrefs{})
+
+	if buf.dirty {
+		t.Errorf("dirty = true, want false after save")
+	}
+	if got, want := buf.Text(), "FIRST\n"; got != want {
+		t.Errorf("buffer text = %q, want %q", got, want)
+	}
+	if data, err := os.ReadFile(path); err != nil || string(data) != "FIRST\n" {
+		t.Errorf("file content = %q (%v), want %q", data, err, "FIRST\n")
+	}
+}
+
 func TestSave_NoPath(t *testing.T) {
 	ft := content.FullText{content.TextLine("x")}
 	buf := &Buffer{Content: &ft, dirty: true}

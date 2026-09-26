@@ -536,7 +536,7 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 
 	// Ctrl+S saves the current buffer in any mode.
 	if inputs.IsSaveCommand(input) {
-		e.execBufferCmd(&Save{buf.Path}, false)
+		e.execBufferCmd(&Save{buf.Path}, true) // Formatting may change it.
 		return false
 	}
 
@@ -575,7 +575,9 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 
 	case ModeCommand:
-		return commandInput(buf, input, &e.rPrefs)
+		quit = commandInput(buf, input, &e.rPrefs)
+		e.handleAfterEdit(buf) // Saving formats the buffer.
+		return quit
 	default:
 		return false
 	}

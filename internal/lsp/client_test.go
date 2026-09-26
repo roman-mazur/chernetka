@@ -48,6 +48,15 @@ func TestClient_RoundTrip(t *testing.T) {
 			return reply(ctx, &protocol.CompletionList{
 				Items: []protocol.CompletionItem{{Label: "Println", InsertText: "Println"}},
 			}, nil)
+		case protocol.MethodTextDocumentFormatting:
+			var p protocol.DocumentFormattingParams
+			if err := jsonrpc2DecodeParams(req, &p); err != nil || p.Options.TabSize != 8 {
+				return reply(ctx, nil, fmt.Errorf("unexpected options %+v (%v)", p.Options, err))
+			}
+			return reply(ctx, []protocol.TextEdit{{
+				Range:   protocol.Range{Start: protocol.Position{Line: 2, Character: 8}, End: protocol.Position{Line: 2, Character: 8}},
+				NewText: " ",
+			}}, nil)
 		case protocol.MethodShutdown:
 			return reply(ctx, nil, nil)
 		case protocol.MethodExit:
@@ -99,6 +108,14 @@ func TestClient_RoundTrip(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Label != "Println" {
 		t.Fatalf("got items=%v, want one Println", items)
+	}
+
+	edits, err := c.Formatting(ctx, fileURI, protocol.FormattingOptions{TabSize: 8})
+	if err != nil {
+		t.Fatalf("Formatting: %v", err)
+	}
+	if len(edits) != 1 || edits[0].NewText != " " || edits[0].Range.Start.Line != 2 {
+		t.Errorf("got edits=%+v, want one space inserted on line 2", edits)
 	}
 
 	if err := c.Shutdown(ctx); err != nil {

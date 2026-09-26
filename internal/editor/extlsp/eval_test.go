@@ -874,3 +874,44 @@ func TestRealGoplsAddsImports(t *testing.T) {
 		}
 	}
 }
+
+// TestRealGoplsFormatsOnSave saves a badly formatted file with the production
+// integration and a real gopls.
+func TestRealGoplsFormatsOnSave(t *testing.T) {
+	skipUnlessEval(t)
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/x\n\ngo 1.22\n"), 0o644)
+	src := "package main\nimport \"fmt\"\nfunc main() {\n  x:=1\n    fmt.Println( x )\n}\n"
+	want := "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tx := 1\n\tfmt.Println(x)\n}\n"
+	path := filepath.Join(dir, "main.go")
+	_ = os.WriteFile(path, []byte(src), 0o644)
+
+	var le Integration
+	h := editor.NewTestHarness()
+	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
+	h.Extend(&le)
+	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
+		t.Fatal(err)
+	}
+	defer le.Close()
+	h.Run(t)
+	for !le.ready.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	started := time.Now()
+	h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
+		(&editor.Save{DstPath: path}).DoOnBuffer(e.Top(), editor.RenderPrefs{})
+	}))
+	fmt.Printf("saved in %s\n", time.Since(started).Round(time.Millisecond))
+	if got, _ := os.ReadFile(path); string(got) != want {
+		t.Errorf("saved\n%s\nwant\n%s", got, want)
+	}
+
+	// Once the workspace is loaded.
+	started = time.Now()
+	h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
+		(&editor.Save{DstPath: path}).DoOnBuffer(e.Top(), editor.RenderPrefs{})
+	}))
+	fmt.Printf("saved again in %s\n", time.Since(started).Round(time.Millisecond))
+}

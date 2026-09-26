@@ -35,6 +35,8 @@ type Buffer struct {
 
 	ext bufExtensions // extensions registered for this buffer
 
+	version uint64 // internal edits version
+
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
 }
@@ -334,6 +336,7 @@ func (b *Buffer) setMutated() {
 	b.dirty = true
 	b._mutated = true
 	b._textCache = ""
+	b.version++
 }
 
 func (b *Buffer) resetMutated() (prev bool) {

@@ -1,9 +1,9 @@
 // Package lsp is a minimal LSP client used by the editor to obtain completion
-// suggestions from a language server (gopls).
+// suggestions and formatting from a language server (gopls).
 //
 // It exposes the small subset of LSP methods the editor needs: initialize,
-// didOpen, didChange, completion, and shutdown. The transport is JSON-RPC over
-// the server's stdio.
+// didOpen, didChange, completion, formatting, organize imports, and shutdown.
+// The transport is JSON-RPC over the server's stdio.
 package lsp
 
 import (
@@ -238,6 +238,20 @@ func (c *Client) Completion(ctx context.Context, fileURI uri.URI, line, characte
 		return nil, err
 	}
 	return list.Items, nil
+}
+
+// Formatting returns the edits formatting the document with the given options
+// (gopls ignores them: it runs gofmt). The edits are for the document version
+// the server has.
+func (c *Client) Formatting(ctx context.Context, fileURI uri.URI, opts protocol.FormattingOptions) ([]protocol.TextEdit, error) {
+	var edits []protocol.TextEdit
+	if _, err := c.conn.Call(ctx, protocol.MethodTextDocumentFormatting, &protocol.DocumentFormattingParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
+		Options:      opts,
+	}, &edits); err != nil {
+		return nil, err
+	}
+	return edits, nil
 }
 
 // OrganizeImports returns the edits of the "organize imports" source action:

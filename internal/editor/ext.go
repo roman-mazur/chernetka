@@ -22,11 +22,26 @@ type BufferExtData any
 
 // CodeAssist can be optionally implemented by BufferExtData.
 type CodeAssist interface {
+	BufferExtData
+
 	TextSuggestion() code.Suggestion
+}
+
+// Formatter can be optionally implemented by BufferExtData to format its
+// buffer before it's saved.
+type Formatter interface {
+	BufferExtData
+
+	// Format edits the buffer content into its canonical form, with tabs as
+	// wide as prefs tell. It runs on the editor loop, so it must not take
+	// long; the buffer may be left as is.
+	Format(prefs RenderPrefs)
 }
 
 // SyntaxHighlighter can be optionally implemented by BufferExtData.
 type SyntaxHighlighter interface {
+	BufferExtData
+
 	// SyntaxSpans returns the highlighted regions of the given line.
 	// The result is sorted by Start, spans never overlap, and every span stays
 	// within the bounds of line. Regions that need no highlight are omitted, so

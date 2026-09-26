@@ -11,7 +11,9 @@ import (
 )
 
 type BufferData struct {
-	docUri uri.URI
+	integration *Integration
+	buf         *editor.Buffer
+	docUri      uri.URI
 
 	suggestions []suggestion
 	sugIdx      int    // what suggestion is picked
@@ -145,4 +147,14 @@ func (lbd *BufferData) typeThrough(line string, cx, cy int) {
 	}
 }
 
-var _ editor.CodeAssist = new(BufferData) // enforce code assist interface implementation
+// Format formats the buffer with the language server before it's saved.
+func (lbd *BufferData) Format(prefs editor.RenderPrefs) {
+	if lbd.integration != nil {
+		lbd.integration.format(lbd.buf, lbd, prefs)
+	}
+}
+
+var (
+	_ editor.CodeAssist = new(BufferData) // enforce code assist interface implementation
+	_ editor.Formatter  = new(BufferData)
+)

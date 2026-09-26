@@ -2,6 +2,8 @@ package extlsp
 
 import (
 	"context"
+	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -139,6 +141,8 @@ type fakeLSP struct {
 	organize  func(text string) string // what organize imports makes of the text
 	organized int                      // organize imports requests
 
+	format     func(text string) string // what formatting makes of the text
+	formatOpts protocol.FormattingOptions
 }
 
 func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, _, text string, v int32) error {
@@ -188,13 +192,27 @@ func (f *fakeLSP) OrganizeImports(context.Context, uri.URI) ([]protocol.TextEdit
 	return []protocol.TextEdit{{Range: *change.Range, NewText: change.Text}}, nil
 }
 
+func (f *fakeLSP) Formatting(_ context.Context, _ uri.URI, opts protocol.FormattingOptions) ([]protocol.TextEdit, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.formatOpts = opts
+	if f.format == nil {
+		return nil, errors.New("no formatting")
+	}
+	change := diff(f.text, f.format(f.text))
+	return []protocol.TextEdit{{Range: *change.Range, NewText: change.Text}}, nil
+}
+
 func (f *fakeLSP) Shutdown(context.Context) error { return nil }
 
 // newGoBuffer wires le into a fresh editor backed by fake, opens a Go buffer
 // holding text, and returns the buffer together with its LSP extension data.
+// The starter of le is kept if set.
 func newGoBuffer(t *testing.T, le *Integration, fake *fakeLSP, text string) (*editor.TestHarness, *editor.Buffer, *BufferData) {
 	t.Helper()
-	le.Starter = func(context.Context, string) (lspClient, error) { return fake, nil }
+	if le.Starter == nil {
+		le.Starter = func(context.Context, string) (lspClient, error) { return fake, nil }
+	}
 
 	h := editor.NewTestHarness()
 	// Set before the extension starts logging from its goroutine.
@@ -599,4 +617,96 @@ func onLoop2[A, B any](t *testing.T, h *editor.TestHarness, f func() (A, B)) (a 
 	t.Helper()
 	h.Post(t, editor.CommandFunc(func(*editor.Editor) { a, b = f() }))
 	return a, b
+}
+
+var keySave = []byte{0x13} // Ctrl+S
+
+func TestIntegration_SaveFormats(t *testing.T) {
+	t.Chdir(t.TempDir())
+	fake := &fakeLSP{format: func(text string) string {
+		return strings.ReplaceAll(text, "x:=1", "x := 1")
+	}}
+	var le Integration
+	h, buf, _ := newGoBuffer(t, &le, fake, "package main\n\nfunc main() {\n\tx:=1\n}\n")
+	for range 3 {
+		editor.RelMove{Dy: 1}.DoOnBuffer(buf, editor.RenderPrefs{})
+	}
+	h.MoveCursorToLineEnd()
+	fake.waitVersion(t, 1) // The server is ready.
+
+	h.Run(t)
+	h.SendInput(t, keySave)
+
+	want := "package main\n\nfunc main() {\n\tx := 1\n}\n"
+	if got := waitSaved(t, "completion_buf.go"); got != want {
+		t.Errorf("saved\n%s\nwant\n%s", got, want)
+	}
+	if got := onLoop(t, h, buf.Text); got != want {
+		t.Errorf("text =\n%s\nwant\n%s", got, want)
+	}
+	if cx, cy := onLoop2(t, h, buf.Pos); cx != 7 || cy != 3 {
+		t.Errorf("cursor = %d:%d, want 3:7", cy, cx)
+	}
+	// The server gets the formatted text.
+	fake.waitVersion(t, 3)
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	if fake.text != want {
+		t.Errorf("server text =\n%s\nwant\n%s", fake.text, want)
+	}
+	if fake.formatOpts.TabSize != 4 {
+		t.Errorf("formatted with tab size %d, want the editor's 4", fake.formatOpts.TabSize)
+	}
+}
+
+func TestIntegration_SaveUnformatted(t *testing.T) {
+	const text = "package main\n\nfunc main() {\n\tx:=\n}\n"
+	for _, tc := range []struct {
+		name  string
+		ready bool
+	}{
+		{name: "server failure", ready: true}, // As with syntax errors.
+		{name: "server not ready"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			fake := &fakeLSP{}
+			var le Integration
+			release := make(chan struct{})
+			defer close(release)
+			if !tc.ready {
+				le.Starter = func(context.Context, string) (lspClient, error) {
+					<-release
+					return fake, nil
+				}
+			}
+			h, _, _ := newGoBuffer(t, &le, fake, text)
+			if tc.ready {
+				fake.waitVersion(t, 1)
+			}
+
+			h.Run(t)
+			h.SendInput(t, keySave)
+
+			if got := waitSaved(t, "completion_buf.go"); got != text {
+				t.Errorf("saved %q, want %q", got, text)
+			}
+		})
+	}
+}
+
+// waitSaved waits until the file at path is written and returns its content.
+func waitSaved(t *testing.T, path string) string {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			return string(data)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("not saved: %s", err)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
