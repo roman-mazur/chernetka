@@ -26,7 +26,7 @@ type Buffer struct {
 
 	c      content.Position // cursor position
 	offset int              // first visible row (scroll)
-	w, h   int              // terminal window dimensions
+	w, h   int              // dimensions of the area to render the content in
 
 	sel       []content.Span // selected text
 	selecting bool
@@ -91,8 +91,8 @@ func (b *Buffer) clampCursor() {
 		if b.c.Line < b.offset {
 			b.offset = b.c.Line
 		}
-		if b.c.Line >= b.offset+b.viewHeight() {
-			b.offset = b.c.Line - b.viewHeight() + 1
+		if b.c.Line >= b.offset+b.h {
+			b.offset = b.c.Line - b.h + 1
 		}
 	}
 }
@@ -137,11 +137,8 @@ func runeToScreenCol(line string, runeIdx, tabSize int) int {
 	return col
 }
 
-// viewHeight is the number of text rows (terminal height minus the status bar).
-func (b *Buffer) viewHeight() int { return b.h - 1 }
-
 // Render visualizes the buffer UI content writing to the provided output.
-// This includes presenting the visible part of the content, the status line and the command line at the bottom.
+// It fills h rows with the visible part of the content, the status bar is rendered separately below.
 func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 	// Main content first.
 	printableCount := b.printableLinesCount()
@@ -150,7 +147,7 @@ func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 	cr.render(out)
 
 	// Empty space.
-	for row := printableCount; row < b.viewHeight(); row++ {
+	for row := printableCount; row < b.h; row++ {
 		escape.ClearLine(out)
 		printLineEnding(out)
 	}
@@ -159,11 +156,6 @@ func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 // RenderCursorPosition asks the Buffer to instruct the terminal to position the cursor
 // to allow input for this buffer. Usually called on the top buffer of the Editor.
 func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
-	if b.mode == ModeCommand {
-		escape.SetCursorPosition(out, b.h, len(b.cmdline)+2)
-		return
-	}
-
 	lines := b.Content.Lines()
 	var cursorLine string
 	if len(lines) > 0 {
@@ -178,7 +170,7 @@ func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
 
 // printableLinesCount calculates how many lines of content can be visualized given current offset
 func (b *Buffer) printableLinesCount() int {
-	return min(b.viewHeight(), len(b.Content.Lines())-b.offset)
+	return min(b.h, len(b.Content.Lines())-b.offset)
 }
 
 // lineNumberPrefixWidth returns the length of line numbers presented on the left.
@@ -279,7 +271,7 @@ func (b *Buffer) handleCursor(cursorType inputs.Cursor, mod inputs.Modifier, pre
 // CheckContentCoordinates returns true if on-screen coordinates are part of the displayed content.
 func (b *Buffer) CheckContentCoordinates(row, col int) bool {
 	// Check buffer bounds.
-	if row < 0 || row >= b.viewHeight() || col < 0 || col >= b.w {
+	if row < 0 || row >= b.h || col < 0 || col >= b.w {
 		return false
 	}
 

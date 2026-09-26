@@ -61,7 +61,7 @@ type ScreenMove struct {
 }
 
 func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
-	screenH := buf.viewHeight()
+	screenH := buf.h
 	if screenH <= 0 {
 		return
 	}
@@ -93,7 +93,7 @@ func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	case inputs.ScrollDirectionDown:
 		buf.offset++
 	}
-	buf.offset = max(0, min(buf.offset, buf.Content.Len()-buf.viewHeight()-1))
+	buf.offset = max(0, min(buf.offset, buf.Content.Len()-buf.h-1))
 }
 
 func clampBufferCx(buf *Buffer) {
@@ -134,7 +134,7 @@ var (
 			return
 		}
 		b.c.Line = linesCnt - 1
-		b.offset = max(0, b.c.Line-b.viewHeight())
+		b.offset = max(0, b.c.Line-b.h)
 		clampBufferCx(b)
 		b.updateSelection()
 	})

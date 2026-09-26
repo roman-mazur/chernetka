@@ -448,11 +448,11 @@ type TB interface {
 	Errorf(string, ...any)
 }
 
-// TestBuffer_Render_FillsExactlyWindowHeight pins the invariant that keeps the buffer
-// visible in a short terminal pane: Render must emit exactly h rows, i.e. h-1 line
-// endings plus the status bar with no trailing newline. Emitting more rows than the
-// pane holds scrolls the top of the content out of view.
-func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
+// TestBuffer_Render_FillsExactlyHeight pins the invariant that keeps the buffer
+// visible in a short terminal pane: Render must emit exactly h rows, leaving the rest
+// of the pane to the status bar. Emitting more rows than the pane holds scrolls the
+// top of the content out of view.
+func TestBuffer_Render_FillsExactlyHeight(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		lines int
@@ -461,7 +461,7 @@ func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
 	}{
 		{name: "content shorter than pane", lines: 3, h: 21},
 		{name: "content longer than pane", lines: 1000, h: 21},
-		{name: "single row pane", lines: 1000, h: 2},
+		{name: "single row pane", lines: 1000, h: 1},
 		{name: "command mode", lines: 1000, mode: ModeCommand, h: 21},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -476,8 +476,8 @@ func TestBuffer_Render_FillsExactlyWindowHeight(t *testing.T) {
 			buf.Render(&out, &RenderPrefs{TabSize: 2})
 			t.Log("\n" + out.String())
 
-			if got, want := strings.Count(out.String(), "\r\n"), tc.h-1; got != want {
-				t.Errorf("Render emitted %d line endings, want %d (window height %d)", got, want, tc.h)
+			if got, want := strings.Count(out.String(), "\r\n"), tc.h; got != want {
+				t.Errorf("Render emitted %d line endings, want %d", got, want)
 			}
 		})
 	}

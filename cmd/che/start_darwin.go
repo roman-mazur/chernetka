@@ -7,13 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"rmazur.io/chernetka/internal/editor"
 )
 
 // openMainEditor interacts with the terminal to launch the main editor process in a new pane.
-func openMainEditor(_ *editor.Editor, path string) error {
-	return runInNewPane("right", fmt.Sprintf("%s %q", os.Args[0], path))
+// The main editor uses root as its project directory.
+func openMainEditor(root, path string) error {
+	return runInNewPane("right", fmt.Sprintf("%s -root %q %q", os.Args[0], root, path))
 }
 
 // launchImageViewer interacts with the terminal to launch che-img in a new pane below.

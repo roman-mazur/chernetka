@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	che [file]
+//	che [-root dir] [file]
 //	some-command | che
 //
 // When no file is given and stdin is a pipe, edit opens the piped content in a
@@ -11,7 +11,11 @@
 //
 // Opening a directory is also supported. Editor will display a terminal UI allowing
 // to navigate the directory tree. Pressing Enter on a file will attempt opening this
-// file in the right pane of your terminal.
+// file in the right pane of your terminal. The main editor opened this way searches files
+// (see Quick open) in the same directory.
+//
+// The -root flag sets the project directory to search files in. It defaults to the
+// opened directory or the working one.
 //
 // # Images and diagrams
 //
@@ -39,6 +43,7 @@
 //	+ / =    increase tab width
 //	-        decrease tab width
 //	:        enter command mode
+//	Ctrl+O   quick open a file or switch to a buffer (in any mode)
 //	Enter    engage the line action if the line is marked with ▶, move down otherwise
 //	Ctrl+R   re-run the last engaged line action
 //	q        quit
@@ -83,5 +88,22 @@
 //	:w       save the current buffer
 //	:w path  save the current buffer to path
 //	:wq      save and quit
+//	:e query quick open a file (see below)
 //	Esc      cancel and return to normal mode
+//
+// # Quick open
+//
+// Ctrl+O types :e in the command line. The matches for the query that follows are
+// shown in the status bar: the open buffers first, starting from the previously
+// used one, then the files in the project directory. The query characters must appear
+// in the path in the same order, not necessarily next to each other. Files ignored
+// by git are not listed.
+//
+//	Tab / ↓ / Ctrl+O   select the next match
+//	Shift+Tab / ↑      select the previous match
+//	Enter              open the selected match; without matches, open the query
+//	                   as a path in the project directory (a new file if it does not exist)
+//	Esc                cancel
+//
+// Ctrl+O and Enter switch to the previous buffer.
 package main

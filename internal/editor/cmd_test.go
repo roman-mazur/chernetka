@@ -83,35 +83,35 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 	}{
 		{
 			dy:     1,
-			buf:    Buffer{Content: &tenLines, w: 80, h: 40},
+			buf:    Buffer{Content: &tenLines, w: 80, h: 39},
 			cx:     0,
 			cy:     0,
 			offset: 0,
 		},
 		{
 			dy:     1,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: content.Position{2, 0}},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{2, 0}},
 			cx:     2,
 			cy:     38,
 			offset: 38,
 		},
 		{
 			dy:     2,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: content.Position{3, 5}},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{3, 5}},
 			cx:     3,
 			cy:     82,
 			offset: 77,
 		},
 		{
 			dy:     -1,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: content.Position{1, 60}, offset: 40},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{1, 60}, offset: 40},
 			cx:     1,
 			cy:     22,
 			offset: 2,
 		},
 		{
 			dy:     -2,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 40, c: content.Position{1, 60}, offset: 40},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{1, 60}, offset: 40},
 			cx:     1,
 			cy:     0,
 			offset: 0,
@@ -180,7 +180,7 @@ func TestScroll(t *testing.T) {
 	buf := &Buffer{
 		Content: &ftContent,
 		w:       10,
-		h:       2,
+		h:       1,
 	}
 
 	prefs := RenderPrefs{TabSize: 4}

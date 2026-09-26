@@ -128,6 +128,13 @@ func IsRerunCommand(b []byte) bool {
 	return len(b) == 1 && b[0] == 0x12 // Ctrl+R
 }
 
+func IsQuickOpenCommand(b []byte) bool {
+	return len(b) == 1 && b[0] == 0x0f // Ctrl+O
+}
+
+// IsBacktab checks for Shift+Tab.
+func IsBacktab(b []byte) bool { return string(b) == "\x1b[Z" }
+
 // ClipboardOp encodes one of the clipboard operations (copy/paste/cut).
 type ClipboardOp byte
 

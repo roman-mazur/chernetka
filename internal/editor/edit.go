@@ -45,10 +45,18 @@ func (m Mode) String() string {
 
 // Editor represents the editor internal state.
 type Editor struct {
+	// Root is the project directory. Files to open are searched in it.
+	// The current working directory is used if it's empty.
+	Root string
+	// OpenPath opens the file picked with the :e command.
+	// The file is opened as a text buffer if it's not set.
+	OpenPath func(path string)
+
 	logger.LogEmbed
 	mouseHandler
 
-	top *bufEntry // stack of open buffers
+	top    *bufEntry // stack of open buffers
+	status StatusBar // shown below the top buffer
 
 	renderRequested bool
 	cmdChannel      chan Command
@@ -190,6 +198,7 @@ func (e *Editor) execBufferCmd(cmd BufferCommand, mutated bool) {
 }
 
 func (e *Editor) push(buf *Buffer) {
+	e.closeQuickOpen()
 	e.prepareExt(buf)
 
 	entry := &bufEntry{
@@ -207,6 +216,7 @@ func (e *Editor) pop() (empty bool) {
 		return true
 	}
 
+	e.closeQuickOpen()
 	_ = e.top.b.Close() // TODO: log/handle the error.
 
 	e.top = e.top.next
@@ -222,6 +232,7 @@ func (e *Editor) selectBuffer(entry *bufEntry) {
 	if entry == e.top {
 		return
 	}
+	e.closeQuickOpen()
 	if e.top.prev != nil {
 		panic("top has prev")
 	}
@@ -258,7 +269,33 @@ type bufEntry struct {
 }
 
 func (be *bufEntry) matches(p string) bool {
-	return be.b.Path == p
+	return samePath(be.b.Path, p)
+}
+
+// samePath checks whether both paths point to the same file, resolving relative paths
+// against the working directory.
+func samePath(a, b string) bool {
+	if a == b {
+		return true
+	}
+	if a == "" || b == "" {
+		return false
+	}
+	absA, errA := filepath.Abs(a)
+	absB, errB := filepath.Abs(b)
+	return errA == nil && errB == nil && absA == absB
+}
+
+// root returns the absolute path of the project directory.
+func (e *Editor) root() string {
+	root := e.Root
+	if root == "" {
+		root = "."
+	}
+	if abs, err := filepath.Abs(root); err == nil {
+		return abs
+	}
+	return root
 }
 
 func (e *Editor) Run(t vt.Terminal) {
@@ -340,6 +377,8 @@ func (e *Editor) render(out *bufio.Writer) {
 	showCursor := escape.HideCursor(out, topBuf.mode != ModeNormal)
 	defer showCursor()
 
+	// The layout needs the status bar height.
+	e.status.buf = topBuf
 	for buf := range e.layout() {
 		buf.clampCursor()
 		escape.MoveTopLeft(out) // TODO: this works with one active buffer on top.
@@ -347,11 +386,13 @@ func (e *Editor) render(out *bufio.Writer) {
 		buf.noKeyboard = false
 	}
 
-	(&StatusBar{
-		buf: topBuf,
-	}).Render(out)
+	e.status.Render(out)
 
-	topBuf.RenderCursorPosition(out, &e.rPrefs)
+	if topBuf.mode == ModeCommand {
+		e.status.RenderCursorPosition(out)
+	} else {
+		topBuf.RenderCursorPosition(out, &e.rPrefs)
+	}
 
 	e.mouseHandler.render(out)
 }
@@ -549,6 +590,12 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
+	// Ctrl+O shows the file picker in any mode.
+	if inputs.IsQuickOpenCommand(input) && e.status.quick == nil {
+		e.startQuickOpen(buf)
+		return false
+	}
+
 	var clipboardOp inputs.ClipboardOp
 	if inputs.IsClipboardOp(input, &clipboardOp) {
 		if cmd := ClipboardCommand(clipboardOp); cmd != nil {
@@ -576,7 +623,12 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 
 	case ModeCommand:
+		if e.status.quick != nil && e.quickOpenInput(input) {
+			return false
+		}
 		quit = commandInput(buf, input, &e.rPrefs)
+		e.syncQuickOpen(buf)
+		// TODO: this should be called by save only.
 		e.handleAfterEdit(buf) // Saving formats the buffer.
 		return quit
 	default:
@@ -641,7 +693,8 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 		}
 		// TODO: consider rendering multiple buffers.
 		buf := lps.editor.top.b
-		buf.w, buf.h = w, h
+		buf.w = w
+		buf.h = max(h-lps.editor.status.Height(), 0)
 
 		done = true
 		yield(buf)

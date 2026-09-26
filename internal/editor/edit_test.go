@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,23 @@ func TestEditor_OpenReader_ReuseExisting(t *testing.T) {
 	}
 	assertLayoutTop(t, &e, "a.txt")
 	assertBufferCount(t, &e, 3)
+}
+
+func TestEditor_OpenReader_ReuseSamePath(t *testing.T) {
+	t.Chdir(t.TempDir())
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var e Editor
+	for _, name := range []string{"a.txt", "b.txt", filepath.Join(wd, "a.txt"), "./a.txt"} {
+		if err := e.OpenReader(name, strings.NewReader(name)); err != nil {
+			t.Fatalf("OpenReader(%q): %v", name, err)
+		}
+	}
+	assertLayoutTop(t, &e, "a.txt")
+	assertBufferCount(t, &e, 2)
 }
 
 func assertLayoutTop(t *testing.T, e *Editor, wantPath string) {
@@ -258,8 +276,9 @@ func TestEditor_LayoutWindowSize(t *testing.T) {
 			}
 
 			for buf := range e.layout() {
-				if buf.w != tc.wantW || buf.h != tc.wantH {
-					t.Errorf("buffer size = %dx%d, want %dx%d", buf.w, buf.h, tc.wantW, tc.wantH)
+				// One row is left for the status bar.
+				if buf.w != tc.wantW || buf.h != tc.wantH-1 {
+					t.Errorf("buffer size = %dx%d, want %dx%d", buf.w, buf.h, tc.wantW, tc.wantH-1)
 				}
 			}
 		})

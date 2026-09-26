@@ -28,6 +28,7 @@ func main() {
 	}
 	defer term.Close()
 
+	rootFlag := flag.String("root", "", "project `dir` to search files in (defaults to the opened directory or the working one)")
 	flag.Parse()
 	var (
 		edit    editor.Editor
@@ -47,6 +48,7 @@ func main() {
 		},
 	}
 
+	edit.OpenPath = delegate.openFile
 	debugEnv(logf)
 
 	edit.Extend(new(extlsp.Integration))
@@ -72,12 +74,20 @@ func main() {
 			log.Fatal("cannot get path info:", err)
 		}
 		if info.IsDir() {
+			delegate.root = path
 			edit.OpenDir(path, &delegate)
 			skipCtl = true
 		} else {
 			delegate.openFile(path)
 		}
 	}
+	if *rootFlag != "" {
+		delegate.root = *rootFlag
+	}
+	if abs, err := filepath.Abs(delegate.root); err == nil {
+		delegate.root = abs
+	}
+	edit.Root = delegate.root
 
 	if !skipCtl {
 		srv, err := remotectl.NewServer(remotectl.EditorEndpoint)
@@ -113,6 +123,7 @@ type editDelegate struct {
 	edit   *editor.Editor
 	logf   logger.Func
 	viewer extd2.Viewer
+	root   string // the project directory, paths passed to OpenFile are relative to it
 
 	// replaceWithViewer turns che into che-img showing the image at path.
 	// It returns only if che-img cannot be found.
@@ -161,14 +172,19 @@ func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
 	ed.edit.Send(editorCommand)
 }
 
+// OpenFile opens the file from the project directory in the main editor, starting one if necessary.
 func (ed *editDelegate) OpenFile(path string) {
+	if !filepath.IsAbs(path) {
+		// The main editor may run in another directory.
+		path = filepath.Join(ed.root, path)
+	}
 	err := ed.sendOpenCommand(path)
 	if err == nil {
 		return
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		ed.logf("starting main editor")
-		err := openMainEditor(ed.edit, path)
+		err := openMainEditor(ed.root, path)
 		if err != nil {
 			ed.logf("error with main editor: %s", err)
 			ed.openFile(path)

@@ -9,8 +9,35 @@ import (
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
+// StatusBar shows the state of the buffer below its content. In the command mode,
+// it becomes the command line, which includes the file picker for the :e command.
 type StatusBar struct {
-	buf *Buffer
+	buf *Buffer // the buffer to show the state of
+
+	quick        *quickOpen // the :e file picker, if it's shown
+	projectFiles []string   // files in the project root, listed when the picker was shown last time
+}
+
+// Height returns the number of rows the status bar takes. It's rendered right below
+// the buffer content, and its width is the buffer width.
+func (s *StatusBar) Height() int {
+	if q := s.picker(); q != nil {
+		return q.height(s.buf.w)
+	}
+	return 1
+}
+
+// picker returns the file picker if it's shown for the buffer.
+func (s *StatusBar) picker() *quickOpen {
+	if s.quick != nil && s.quick.buf == s.buf && s.buf.mode == ModeCommand {
+		return s.quick
+	}
+	return nil
+}
+
+// RenderCursorPosition places the cursor at the end of the command line.
+func (s *StatusBar) RenderCursorPosition(out io.Writer) {
+	escape.SetCursorPosition(out, s.buf.h+s.Height(), len(s.buf.cmdline)+2)
 }
 
 // Render prints the status bar into the provided output.
@@ -19,6 +46,11 @@ func (s *StatusBar) Render(out io.Writer) {
 	if s.buf.Path != "" {
 		title := "che: " + filepath.Base(s.buf.Path)
 		escape.SetTermTitle(out, title)
+	}
+
+	if q := s.picker(); q != nil {
+		q.render(out, s.buf.w)
+		return
 	}
 
 	restoreColors := escape.ReverseVideo(out)
