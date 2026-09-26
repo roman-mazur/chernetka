@@ -136,6 +136,12 @@ func IsShowDiffCommand(b []byte) bool {
 	return len(b) == 1 && b[0] == 0x04 // Ctrl+D
 }
 
+// IsFocusIn checks for the terminal focus in event (enabled with focus reporting).
+func IsFocusIn(b []byte) bool { return string(b) == "\x1b[I" }
+
+// IsFocusOut checks for the terminal focus out event (enabled with focus reporting).
+func IsFocusOut(b []byte) bool { return string(b) == "\x1b[O" }
+
 // IsBacktab checks for Shift+Tab.
 func IsBacktab(b []byte) bool { return string(b) == "\x1b[Z" }
 

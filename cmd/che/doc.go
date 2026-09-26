@@ -33,7 +33,8 @@
 //	l / →    move right
 //	j / ↓    move down
 //	k / ↑    move up
-//	0        jump to start of line
+//	0        jump to the first non-blank character of the line, or to its start
+//	         if the cursor is already there or within the indentation (same for Home)
 //	$        jump to end of line
 //	i        enter insert mode before the cursor
 //	a        enter insert mode after the cursor
@@ -79,6 +80,9 @@
 //	Esc        dismiss the suggestion (press again to return to normal mode)
 //
 // Go and CUE files are formatted with their language server when saved.
+//
+// Unsaved changes of a file are saved automatically when switching to another
+// buffer or when the terminal loses focus (if the terminal supports focus reporting).
 //
 // # Command mode
 //

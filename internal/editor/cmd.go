@@ -3,6 +3,7 @@ package editor
 import (
 	"os"
 	"slices"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -110,9 +111,20 @@ type BufferCommandFunc func(b *Buffer, prefs RenderPrefs)
 func (f BufferCommandFunc) DoOnBuffer(buf *Buffer, prefs RenderPrefs) { f(buf, prefs) }
 
 var (
-	// MoveHome moves the cursor to the beginning of the line.
+	// MoveHome moves the cursor to the first non-whitespace symbol of the line.
+	// If the cursor is already within the leading whitespace (or right after it),
+	// it moves to the beginning of the line.
 	MoveHome = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
-		b.c.Col = 0
+		if b.Content.Len() == 0 {
+			return
+		}
+		line := b.Content.Lines()[b.c.Line].String()
+		indent := len(line) - len(strings.TrimLeftFunc(line, unicode.IsSpace))
+		if b.c.Col <= indent {
+			b.c.Col = 0
+		} else {
+			b.c.Col = indent
+		}
 		b.updateSelection()
 	})
 	// MoveEnd moves the cursor to the end of the line.

@@ -313,6 +313,7 @@ func TestEditor_Run_ConfiguresTerminal(t *testing.T) {
 		{"alternative buffer", escape.EnableAlternativeBuffer},
 		{"line wrapping", escape.DisableLineWrapping},
 		{"bracketed paste", escape.EnableBracketedPasteMode},
+		{"focus reporting", escape.EnableFocusReporting},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var seq bytes.Buffer
@@ -404,5 +405,85 @@ func TestEditor_ShowDiff(t *testing.T) {
 		var e Editor
 		(&OpenFile{Path: path}).DoOnEditor(&e)
 		e.handleInput([]byte(ctrlD)) // Must not panic.
+	})
+}
+
+func TestEditor_AutoSave(t *testing.T) {
+	dir := t.TempDir()
+	writeFile := func(t *testing.T, name string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("a"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	readFile := func(t *testing.T, path string) string {
+		t.Helper()
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	edit := func(e *Editor) {
+		for _, k := range []string{"i", "b", "\x1b"} {
+			e.handleInput([]byte(k))
+		}
+	}
+
+	t.Run("focus out", func(t *testing.T) {
+		path := writeFile(t, "focus.txt")
+		var e Editor
+		(&OpenFile{Path: path}).DoOnEditor(&e)
+		edit(&e)
+		e.handleInput([]byte("\x1b[I"))
+		if got := readFile(t, path); got != "a" {
+			t.Errorf("saved on focus in: %q", got)
+		}
+		e.handleInput([]byte("\x1b[O"))
+		if got := readFile(t, path); got != "ba" {
+			t.Errorf("file content = %q, want %q", got, "ba")
+		}
+		if e.Top().dirty {
+			t.Error("buffer is still dirty")
+		}
+	})
+
+	t.Run("open another buffer", func(t *testing.T) {
+		path := writeFile(t, "push.txt")
+		var e Editor
+		(&OpenFile{Path: path}).DoOnEditor(&e)
+		edit(&e)
+		e.New()
+		if got := readFile(t, path); got != "ba" {
+			t.Errorf("file content = %q, want %q", got, "ba")
+		}
+	})
+
+	t.Run("select another buffer", func(t *testing.T) {
+		path1, path2 := writeFile(t, "sel1.txt"), writeFile(t, "sel2.txt")
+		var e Editor
+		(&OpenFile{Path: path1}).DoOnEditor(&e)
+		(&OpenFile{Path: path2}).DoOnEditor(&e)
+		edit(&e)
+		(&OpenFile{Path: path1}).DoOnEditor(&e)
+		if e.Top().Path != path1 {
+			t.Fatalf("top buffer is %q, want %q", e.Top().Path, path1)
+		}
+		if got := readFile(t, path2); got != "ba" {
+			t.Errorf("file content = %q, want %q", got, "ba")
+		}
+	})
+
+	t.Run("scratch buffer", func(t *testing.T) {
+		var e Editor
+		e.New()
+		edit(&e)
+		e.handleInput([]byte("\x1b[O")) // Must not panic.
+		e.New()
+		if !e.top.next.b.dirty {
+			t.Error("scratch buffer is not dirty anymore")
+		}
 	})
 }

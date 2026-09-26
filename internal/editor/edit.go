@@ -202,6 +202,7 @@ func (e *Editor) execBufferCmd(cmd BufferCommand, mutated bool) {
 
 func (e *Editor) push(buf *Buffer) {
 	e.closeQuickOpen()
+	e.saveTop()
 	e.prepareExt(buf)
 
 	entry := &bufEntry{
@@ -236,6 +237,7 @@ func (e *Editor) selectBuffer(entry *bufEntry) {
 		return
 	}
 	e.closeQuickOpen()
+	e.saveTop()
 	if e.top.prev != nil {
 		panic("top has prev")
 	}
@@ -406,6 +408,7 @@ func configureTerminal(t vt.Terminal) {
 		escape.DisableLineWrapping,
 		escape.EnableBracketedPasteMode,
 		escape.EnableMouse,
+		escape.EnableFocusReporting,
 	)
 }
 
@@ -579,6 +582,16 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 func (e *Editor) handleInput(input []byte) (quit bool) {
 	buf := e.top.b
 
+	// Save the changes when the terminal loses focus, so the file system is in sync
+	// for the tools used outside the editor.
+	if inputs.IsFocusOut(input) {
+		e.saveTop()
+		return false
+	}
+	if inputs.IsFocusIn(input) {
+		return false
+	}
+
 	// Ctrl+S saves the current buffer in any mode.
 	if inputs.IsSaveCommand(input) {
 		e.execBufferCmd(&Save{buf.Path}, true) // Formatting may change it.
@@ -654,14 +667,24 @@ func (e *Editor) showDiff(buf *Buffer) {
 	if _, isDir := buf.Content.(*content.FsContent); isDir {
 		return // Its path is only a display name.
 	}
-	if buf.dirty {
-		e.execBufferCmd(&Save{buf.Path}, true) // The diff is taken from the saved file.
-	}
+	e.saveTop() // The diff is taken from the saved file.
 	path := buf.Path
 	if abs, err := filepath.Abs(path); err == nil {
 		path = abs
 	}
 	e.ShowDiff(path)
+}
+
+// saveTop saves the unsaved changes of the top buffer if it's backed by a file.
+func (e *Editor) saveTop() {
+	buf := e.Top()
+	if buf == nil || !buf.dirty || buf.Path == "" {
+		return
+	}
+	if _, isDir := buf.Content.(*content.FsContent); isDir {
+		return // Its path is only a display name.
+	}
+	e.execBufferCmd(&Save{buf.Path}, true) // Formatting may change it.
 }
 
 func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled bool) {

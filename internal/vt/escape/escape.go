@@ -109,6 +109,11 @@ func MouseShape(out io.Writer, shape string) {
 	_, _ = io.WriteString(out, "\x07")
 }
 
+// EnableFocusReporting asks the terminal to send focus in/out events.
+func EnableFocusReporting(out io.Writer) (restore func()) {
+	return applyPair(out, "\x1b[?1004h", "\x1b[?1004l")
+}
+
 func EnableBracketedPasteMode(out io.Writer) (restore func()) {
 	return applyPair(out, "\x1b[?2004h", "\x1b[?2004l")
 }

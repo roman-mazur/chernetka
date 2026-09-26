@@ -396,3 +396,44 @@ func TestSelectWord(t *testing.T) {
 		t.Errorf("cursor didn't move on second word selection: %s", buf.c)
 	}
 }
+
+func TestMoveHome(t *testing.T) {
+	for _, tc := range []struct {
+		line     string
+		col, exp int
+	}{
+		{line: "abc", col: 2, exp: 0},
+		{line: "abc", col: 0, exp: 0},
+		{line: "  abc", col: 4, exp: 2},
+		{line: "  abc", col: 5, exp: 2},
+		{line: "  abc", col: 2, exp: 0},
+		{line: "  abc", col: 1, exp: 0},
+		{line: "\t\tabc", col: 3, exp: 2},
+		{line: "   ", col: 3, exp: 0},
+		{line: "", col: 0, exp: 0},
+	} {
+		t.Run(fmt.Sprintf("%q@%d", tc.line, tc.col), func(t *testing.T) {
+			buf := &Buffer{Content: &content.FullText{content.TextLine(tc.line)}}
+			buf.c.Col = tc.col
+			MoveHome.DoOnBuffer(buf, RenderPrefs{})
+			if buf.c.Col != tc.exp {
+				t.Errorf("col = %d, want %d", buf.c.Col, tc.exp)
+			}
+		})
+	}
+
+	t.Run("twice", func(t *testing.T) {
+		buf := &Buffer{Content: &content.FullText{content.TextLine("  abc")}}
+		buf.c.Col = 4
+		MoveHome.DoOnBuffer(buf, RenderPrefs{})
+		MoveHome.DoOnBuffer(buf, RenderPrefs{})
+		if buf.c.Col != 0 {
+			t.Errorf("col = %d, want 0", buf.c.Col)
+		}
+	})
+
+	t.Run("no lines", func(t *testing.T) {
+		buf := &Buffer{Content: &content.FullText{}}
+		MoveHome.DoOnBuffer(buf, RenderPrefs{}) // Must not panic.
+	})
+}
