@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -126,4 +127,47 @@ func TestEditDelegate_OpenFile(t *testing.T) {
 			t.Errorf("shown %v, want %v", *viewer, want)
 		}
 	})
+}
+
+func TestGitDiffCommand(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	repo := filepath.Join(t.TempDir(), "my repo")
+	path := filepath.Join(repo, "notes.txt")
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s: %s", args, err, out)
+		}
+	}
+	write := func(text string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(repo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	git("init", "-q")
+	write("committed\n")
+	git("add", ".")
+	git("commit", "-qm", "init")
+	write("staged\n")
+	git("add", ".")
+	write("staged\nunstaged\n")
+
+	t.Chdir(t.TempDir()) // The editor may run outside the repository.
+	out, err := exec.Command("sh", "-c", gitDiffCommand(path)).CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s: %s", err, out)
+	}
+	for _, want := range []string{"-committed", "+staged", "+unstaged"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("diff misses %q:\n%s", want, out)
+		}
+	}
 }

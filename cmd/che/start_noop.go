@@ -15,3 +15,8 @@ func openMainEditor(_, _ string) error {
 func launchImageViewer() error {
 	return errorTerminalNotSupported
 }
+
+// launchDiffViewer does nothing
+func launchDiffViewer(_ string) error {
+	return errorTerminalNotSupported
+}

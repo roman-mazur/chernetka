@@ -20,6 +20,11 @@ func launchImageViewer() error {
 	return runInNewPane("down", fmt.Sprintf("%q", cheImgCommand()))
 }
 
+// launchDiffViewer interacts with the terminal to run the diff command in a new pane on the right.
+func launchDiffViewer(command string) error {
+	return runInNewPane("right", command)
+}
+
 // runInNewPane splits the focused terminal pane in the given direction and runs the command there.
 func runInNewPane(direction, command string) error {
 	const appleScript = `

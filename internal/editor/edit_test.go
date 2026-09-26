@@ -332,3 +332,77 @@ func TestEditor_Run_ConfiguresTerminal(t *testing.T) {
 		})
 	}
 }
+
+func TestEditor_ShowDiff(t *testing.T) {
+	const ctrlD = "\x04"
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	if err := os.WriteFile(path, []byte("a"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	newEditor := func() (*Editor, *[]string) {
+		var shown []string
+		e := &Editor{ShowDiff: func(path string) { shown = append(shown, path) }}
+		return e, &shown
+	}
+
+	t.Run("file in any mode", func(t *testing.T) {
+		e, shown := newEditor()
+		(&OpenFile{Path: path}).DoOnEditor(e)
+		e.handleInput([]byte(ctrlD))
+		e.Top().mode = ModeInsert
+		e.handleInput([]byte(ctrlD))
+		if len(*shown) != 2 || (*shown)[0] != path || (*shown)[1] != path {
+			t.Errorf("shown %q, want %q twice", *shown, path)
+		}
+		if got := e.Top().Content.Lines()[0].String(); got != "a" {
+			t.Errorf("Ctrl+D changed the content to %q", got)
+		}
+	})
+
+	t.Run("changes are saved first", func(t *testing.T) {
+		var saved []string
+		e := &Editor{ShowDiff: func(path string) {
+			data, _ := os.ReadFile(path)
+			saved = append(saved, string(data))
+		}}
+		(&OpenFile{Path: path}).DoOnEditor(e)
+		t.Cleanup(func() { _ = os.WriteFile(path, []byte("a"), 0o600) })
+		for _, k := range []string{"i", "b", ctrlD} {
+			e.handleInput([]byte(k))
+		}
+		if len(saved) != 1 || saved[0] != "ba" {
+			t.Errorf("diff shown for %q, want the saved %q", saved, "ba")
+		}
+		if e.Top().dirty {
+			t.Error("buffer is still dirty")
+		}
+	})
+
+	t.Run("relative path is shown as absolute", func(t *testing.T) {
+		t.Chdir(dir)
+		e, shown := newEditor()
+		(&OpenFile{Path: "a.txt"}).DoOnEditor(e)
+		e.handleInput([]byte(ctrlD))
+		if len(*shown) != 1 || (*shown)[0] != path {
+			t.Errorf("shown %q, want %q", *shown, path)
+		}
+	})
+
+	t.Run("buffers without a file", func(t *testing.T) {
+		e, shown := newEditor()
+		e.New()
+		e.handleInput([]byte(ctrlD))
+		e.OpenDir(dir, nil)
+		e.handleInput([]byte(ctrlD))
+		if len(*shown) != 0 {
+			t.Errorf("shown %q", *shown)
+		}
+	})
+
+	t.Run("no hook", func(t *testing.T) {
+		var e Editor
+		(&OpenFile{Path: path}).DoOnEditor(&e)
+		e.handleInput([]byte(ctrlD)) // Must not panic.
+	})
+}

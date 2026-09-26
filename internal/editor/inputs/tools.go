@@ -132,6 +132,10 @@ func IsQuickOpenCommand(b []byte) bool {
 	return len(b) == 1 && b[0] == 0x0f // Ctrl+O
 }
 
+func IsShowDiffCommand(b []byte) bool {
+	return len(b) == 1 && b[0] == 0x04 // Ctrl+D
+}
+
 // IsBacktab checks for Shift+Tab.
 func IsBacktab(b []byte) bool { return string(b) == "\x1b[Z" }
 

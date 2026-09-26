@@ -44,6 +44,7 @@
 //	-        decrease tab width
 //	:        enter command mode
 //	Ctrl+O   quick open a file or switch to a buffer (in any mode)
+//	Ctrl+D   save the current file and show its git diff in a new pane on the right (in any mode)
 //	Enter    engage the line action if the line is marked with ▶, move down otherwise
 //	Ctrl+R   re-run the last engaged line action
 //	q        quit

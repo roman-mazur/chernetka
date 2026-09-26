@@ -51,6 +51,9 @@ type Editor struct {
 	// OpenPath opens the file picked with the :e command.
 	// The file is opened as a text buffer if it's not set.
 	OpenPath func(path string)
+	// ShowDiff shows the version control changes of the file at the absolute path.
+	// Ctrl+D does nothing if it's not set.
+	ShowDiff func(path string)
 
 	logger.LogEmbed
 	mouseHandler
@@ -596,6 +599,12 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
+	// Ctrl+D shows the changes of the current file in any mode.
+	if inputs.IsShowDiffCommand(input) {
+		e.showDiff(buf)
+		return false
+	}
+
 	var clipboardOp inputs.ClipboardOp
 	if inputs.IsClipboardOp(input, &clipboardOp) {
 		if cmd := ClipboardCommand(clipboardOp); cmd != nil {
@@ -634,6 +643,25 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 	default:
 		return false
 	}
+}
+
+// showDiff saves the changes in buf and passes its file to the ShowDiff hook.
+// Buffers without a file (scratch, piped content, directories) are ignored.
+func (e *Editor) showDiff(buf *Buffer) {
+	if e.ShowDiff == nil || buf.Path == "" {
+		return
+	}
+	if _, isDir := buf.Content.(*content.FsContent); isDir {
+		return // Its path is only a display name.
+	}
+	if buf.dirty {
+		e.execBufferCmd(&Save{buf.Path}, true) // The diff is taken from the saved file.
+	}
+	path := buf.Path
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	e.ShowDiff(path)
 }
 
 func (e *Editor) extHandleInsert(buf *Buffer, b []byte) (handled bool) {

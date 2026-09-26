@@ -49,6 +49,7 @@ func main() {
 	}
 
 	edit.OpenPath = delegate.openFile
+	edit.ShowDiff = delegate.showDiff
 	debugEnv(logf)
 
 	edit.Extend(new(extlsp.Integration))
@@ -154,6 +155,21 @@ func (ed *editDelegate) openFile(path string) {
 	if imgKind != cheimg.KindImage {
 		(&editor.OpenFile{Path: path}).DoOnEditor(ed.edit)
 	}
+}
+
+// showDiff shows the git changes of the file at path in a new terminal pane.
+func (ed *editDelegate) showDiff(path string) {
+	go func() { // Talking to the terminal is slow, keep the editor responsive.
+		if err := launchDiffViewer(gitDiffCommand(path)); err != nil {
+			ed.logf("cannot show diff for %s: %s", path, err)
+		}
+	}()
+}
+
+// gitDiffCommand returns a shell command showing the changes of the file at path
+// since the last commit, both staged and not.
+func gitDiffCommand(path string) string {
+	return fmt.Sprintf("git -C %q diff HEAD -- %q", filepath.Dir(path), path)
 }
 
 func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
