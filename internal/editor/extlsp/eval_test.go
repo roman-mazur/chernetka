@@ -674,7 +674,7 @@ func TestRealGoplsRepoFile(t *testing.T) {
 	src, _ := os.ReadFile(path)
 	var le Integration
 	if *goplsLog != "" {
-		le.Starter = func(ctx context.Context, root string) (lspClient, error) {
+		le.Starter = func(ctx context.Context, _, root string) (lspClient, error) {
 			return lsp.StartWith(ctx, root, lsp.Options{
 				Args:                  append(strings.Fields(os.Getenv("EVAL_GOPLS_FLAGS")), "-rpc.trace", "-logfile", *goplsLog, "serve"),
 				SnippetSupport:        true,
@@ -894,8 +894,9 @@ func TestRealGoplsFormatsOnSave(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer le.Close()
+	srv := h.Top().ExtensionData(le.ID()).(*BufferData).srv
 	h.Run(t)
-	for !le.ready.Load() {
+	for !srv.ready.Load() {
 		time.Sleep(10 * time.Millisecond)
 	}
 

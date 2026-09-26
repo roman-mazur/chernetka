@@ -116,7 +116,7 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 // out of the way for buffers it never attached data to (e.g. non-Go files).
 func TestIntegration_HandleInsertInput_NoBufferData(t *testing.T) {
 	var le Integration
-	le.Starter = func(context.Context, string) (lspClient, error) {
+	le.Starter = func(context.Context, string, string) (lspClient, error) {
 		t.Fatal("LSP should not start for a non-Go buffer")
 		return nil, nil
 	}

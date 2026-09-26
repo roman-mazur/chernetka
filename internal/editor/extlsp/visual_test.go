@@ -73,7 +73,7 @@ func TestVisual(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var le Integration
-			le.Starter = func(context.Context, string) (lspClient, error) { return &fakeLSP{}, nil }
+			le.Starter = func(context.Context, string, string) (lspClient, error) { return &fakeLSP{}, nil }
 			t.Cleanup(func() { _ = le.Close() })
 
 			h := editor.NewTestHarness()

@@ -132,6 +132,7 @@ type fakeLSP struct {
 	items []protocol.CompletionItem
 
 	mu          sync.Mutex
+	languageID  string           // the language of the opened document
 	version     int32            // the latest document version the server knows
 	text        string           // the latest text the server knows
 	completions []string         // line prefixes before the cursor for every completion request
@@ -145,9 +146,10 @@ type fakeLSP struct {
 	formatOpts protocol.FormattingOptions
 }
 
-func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, _, text string, v int32) error {
+func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, languageID, text string, v int32) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.languageID = languageID
 	f.version = v
 	f.text = text
 	return nil
@@ -210,8 +212,14 @@ func (f *fakeLSP) Shutdown(context.Context) error { return nil }
 // The starter of le is kept if set.
 func newGoBuffer(t *testing.T, le *Integration, fake *fakeLSP, text string) (*editor.TestHarness, *editor.Buffer, *BufferData) {
 	t.Helper()
+	return newBuffer(t, le, fake, "completion_buf.go", text)
+}
+
+// newBuffer is like newGoBuffer for a buffer of any language, recognized by its path.
+func newBuffer(t *testing.T, le *Integration, fake *fakeLSP, path, text string) (*editor.TestHarness, *editor.Buffer, *BufferData) {
+	t.Helper()
 	if le.Starter == nil {
-		le.Starter = func(context.Context, string) (lspClient, error) { return fake, nil }
+		le.Starter = func(context.Context, string, string) (lspClient, error) { return fake, nil }
 	}
 
 	h := editor.NewTestHarness()
@@ -219,7 +227,7 @@ func newGoBuffer(t *testing.T, le *Integration, fake *fakeLSP, text string) (*ed
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(le)
 	t.Cleanup(func() { _ = le.Close() }) // Stop its goroutine (and logging) with the test.
-	if err := h.OpenReader("completion_buf.go", strings.NewReader(text)); err != nil {
+	if err := h.OpenReader(path, strings.NewReader(text)); err != nil {
 		t.Fatalf("OpenReader: %v", err)
 	}
 	buf := h.Top()
@@ -675,7 +683,7 @@ func TestIntegration_SaveUnformatted(t *testing.T) {
 			release := make(chan struct{})
 			defer close(release)
 			if !tc.ready {
-				le.Starter = func(context.Context, string) (lspClient, error) {
+				le.Starter = func(context.Context, string, string) (lspClient, error) {
 					<-release
 					return fake, nil
 				}

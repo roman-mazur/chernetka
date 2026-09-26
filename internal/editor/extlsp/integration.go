@@ -2,7 +2,7 @@ package extlsp
 
 import (
 	"context"
-	"os"
+	"errors"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,7 +14,6 @@ import (
 
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
-	"rmazur.io/chernetka/internal"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
@@ -34,48 +33,34 @@ type lspClient interface {
 	Shutdown(ctx context.Context) error
 }
 
-// lspStarter spawns and initialises an LSP client for the given workspace root.
-type lspStarter func(ctx context.Context, rootDir string) (lspClient, error)
+// lspStarter spawns and initialises an LSP client of the language with the
+// given LSP identifier for the given workspace root.
+type lspStarter func(ctx context.Context, languageID, rootDir string) (lspClient, error)
 
-func (le *Integration) startLSP(ctx context.Context, rootDir string) (lspClient, error) {
-	var cache string
-	if dir, err := internal.UserDir(); err == nil {
-		cache = filepath.Join(dir, "gopls")
-	}
-	return lsp.Start(ctx, rootDir, lsp.Options{
-		GoplsCache: cache,
-		// Calls come with brackets and the cursor placed inside them.
-		SnippetSupport: true,
-		Logf:           le.Logf,
-	})
-}
-
-// Integration encapsulates the logic of integrating with an LSP client in an editor.Editor and editor.Buffer.
+// Integration encapsulates the logic of integrating with LSP clients in an editor.Editor and editor.Buffer.
 //
-// Every edit of a Go buffer is pushed to the language server, and when the
-// cursor is in the middle of typing an identifier (or right after a selector
-// dot) the edit is followed by a completion request. The best candidates are
-// shown as an inline suggestion that can be accepted with Tab.
+// Every edit of a buffer in a supported language (see languages) is pushed to
+// the language server, and when the cursor is in the middle of typing an
+// identifier (or right after a selector dot) the edit is followed by a
+// completion request. The best candidates are shown as an inline suggestion
+// that can be accepted with Tab.
 //
-// Saving a Go buffer formats it with the server first.
+// Saving a buffer formats it with the server first.
 type Integration struct {
 	logger.LogEmbed
 
 	Starter lspStarter
 
-	once     sync.Once
-	cancel   context.CancelFunc
-	queue    syncQueue
-	loopDone chan struct{}
-	client   lspClient   // owned by the sync loop until it's done
-	ready    atomic.Bool // the server has started
-	failed   atomic.Bool // the server couldn't start
+	// servers are the language servers started so far by language. Only used
+	// on the editor loop.
+	servers map[string]*server
 }
 
 func (le *Integration) ID() string { return "lsp" }
 
 func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
-	if !strings.HasSuffix(buf.Path, ".go") {
+	lang := languageForPath(buf.Path)
+	if lang == nil {
 		return nil
 	}
 
@@ -83,19 +68,45 @@ func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	if err != nil {
 		return nil
 	}
-	le.startLoop()
+	srv := le.serverFor(lang, filepath.Dir(absPath))
 
-	bufData := BufferData{integration: le, buf: buf}
+	bufData := BufferData{srv: srv, buf: buf}
 	bufData.SetPath(absPath)
 	bufData.version = 1
 	// The server gets the document once it's ready.
-	bufData.rootDir = findGoModRoot(filepath.Dir(absPath))
-	le.queue.push(syncReq{
+	srv.queue.push(syncReq{
 		bufData: &bufData,
 		text:    buf.Text(),
 		version: bufData.version,
 	})
 	return &bufData
+}
+
+// serverFor returns the server of the language, starting it for the workspace
+// of dir if it's the first buffer of the language. The server keeps serving
+// the workspace it's started for.
+func (le *Integration) serverFor(lang *language, dir string) *server {
+	if srv, ok := le.servers[lang.id]; ok {
+		return srv
+	}
+	if debugImpl {
+		le.LogDebug = true // Before the loop starts using the logger.
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	srv := &server{
+		le:       le,
+		lang:     lang,
+		rootDir:  lang.root(dir),
+		cancel:   cancel,
+		loopDone: make(chan struct{}),
+	}
+	srv.queue.wake = make(chan struct{}, 1)
+	if le.servers == nil {
+		le.servers = make(map[string]*server)
+	}
+	le.servers[lang.id] = srv
+	go srv.syncLoop(ctx)
+	return srv
 }
 
 // AfterEdit runs on the editor loop after every buffer mutation.
@@ -131,12 +142,12 @@ func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
 	} else {
 		data.ResetSuggestions()
 	}
-	if buf.Mode() == editor.ModeInsert {
+	if buf.Mode() == editor.ModeInsert && data.srv.lang.goImports {
 		// A package used without an import, like "strconv.Itoa(" was typed.
 		pkg, ok := qualifiedBeforeCursor(line[:cx])
 		req.addImports = ok && !isImported(req.text, pkg)
 	}
-	le.queue.push(req)
+	data.srv.queue.push(req)
 }
 
 // shouldComplete decides whether it's worth asking for a completion with the
@@ -169,18 +180,36 @@ func startsWithDigit(s string) bool {
 	return unicode.IsDigit(r)
 }
 
-// startLoop starts the goroutine talking to the language server.
-func (le *Integration) startLoop() {
-	le.once.Do(func() {
-		if debugImpl {
-			le.LogDebug = true // Before the loop starts using the logger.
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		le.cancel = cancel
-		le.queue.wake = make(chan struct{}, 1)
-		le.loopDone = make(chan struct{})
-		go le.syncLoop(ctx)
-	})
+func (le *Integration) activeOn(buf *editor.Buffer) (*BufferData, bool) {
+	data, ok := buf.ExtensionData(le.ID()).(*BufferData)
+	if !ok || data.srv.failed.Load() {
+		return nil, false
+	}
+	return data, data.docUri != ""
+}
+
+func (le *Integration) Close() error {
+	var errs []error
+	for id, srv := range le.servers {
+		errs = append(errs, srv.close())
+		delete(le.servers, id)
+	}
+	return errors.Join(errs...)
+}
+
+// server is the language server of one language together with the goroutine
+// talking to it.
+type server struct {
+	le      *Integration
+	lang    *language
+	rootDir string // the workspace root to start the server with
+
+	cancel   context.CancelFunc
+	queue    syncQueue
+	loopDone chan struct{}
+	client   lspClient   // owned by the sync loop until it's done
+	ready    atomic.Bool // the server has started
+	failed   atomic.Bool // the server couldn't start
 }
 
 // syncLoop starts the language server, then sends it buffer changes and
@@ -188,58 +217,62 @@ func (le *Integration) startLoop() {
 // change before a completion request for the text it produced. Changes that
 // pile up while the server is busy (or starting) are coalesced: only the
 // latest text of each buffer is sent.
-func (le *Integration) syncLoop(ctx context.Context) {
-	defer close(le.loopDone)
+func (srv *server) syncLoop(ctx context.Context) {
+	defer close(srv.loopDone)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-le.queue.wake:
+		case <-srv.queue.wake:
 		}
-		reqs := le.queue.take()
-		if le.client == nil && !le.start(ctx, reqs[0].bufData.rootDir) {
+		reqs := srv.queue.take()
+		if srv.client == nil && !srv.start(ctx) {
 			return // Without a server, there is nothing to do.
 		}
 		for _, req := range reqs {
-			le.sync(ctx, le.client, req)
+			srv.sync(ctx, srv.client, req)
 		}
 	}
 }
 
 // start launches the language server. It may take a while if a gopls matching
 // the workspace Go version needs to be built. A failure is final: it usually
-// means gopls isn't installed.
-func (le *Integration) start(ctx context.Context, rootDir string) bool {
+// means the server isn't installed.
+func (srv *server) start(ctx context.Context) bool {
+	le := srv.le
 	starter := le.Starter
 	if starter == nil {
-		starter = le.startLSP
+		starter = func(ctx context.Context, _, rootDir string) (lspClient, error) {
+			return srv.lang.start(ctx, le, rootDir)
+		}
 	}
-	le.Logf("starting an LSP server for %s", rootDir)
+	le.Logf("starting the %s LSP server for %s", srv.lang.id, srv.rootDir)
 	started := time.Now()
-	client, err := starter(ctx, rootDir)
+	client, err := starter(ctx, srv.lang.id, srv.rootDir)
 	if err != nil {
-		le.Logf("cannot start the LSP server: %s", err)
-		le.failed.Store(true)
+		le.Logf("cannot start the %s LSP server: %s", srv.lang.id, err)
+		srv.failed.Store(true)
 		return false
 	}
-	le.Logf("LSP server is ready in %s", time.Since(started).Round(time.Millisecond))
-	le.client = client
-	le.ready.Store(true)
+	le.Logf("%s LSP server is ready in %s", srv.lang.id, time.Since(started).Round(time.Millisecond))
+	srv.client = client
+	srv.ready.Store(true)
 	return true
 }
 
-func (le *Integration) sync(ctx context.Context, client lspClient, req syncReq) {
+func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
+	le := srv.le
 	uri := req.bufData.docUri
 	data := req.bufData
-	synced := le.syncText(ctx, client, req)
+	synced := srv.syncText(ctx, client, req)
 	if req.format != nil {
 		// Reply before anything else: the editor is waiting.
 		var edits []protocol.TextEdit
 		if synced {
-			edits = le.formatting(ctx, client, req)
+			edits = srv.formatting(ctx, client, req)
 		}
 		req.format.res <- edits
 	}
@@ -247,9 +280,9 @@ func (le *Integration) sync(ctx context.Context, client lspClient, req syncReq) 
 		return
 	}
 	if req.addImports {
-		le.addImports(ctx, client, req)
+		srv.addImports(ctx, client, req)
 	}
-	if req.completion == nil || le.queue.hasPending(req.bufData) {
+	if req.completion == nil || srv.queue.hasPending(req.bufData) {
 		return // Nothing to ask, or a newer edit makes the answer useless.
 	}
 
@@ -260,6 +293,9 @@ func (le *Integration) sync(ctx context.Context, client lspClient, req syncReq) 
 	if err != nil {
 		le.Debugf("completion failed: %s", err)
 		return
+	}
+	if !srv.lang.rankedCompletion {
+		items = rankByPrefix(items, at.line, at.cx)
 	}
 	suggestions := extractSuggestions(items, at.line, at.cx)
 	le.Debugf("completion at %d:%d: %d items, %d suggestions in %s",
@@ -279,13 +315,13 @@ func (le *Integration) sync(ctx context.Context, client lspClient, req syncReq) 
 }
 
 // syncText sends the server the text of req.
-func (le *Integration) syncText(ctx context.Context, client lspClient, req syncReq) bool {
+func (srv *server) syncText(ctx context.Context, client lspClient, req syncReq) bool {
 	data := req.bufData
 	if data.serverOpen {
-		return le.sendChange(ctx, client, req) == nil
+		return srv.sendChange(ctx, client, req) == nil
 	}
-	if err := client.DidOpen(ctx, data.docUri, "go", req.text, req.version); err != nil {
-		le.Debugf("didOpen failed: %s", err)
+	if err := client.DidOpen(ctx, data.docUri, srv.lang.id, req.text, req.version); err != nil {
+		srv.le.Debugf("didOpen failed: %s", err)
 		return false
 	}
 	data.serverOpen, data.serverText, data.serverSynced = true, req.text, true
@@ -299,14 +335,14 @@ const formatTimeout = time.Second
 // the server replies, which usually takes milliseconds, but no longer than
 // formatTimeout. The buffer is left as is if the server isn't ready, fails
 // (as it does on syntax errors), or is too slow.
-func (le *Integration) format(buf *editor.Buffer, data *BufferData, prefs editor.RenderPrefs) {
-	if !le.ready.Load() {
+func (srv *server) format(buf *editor.Buffer, data *BufferData, prefs editor.RenderPrefs) {
+	if !srv.ready.Load() {
 		return // Saving doesn't wait for the server to start.
 	}
 	text := buf.Text()
 	res := make(chan []protocol.TextEdit, 1)
 	data.version++
-	le.queue.push(syncReq{
+	srv.queue.push(syncReq{
 		buf:     buf,
 		bufData: data,
 		text:    text,
@@ -320,7 +356,7 @@ func (le *Integration) format(buf *editor.Buffer, data *BufferData, prefs editor
 	select {
 	case edits = <-res:
 	case <-timer.C:
-		le.Logf("formatting timed out")
+		srv.le.Logf("formatting timed out")
 		return
 	}
 	if len(edits) == 0 || buf.Text() != text {
@@ -330,14 +366,14 @@ func (le *Integration) format(buf *editor.Buffer, data *BufferData, prefs editor
 }
 
 // formatting returns the edits formatting the text of req.
-func (le *Integration) formatting(ctx context.Context, client lspClient, req syncReq) []protocol.TextEdit {
+func (srv *server) formatting(ctx context.Context, client lspClient, req syncReq) []protocol.TextEdit {
 	started := time.Now()
 	edits, err := client.Formatting(ctx, req.bufData.docUri, req.format.opts)
 	if err != nil {
-		le.Debugf("formatting failed: %s", err)
+		srv.le.Debugf("formatting failed: %s", err)
 		return nil
 	}
-	le.Debugf("formatting: %d edits in %s", len(edits), time.Since(started).Round(time.Millisecond))
+	srv.le.Debugf("formatting: %d edits in %s", len(edits), time.Since(started).Round(time.Millisecond))
 	return edits
 }
 
@@ -346,7 +382,8 @@ func (le *Integration) formatting(ctx context.Context, client lspClient, req syn
 // but only the imports it adds are taken: it also removes unused imports,
 // which are likely to be used soon while typing. The imports are added if the
 // user didn't change them in the meantime.
-func (le *Integration) addImports(ctx context.Context, client lspClient, req syncReq) {
+func (srv *server) addImports(ctx context.Context, client lspClient, req syncReq) {
+	le := srv.le
 	edits, err := client.OrganizeImports(ctx, req.bufData.docUri)
 	if err != nil {
 		le.Debugf("organize imports failed: %s", err)
@@ -383,7 +420,7 @@ func positionBefore(a, b protocol.Position) bool {
 
 // sendChange sends the server only what changed since the last sync: usually
 // a character.
-func (le *Integration) sendChange(ctx context.Context, client lspClient, req syncReq) error {
+func (srv *server) sendChange(ctx context.Context, client lspClient, req syncReq) error {
 	data := req.bufData
 	change := lsp.TextChange{Text: req.text}
 	if data.serverSynced {
@@ -392,40 +429,25 @@ func (le *Integration) sendChange(ctx context.Context, client lspClient, req syn
 	if err := client.DidChange(ctx, data.docUri, req.version, change); err != nil {
 		// Unknown state on the server: the next sync sends the whole text.
 		data.serverSynced = false
-		le.Debugf("didChange failed: %s", err)
+		srv.le.Debugf("didChange failed: %s", err)
 		return err
 	}
 	data.serverText, data.serverSynced = req.text, true
 	return nil
 }
 
-func (le *Integration) activeOn(buf *editor.Buffer) (*BufferData, bool) {
-	if le.failed.Load() {
-		return nil, false
-	}
-
-	data, ok := buf.ExtensionData(le.ID()).(*BufferData)
-	if !ok {
-		return nil, false
-	}
-	return data, data.docUri != ""
-}
-
-func (le *Integration) Close() error {
-	if le.cancel == nil {
-		return nil // Never started.
-	}
-	le.cancel()
-	<-le.loopDone
-	le.cancel = nil
-	if le.client == nil {
+// close stops the sync loop and shuts the server down.
+func (srv *server) close() error {
+	srv.cancel()
+	<-srv.loopDone
+	if srv.client == nil {
 		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	err := le.client.Shutdown(ctx)
-	le.client = nil
+	err := srv.client.Shutdown(ctx)
+	srv.client = nil
 	return err
 }
 
@@ -516,20 +538,4 @@ func identTrailing(s string) string {
 		i -= sz
 	}
 	return s[i:]
-}
-
-// findGoModRoot walks up from dir looking for a go.mod file. Returns the
-// directory containing go.mod, or dir if none is found before the filesystem
-// root.
-func findGoModRoot(dir string) string {
-	for d := dir; ; {
-		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
-			return d
-		}
-		parent := filepath.Dir(d)
-		if parent == d {
-			return dir
-		}
-		d = parent
-	}
 }

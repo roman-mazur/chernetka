@@ -40,6 +40,26 @@ func extractSuggestions(items []protocol.CompletionItem, line string, cx int) []
 	return withCommonPrefix(res)
 }
 
+// rankByPrefix orders completion items of a server that doesn't rank them
+// (cue lsp returns every candidate in alphabetical order) for the cursor at
+// line[:cx]: the items that are exactly what's already typed come first, as a
+// ranking server would put them, then the ones extending it. The rest can't be
+// shown inline and are dropped, so they don't push the useful items out of
+// the few extractSuggestions looks at.
+func rankByPrefix(items []protocol.CompletionItem, line string, cx int) []protocol.CompletionItem {
+	cx = min(cx, len(line))
+	typed := identTrailing(line[:cx])
+	var complete, extending []protocol.CompletionItem
+	for _, item := range items {
+		if typed != "" && isComplete(item, typed) {
+			complete = append(complete, item)
+		} else if _, _, ok := completionSuffix(item, line, cx); ok {
+			extending = append(extending, item)
+		}
+	}
+	return append(complete, extending...)
+}
+
 // withCommonPrefix makes the common prefix of the candidates the first
 // suggestion when they disagree, so what is shown by default is right no
 // matter which candidate the user is after. The candidates themselves remain

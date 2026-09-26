@@ -65,11 +65,14 @@
 //
 // # Code suggestions
 //
+// Suggestions come from a language server: gopls for Go files, and the one
+// built into the cue command for CUE files.
+//
 //	Tab        accept the suggestion (adding a missing import if needed)
 //	↑ ↓        cycle through the alternatives, if there are several
 //	Esc        dismiss the suggestion (press again to return to normal mode)
 //
-// Go files are formatted with gopls when saved.
+// Go and CUE files are formatted with their language server when saved.
 //
 // # Command mode
 //

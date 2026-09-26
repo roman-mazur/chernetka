@@ -1,5 +1,5 @@
 // Package lsp is a minimal LSP client used by the editor to obtain completion
-// suggestions and formatting from a language server (gopls).
+// suggestions and formatting from a language server, like gopls.
 //
 // It exposes the small subset of LSP methods the editor needs: initialize,
 // didOpen, didChange, completion, formatting, organize imports, and shutdown.
@@ -72,9 +72,9 @@ func Start(ctx context.Context, rootDir string, opts Options) (*Client, error) {
 
 // Options tune how the language server is launched and initialised.
 type Options struct {
-	Command string   // gopls binary; "gopls" from PATH when empty
-	Args    []string // gopls arguments, ignored by Start
-	Env     []string // gopls environment; the current one when nil
+	Command string   // server binary; "gopls" from PATH when empty
+	Args    []string // server arguments, ignored by Start
+	Env     []string // server environment; the current one when nil
 
 	// GoplsCache is where Start installs gopls built with the Go toolchains
 	// that the gopls in PATH is too old for. If empty, the gopls in PATH is
@@ -106,14 +106,14 @@ func StartWith(ctx context.Context, rootDir string, opts Options) (*Client, erro
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("gopls stdin pipe: %w", err)
+		return nil, fmt.Errorf("%s stdin pipe: %w", command, err)
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("gopls stdout pipe: %w", err)
+		return nil, fmt.Errorf("%s stdout pipe: %w", command, err)
 	}
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start gopls: %w", err)
+		return nil, fmt.Errorf("start %s: %w", command, err)
 	}
 
 	c, err := newClient(ctx, newConn(stdout, stdin), rootDir, opts)

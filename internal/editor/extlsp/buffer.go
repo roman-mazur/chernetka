@@ -11,9 +11,9 @@ import (
 )
 
 type BufferData struct {
-	integration *Integration
-	buf         *editor.Buffer
-	docUri      uri.URI
+	srv    *server // the server of the buffer language
+	buf    *editor.Buffer
+	docUri uri.URI
 
 	suggestions []suggestion
 	sugIdx      int    // what suggestion is picked
@@ -21,8 +21,6 @@ type BufferData struct {
 
 	version       int32
 	reqCompletion int
-
-	rootDir string // the workspace root to start the server with
 
 	// The server state of the document, only used by the sync loop.
 	serverOpen   bool
@@ -149,8 +147,8 @@ func (lbd *BufferData) typeThrough(line string, cx, cy int) {
 
 // Format formats the buffer with the language server before it's saved.
 func (lbd *BufferData) Format(prefs editor.RenderPrefs) {
-	if lbd.integration != nil {
-		lbd.integration.format(lbd.buf, lbd, prefs)
+	if lbd.srv != nil {
+		lbd.srv.format(lbd.buf, lbd, prefs)
 	}
 }
 
