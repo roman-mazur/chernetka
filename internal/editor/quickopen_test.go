@@ -67,7 +67,7 @@ func TestQuickOpen_Refresh(t *testing.T) {
 	e.OpenReader(filepath.Join(root, "buffer.go"), nil)
 
 	displayed := func() (res []string) {
-		for _, m := range e.status.quick.matches {
+		for _, m := range picker(e).matches {
 			res = append(res, m.display)
 		}
 		return
@@ -81,20 +81,20 @@ func TestQuickOpen_Refresh(t *testing.T) {
 	if got := displayed(); !slices.Equal(got, want) {
 		t.Errorf("matches = %q, want %q", got, want)
 	}
-	if e.status.quick.total != 5 {
-		t.Errorf("total = %d", e.status.quick.total)
+	if picker(e).total != 5 {
+		t.Errorf("total = %d", picker(e).total)
 	}
 
-	e.Top().cmdline += "bt"
-	e.syncQuickOpen(e.Top())
+	e.status.cmd.text += "bt"
+	e.status.cmd.prompt.changed(e)
 	// Matching the file name is preferred.
 	if got, want := displayed(), []string{filepath.Join("sub", "b.txt"), "buffer_test.go"}; !slices.Equal(got, want) {
 		t.Errorf("matches = %q, want %q", got, want)
 	}
-	if got, want := e.status.quick.matches[0].path, filepath.Join(root, "sub", "b.txt"); got != want {
+	if got, want := picker(e).matches[0].path, filepath.Join(root, "sub", "b.txt"); got != want {
 		t.Errorf("path to open = %q, want %q", got, want)
 	}
-	if e.status.quick.matches[0].open {
+	if picker(e).matches[0].open {
 		t.Errorf("file is marked as open")
 	}
 }
@@ -165,7 +165,7 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 	input := func(e *Editor, keys ...string) {
 		for _, k := range keys {
 			e.handleInput([]byte(k))
-			if q := e.status.quick; q != nil && q.loading {
+			if q := picker(e); q != nil && q.loading {
 				runQueuedCommand(t, e)
 			}
 		}
@@ -175,8 +175,8 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 	t.Run("switch to the previous buffer", func(t *testing.T) {
 		e, root := newEditor(t)
 		input(e, ctrlO)
-		if top := e.Top(); top.mode != ModeCommand || top.cmdline != "e " || e.status.quick == nil {
-			t.Fatalf("mode %s, cmdline %q", top.mode, top.cmdline)
+		if c := e.status.cmd; c == nil || c.text != "e " || picker(e) == nil {
+			t.Fatalf("command line %+v", c)
 		}
 		input(e, "\r")
 		assertTop(t, e, filepath.Join(root, "a.txt"), ModeNormal)
@@ -203,11 +203,13 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 	t.Run("backspace closes the picker", func(t *testing.T) {
 		e, root := newEditor(t)
 		input(e, ctrlO, "\x7f")
-		if e.status.quick != nil {
-			t.Error("picker is still shown")
+		if c := e.status.cmd; c == nil || picker(e) != nil {
+			t.Errorf("command line %+v, want the ex command", c)
 		}
-		assertTop(t, e, filepath.Join(root, "b.txt"), ModeCommand)
 		input(e, "\x7f", "\x7f")
+		if e.status.cmd != nil {
+			t.Errorf("command line %+v, want closed", e.status.cmd)
+		}
 		assertTop(t, e, filepath.Join(root, "b.txt"), ModeNormal)
 	})
 
@@ -216,14 +218,14 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 		top := e.Top()
 		top.offset = 3
 		input(e, "i", ctrlO)
-		if e.status.quick == nil {
+		if picker(e) == nil {
 			t.Fatal("no picker in insert mode")
 		}
-		e.status.quick.tall, top.offset = true, 5 // Rendered with two status rows.
+		picker(e).tall, top.offset = true, 5 // Rendered with two status rows.
 		input(e, "\x1b")
-		assertTop(t, e, filepath.Join(root, "b.txt"), ModeNormal)
-		if e.status.quick != nil || top.offset != 3 {
-			t.Errorf("picker %v, offset %d", e.status.quick, top.offset)
+		assertTop(t, e, filepath.Join(root, "b.txt"), ModeInsert)
+		if e.status.cmd != nil || top.offset != 3 {
+			t.Errorf("picker %v, offset %d", picker(e), top.offset)
 		}
 	})
 
@@ -231,8 +233,8 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 		e, root := newEditor(t)
 		input(e, ctrlO)
 		input(e, strings.Split("new.txt", "")...)
-		if len(e.status.quick.matches) != 0 {
-			t.Fatalf("matches: %v", e.status.quick.matches)
+		if len(picker(e).matches) != 0 {
+			t.Fatalf("matches: %v", picker(e).matches)
 		}
 		input(e, "\r")
 		path := filepath.Join(root, "new.txt")
@@ -252,6 +254,15 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 			t.Errorf("opened %q, want %q", opened, want)
 		}
 	})
+}
+
+// picker returns the file picker if it's shown in the command line.
+func picker(e *Editor) *quickOpen {
+	if e.status.cmd == nil {
+		return nil
+	}
+	q, _ := e.status.cmd.prompt.(*quickOpen)
+	return q
 }
 
 // newPickerTestEditor returns an editor with a command queue to receive the listed
@@ -281,7 +292,7 @@ func assertTop(t *testing.T, e *Editor, path string, mode Mode) {
 
 func TestQuickOpen_Render(t *testing.T) {
 	newPicker := func(n int) *quickOpen {
-		q := &quickOpen{buf: &Buffer{mode: ModeCommand, cmdline: "e q"}}
+		q := newQuickOpen(&cmdLine{buf: &Buffer{}, text: "e q"})
 		for i := range n {
 			q.matches = append(q.matches, quickMatch{display: strings.Repeat(string(rune('a'+i)), 5)})
 		}
@@ -366,7 +377,7 @@ func TestEditor_RenderQuickOpen(t *testing.T) {
 
 	e.handleInput([]byte{0x0f})
 	runQueuedCommand(t, e)
-	e.status.quick.tall = true
+	picker(e).tall = true
 	var out bytes.Buffer
 	e.render(bufio.NewWriter(&out))
 	if top.h != 38 || top.offset != 1 {

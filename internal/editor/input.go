@@ -174,20 +174,15 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
-	// Ctrl+O shows the file picker in any mode.
-	if inputs.IsQuickOpenCommand(input) && e.status.quick == nil {
+	// Ctrl+O shows the file picker in any mode. The picker itself selects the next match with it.
+	if inputs.IsQuickOpenCommand(input) && !prompting[*quickOpen](e) {
 		e.startQuickOpen(buf)
 		return false
 	}
 
-	// Ctrl+F starts the search in any mode, or moves to the next match while the pattern is typed.
-	if inputs.IsFindCommand(input) {
-		if buf.search.typing {
-			buf.searchMove(1)
-		} else {
-			e.closeQuickOpen()
-			buf.startSearch()
-		}
+	// Ctrl+F starts the search in any mode. The search itself moves to the next match with it.
+	if inputs.IsFindCommand(input) && !prompting[*searchPrompt](e) {
+		e.startSearch(buf)
 		return false
 	}
 
@@ -205,8 +200,21 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		return false
 	}
 
+	if e.status.cmd != nil {
+		return e.cmdLineInput(input)
+	}
+
 	switch buf.mode {
 	case ModeNormal:
+		// Open the command line.
+		if len(input) == 1 && input[0] == ':' {
+			e.openCmdLine(buf, "", newExPrompt)
+			return false
+		}
+		if len(input) == 1 && input[0] == '/' {
+			e.startSearch(buf)
+			return false
+		}
 		quit = normalInput(buf, input, &e.rPrefs)
 		if buf.engaged != nil {
 			// TODO: Consider different ownership.
@@ -221,17 +229,6 @@ func (e *Editor) handleInput(input []byte) (quit bool) {
 		}
 		return false
 
-	case ModeCommand:
-		if e.status.quick != nil && e.quickOpenInput(input) {
-			return false
-		}
-		if buf.search.typing && searchInput(buf, input) {
-			return false
-		}
-		quit = commandInput(buf, input, &e.rPrefs)
-		e.syncQuickOpen(buf)
-		buf.syncSearch()
-		return quit
 	default:
 		return false
 	}

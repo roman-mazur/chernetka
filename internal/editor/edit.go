@@ -17,7 +17,6 @@ type Mode int
 const (
 	ModeNormal Mode = iota
 	ModeInsert
-	ModeCommand
 )
 
 func (m Mode) String() string {
@@ -26,8 +25,6 @@ func (m Mode) String() string {
 		return "NORMAL"
 	case ModeInsert:
 		return "INSERT"
-	case ModeCommand:
-		return "COMMAND"
 	default:
 		return fmt.Sprintf("UNKNOWN_%d", int(m))
 	}

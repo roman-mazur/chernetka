@@ -462,14 +462,12 @@ func TestBuffer_Render_FillsExactlyHeight(t *testing.T) {
 		{name: "content shorter than pane", lines: 3, h: 21},
 		{name: "content longer than pane", lines: 1000, h: 21},
 		{name: "single row pane", lines: 1000, h: 1},
-		{name: "command mode", lines: 1000, mode: ModeCommand, h: 21},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf Buffer
 			testContent := slices.Repeat(content.FullText{content.TextLine("test")}, tc.lines)
 			buf.Content = &testContent
 			buf.mode = tc.mode
-			buf.cmdline = "w"
 			buf.w, buf.h = 40, tc.h
 
 			var out bytes.Buffer

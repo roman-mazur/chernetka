@@ -96,7 +96,7 @@
 //	Tab / ↓ / Ctrl+F  move to the next match
 //	Shift+Tab / ↑     move to the previous match
 //	Enter             keep the cursor at the match and the matches highlighted
-//	Esc               cancel and return the cursor where it was
+//	Esc               cancel, returning the cursor and the previous search highlights
 //
 // Like in sed, /pattern/replacement replaces the matches when Enter is pressed:
 // all of them in the buffer, like with the g flag. In the replacement, & is the
@@ -106,14 +106,16 @@
 // # Command mode
 //
 // Entered by pressing : in normal mode. Type a command and press Enter to run it.
-// Backspace removes the last character; an empty command line returns to normal mode.
+// Backspace removes the last character; on an empty command line, it closes it.
+// The command line, the search and the file picker opened from insert mode return
+// to insert mode when they are closed.
 //
 //	:q       quit
 //	:w       save the current buffer
 //	:w path  save the current buffer to path
 //	:wq      save and quit
 //	:e query quick open a file (see below)
-//	Esc      cancel and return to normal mode
+//	Esc      cancel
 //
 // # Quick open
 //

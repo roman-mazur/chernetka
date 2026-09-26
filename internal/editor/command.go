@@ -1,46 +1,36 @@
 package editor
 
 import (
+	"io"
 	"strings"
-
-	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-func commandInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
-	var (
-		arrow inputs.Cursor
-		mod   inputs.Modifier
-	)
-	if inputs.IsCursor(b, &arrow, &mod) {
-		// TODO: Handle history on up/down, move on left/right.
-		return false
-	}
-
-	if len(b) != 1 {
-		return false
-	}
-	switch b[0] {
-	case 0x1b: // Esc — cancel.
-		buf.cmdline = ""
-		buf.mode = ModeNormal
-	case '\r': // Enter — execute.
-		cmd := buf.cmdline
-		buf.cmdline = ""
-		buf.mode = ModeNormal
-		return runExCommand(buf, cmd, prefs)
-	case 0x7f, 0x08: // Backspace.
-		if n := len(buf.cmdline); n > 0 {
-			buf.cmdline = buf.cmdline[:n-1]
-		} else {
-			buf.mode = ModeNormal
-		}
-	default:
-		if b[0] >= 0x20 {
-			buf.cmdline += string(b[0]) // TODO: Review to properly support utf8.
-		}
-	}
-	return false
+// exPrompt runs the typed command on Enter, see runExCommand.
+// Typing ":e " turns it into the file picker.
+type exPrompt struct {
+	c *cmdLine
 }
+
+func newExPrompt(c *cmdLine) prompt { return &exPrompt{c: c} }
+
+func (p *exPrompt) prefix() string { return ":" }
+
+func (p *exPrompt) input(*Editor, []byte) bool { return false }
+
+func (p *exPrompt) changed(e *Editor) {
+	if strings.HasPrefix(p.c.text, quickOpenPrefix) {
+		p.c.prompt = newQuickOpen(p.c)
+		p.c.prompt.changed(e)
+	}
+}
+
+func (p *exPrompt) submit(e *Editor) (quit bool) { return runExCommand(p.c.buf, p.c.text, &e.rPrefs) }
+
+func (p *exPrompt) cancel(*Editor) {}
+
+func (p *exPrompt) height(int) int { return 1 }
+
+func (p *exPrompt) render(out io.Writer, w int) { renderCmdline(out, w, p.prefix()+p.c.text, "") }
 
 func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
 	for len(cmd) > 0 {

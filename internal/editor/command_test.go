@@ -8,23 +8,36 @@ import (
 	"rmazur.io/chernetka/internal/content"
 )
 
+// newCmdEditor returns an editor showing buf, and the function to type the keys.
+// A key longer than one character that is not an escape sequence is typed rune by rune.
+func newCmdEditor(buf *Buffer) (*Editor, func(keys ...string) (quit bool)) {
+	var e Editor
+	e.OpenBuffer(buf)
+	return &e, func(keys ...string) (quit bool) {
+		for _, k := range keys {
+			if len(k) > 1 && k[0] != '\x1b' {
+				for _, r := range k {
+					quit = e.handleInput([]byte(string(r)))
+				}
+				continue
+			}
+			quit = e.handleInput([]byte(k))
+		}
+		return quit
+	}
+}
+
 func TestCommandInput_WriteRunsSave(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.txt")
 	ft := content.FullText{content.TextLine("hello")}
-	buf := &Buffer{Path: path, Content: &ft, dirty: true, mode: ModeCommand}
+	buf := &Buffer{Path: path, Content: &ft, dirty: true}
+	e, input := newCmdEditor(buf)
 
-	prefs := RenderPrefs{}
-	for _, b := range []byte{'w'} {
-		commandInput(buf, []byte{b}, &prefs)
-	}
-	commandInput(buf, []byte{'\r'}, &prefs)
+	input(":w", "\r")
 
-	if buf.mode != ModeNormal {
-		t.Errorf("mode = %v, want ModeNormal", buf.mode)
-	}
-	if buf.cmdline != "" {
-		t.Errorf("cmdline = %q, want empty", buf.cmdline)
+	if e.status.cmd != nil || buf.mode != ModeNormal {
+		t.Errorf("command line %+v, mode %s", e.status.cmd, buf.mode)
 	}
 	if buf.dirty {
 		t.Errorf("dirty = true, want false after :w")
@@ -39,50 +52,62 @@ func TestCommandInput_WriteRunsSave(t *testing.T) {
 }
 
 func TestCommandInput_EscCancels(t *testing.T) {
-	buf := &Buffer{mode: ModeCommand, cmdline: "wq"}
-	prefs := RenderPrefs{}
-
-	commandInput(buf, []byte{0x1b}, &prefs)
-
-	if buf.mode != ModeNormal {
-		t.Errorf("mode = %v, want ModeNormal", buf.mode)
+	e, input := newCmdEditor(&Buffer{Content: content.Empty()})
+	if quit := input(":wq", "\x1b"); quit {
+		t.Error("Esc quits")
 	}
-	if buf.cmdline != "" {
-		t.Errorf("cmdline = %q, want empty", buf.cmdline)
+	if e.status.cmd != nil {
+		t.Errorf("command line %+v", e.status.cmd)
 	}
 }
 
 func TestCommandInput_BackspaceExitsWhenEmpty(t *testing.T) {
-	buf := &Buffer{mode: ModeCommand, cmdline: "w"}
-	prefs := RenderPrefs{}
+	e, input := newCmdEditor(&Buffer{Content: content.Empty()})
 
-	commandInput(buf, []byte{0x7f}, &prefs) // "w" -> ""
-	if buf.cmdline != "" {
-		t.Errorf("cmdline after 1st backspace = %q, want empty", buf.cmdline)
-	}
-	if buf.mode != ModeCommand {
-		t.Errorf("mode after 1st backspace = %v, want ModeCommand", buf.mode)
+	input(":w", "\x7f") // "w" -> ""
+	if e.status.cmd == nil || e.status.cmd.text != "" {
+		t.Fatalf("command line after 1st backspace = %+v, want open and empty", e.status.cmd)
 	}
 
-	commandInput(buf, []byte{0x7f}, &prefs) // empty -> back to normal
-	if buf.mode != ModeNormal {
-		t.Errorf("mode after 2nd backspace = %v, want ModeNormal", buf.mode)
+	input("\x7f") // empty -> closed
+	if e.status.cmd != nil {
+		t.Errorf("command line after 2nd backspace = %+v, want closed", e.status.cmd)
+	}
+}
+
+func TestCommandInput_UTF8(t *testing.T) {
+	e, input := newCmdEditor(&Buffer{Content: content.Empty()})
+	input(":w кіт", "\x7f")
+	if got := e.status.cmd.text; got != "w кі" {
+		t.Errorf("text = %q", got)
+	}
+}
+
+func TestCommandInput_ResumesInsertMode(t *testing.T) {
+	buf := &Buffer{Content: content.Empty()}
+	e, input := newCmdEditor(buf)
+	input("i", "\x0f") // Ctrl+O
+	if buf.mode != ModeNormal || e.status.cmd == nil {
+		t.Fatalf("mode %s, command line %+v", buf.mode, e.status.cmd)
+	}
+	input("\x1b")
+	if buf.mode != ModeInsert {
+		t.Errorf("mode %s after the command line is closed", buf.mode)
 	}
 }
 
 func TestCommandInput_QuitReturnsQuit(t *testing.T) {
-	buf := &Buffer{mode: ModeCommand, cmdline: "q"}
-	prefs := RenderPrefs{}
-
-	if quit := commandInput(buf, []byte{'\r'}, &prefs); !quit {
-		t.Errorf("commandInput(:q) returned quit=false, want true")
+	_, input := newCmdEditor(&Buffer{Content: content.Empty()})
+	if quit := input(":q", "\r"); !quit {
+		t.Errorf(":q returned quit=false, want true")
 	}
 }
 
 func TestCommandInput_Clipboard(t *testing.T) {
 	ft := content.FullText{content.TextLine("hello")}
-	buf := &Buffer{Content: &ft, dirty: true, mode: ModeCommand}
+	buf := &Buffer{Content: &ft, dirty: true}
 	prefs := RenderPrefs{}
+	_, input := newCmdEditor(buf)
 
 	StartTextSelection.DoOnBuffer(buf, prefs)
 	buf.c.Col = ft.Lines()[0].Len()
@@ -91,9 +116,7 @@ func TestCommandInput_Clipboard(t *testing.T) {
 		t.Errorf("SelectedText() = %q, want %q", selText, "hello")
 	}
 
-	buf.cmdline = "pbcopy"
-	q := commandInput(buf, []byte("\r"), &prefs)
-	if q {
+	if q := input(":pbcopy", "\r"); q {
 		t.Error("quit flag returned true on pbcopy")
 	}
 	if res := clipboard.Read(); res != "hello" {
@@ -103,15 +126,15 @@ func TestCommandInput_Clipboard(t *testing.T) {
 
 func TestCommandInput_ClipboardCutAndPaste(t *testing.T) {
 	ft := content.FullText{content.TextLine("hello")}
-	buf := &Buffer{Content: &ft, mode: ModeCommand}
+	buf := &Buffer{Content: &ft}
 	prefs := RenderPrefs{}
+	_, input := newCmdEditor(buf)
 
 	StartTextSelection.DoOnBuffer(buf, prefs)
 	buf.c.Col = ft.Lines()[0].Len()
 	StopTextSelection.DoOnBuffer(buf, prefs)
 
-	buf.cmdline = "pbcut"
-	if q := commandInput(buf, []byte("\r"), &prefs); q {
+	if q := input(":pbcut", "\r"); q {
 		t.Error("quit flag returned true on pbcut")
 	}
 	if res := clipboard.Read(); res != "hello" {
@@ -121,8 +144,7 @@ func TestCommandInput_ClipboardCutAndPaste(t *testing.T) {
 		t.Errorf("line after cut = %q, want empty", got)
 	}
 
-	buf.cmdline = "pbpaste"
-	if q := commandInput(buf, []byte("\r"), &prefs); q {
+	if q := input(":pbpaste", "\r"); q {
 		t.Error("quit flag returned true on pbpaste")
 	}
 	if got := ft.Lines()[0].String(); got != "hello" {

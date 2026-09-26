@@ -34,11 +34,9 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 		// Esc: clear selection and search highlights.
 		case inputs.Escape:
 			buf.cancelSelection()
-			buf.cancelSearch()
+			buf.search = nil
 
 		// Search.
-		case '/':
-			buf.startSearch()
 		case 'n':
 			buf.searchMove(1)
 		case 'N':
@@ -69,11 +67,6 @@ func normalInput(buf *Buffer, b []byte, prefs *RenderPrefs) (quit bool) {
 			buf.Mutate().Insert(buf.c.Line, content.TextLine(""))
 			buf.c.Col = 0
 			buf.mode = ModeInsert
-
-		// Enter command-line mode.
-		case ':':
-			buf.cmdline = ""
-			buf.mode = ModeCommand
 
 		// Engage.
 		case '\r':

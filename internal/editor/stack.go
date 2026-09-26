@@ -95,7 +95,7 @@ func (e *Editor) findAndActivateBuffer(p string) bool {
 }
 
 func (e *Editor) push(buf *Buffer) {
-	e.closeQuickOpen()
+	e.cancelCmdLine()
 	e.saveTop()
 	e.prepareExt(buf)
 	e.bufs = append(e.bufs, buf)
@@ -106,7 +106,7 @@ func (e *Editor) pop() (empty bool) {
 	if top == nil {
 		return true
 	}
-	e.closeQuickOpen()
+	e.cancelCmdLine()
 	_ = top.Close() // TODO: log/handle the error.
 	e.bufs = e.bufs[:len(e.bufs)-1]
 	return len(e.bufs) == 0
@@ -117,7 +117,7 @@ func (e *Editor) selectBuffer(i int) {
 	if i == len(e.bufs)-1 {
 		return
 	}
-	e.closeQuickOpen()
+	e.cancelCmdLine()
 	e.saveTop()
 	buf := e.bufs[i]
 	e.bufs = append(slices.Delete(e.bufs, i, i+1), buf)

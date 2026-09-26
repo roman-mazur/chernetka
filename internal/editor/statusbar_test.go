@@ -12,6 +12,7 @@ func TestStatusBar_Render(t *testing.T) {
 	cases := []struct {
 		name     string
 		buf      Buffer
+		cmd      string // the ex command typed in the command line
 		contains []string
 		absent   []string
 	}{
@@ -56,9 +57,8 @@ func TestStatusBar_Render(t *testing.T) {
 			buf: Buffer{
 				Path:    "test.txt",
 				Content: &content.FullText{content.TextLine("x")},
-				mode:    ModeCommand,
-				cmdline: "wq",
 			},
+			cmd:      "wq",
 			contains: []string{":wq"},
 			absent:   []string{"NORMAL", "COMMAND"},
 		},
@@ -67,6 +67,10 @@ func TestStatusBar_Render(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.buf.w, tc.buf.h = 40, tc.buf.Content.Len()+2
 			sb := StatusBar{buf: &tc.buf}
+			if tc.cmd != "" {
+				sb.cmd = &cmdLine{buf: &tc.buf, text: tc.cmd}
+				sb.cmd.prompt = newExPrompt(sb.cmd)
+			}
 			var out bytes.Buffer
 			sb.Render(&out)
 			res := out.String()

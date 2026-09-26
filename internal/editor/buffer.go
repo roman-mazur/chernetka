@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"regexp"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -20,9 +21,8 @@ type Buffer struct {
 	noCurrentLineHL bool
 
 	mode       Mode
-	dirty      bool   // if buffer content is different from the source file
-	noKeyboard bool   // a flag that indicates that the last input was not from the keyboard
-	cmdline    string // Text typed after ':' while in ModeCommand
+	dirty      bool // if buffer content is different from the source file
+	noKeyboard bool // a flag that indicates that the last input was not from the keyboard
 
 	c      content.Position // cursor position
 	offset int              // first visible row (scroll)
@@ -31,7 +31,7 @@ type Buffer struct {
 	sel       []content.Span // selected text
 	selecting bool
 
-	search bufSearch
+	search *regexp.Regexp // the search pattern to highlight the matches of
 
 	engaged content.LineAction // action engaged by the last input, taken over by the Editor
 

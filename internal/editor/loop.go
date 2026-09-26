@@ -87,7 +87,7 @@ func (e *Editor) render(out *bufio.Writer) {
 	resetSyncOutput := escape.SyncOutput(out)
 	defer resetSyncOutput()
 
-	showCursor := escape.HideCursor(out, topBuf.mode != ModeNormal)
+	showCursor := escape.HideCursor(out, topBuf.mode == ModeInsert || e.status.cmd != nil)
 	defer showCursor()
 
 	// The layout needs the status bar height.
@@ -101,7 +101,7 @@ func (e *Editor) render(out *bufio.Writer) {
 
 	e.status.Render(out)
 
-	if topBuf.mode == ModeCommand {
+	if e.status.cmd != nil {
 		e.status.RenderCursorPosition(out)
 	} else {
 		topBuf.RenderCursorPosition(out, &e.rPrefs)

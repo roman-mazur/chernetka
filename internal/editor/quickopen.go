@@ -28,10 +28,11 @@ const (
 // quickOpen is a file picker shown in the status bar while the :e command is typed.
 // It lists the open buffers first and then the project files matching the query.
 type quickOpen struct {
-	buf    *Buffer // the buffer the picker was started from
-	offset int     // the buffer scroll offset to restore when the picker is closed
+	c      *cmdLine
+	offset int // the buffer scroll offset to restore when the picker is closed
 
 	query   string
+	started bool         // the matches were listed for the query
 	matches []quickMatch // the best matches first, at most maxQuickMatches
 	total   int          // the number of all matches
 	sel     int          // the selected match
@@ -46,25 +47,27 @@ type quickMatch struct {
 	open    bool   // the path is open in a buffer
 }
 
-// startQuickOpen switches the buffer to the command mode with the :e command typed.
+func newQuickOpen(c *cmdLine) *quickOpen { return &quickOpen{c: c, offset: c.buf.offset} }
+
+// startQuickOpen shows the command line with the :e command typed.
 func (e *Editor) startQuickOpen(buf *Buffer) {
-	buf.mode = ModeCommand
-	buf.cmdline = quickOpenPrefix
-	e.syncQuickOpen(buf)
+	e.openCmdLine(buf, quickOpenPrefix, newExPrompt)
 }
 
-// syncQuickOpen starts, updates, or closes the picker to follow the command line of buf.
-func (e *Editor) syncQuickOpen(buf *Buffer) {
-	query, active := strings.CutPrefix(buf.cmdline, quickOpenPrefix)
-	if buf.mode != ModeCommand || !active {
-		e.closeQuickOpen()
+func (q *quickOpen) prefix() string { return ":" }
+
+// changed lists the matches for the query typed after ":e ".
+// The picker turns back into the ex command if the prefix is deleted.
+func (q *quickOpen) changed(e *Editor) {
+	query, active := strings.CutPrefix(q.c.text, quickOpenPrefix)
+	if !active {
+		q.cancel(e)
+		q.c.prompt = newExPrompt(q.c)
 		return
 	}
-	q := e.status.quick
-	if q == nil {
-		q = &quickOpen{buf: buf, offset: buf.offset}
-		e.status.quick = q
-		e.loadProjectFiles()
+	if !q.started {
+		q.started = true
+		e.loadProjectFiles(q)
 	} else if q.query == query {
 		return
 	}
@@ -72,34 +75,23 @@ func (e *Editor) syncQuickOpen(buf *Buffer) {
 	q.refresh(e)
 }
 
-// closeQuickOpen hides the picker returning its buffer to the normal mode if necessary.
-func (e *Editor) closeQuickOpen() {
-	q := e.status.quick
-	if q == nil {
-		return
-	}
-	e.status.quick = nil
-	if q.buf.mode == ModeCommand && strings.HasPrefix(q.buf.cmdline, quickOpenPrefix) {
-		q.buf.mode = ModeNormal
-		q.buf.cmdline = ""
-	}
+// cancel restores the buffer scroll offset: the taller status bar might have scrolled the content.
+func (q *quickOpen) cancel(*Editor) {
 	if q.tall {
-		// The taller status bar might have scrolled the content.
-		q.buf.offset = q.offset
+		q.c.buf.offset = q.offset
 	}
-	e.renderRequested = true
 }
 
 // loadProjectFiles lists the files in the project root in the background.
 // The files listed before are matched in the meantime.
-func (e *Editor) loadProjectFiles() {
-	q, root := e.status.quick, e.root()
+func (e *Editor) loadProjectFiles(q *quickOpen) {
+	root := e.root()
 	q.loading = true
 	go func() {
 		files := listProjectFiles(root, maxProjectFiles)
 		e.Send(CommandFunc(func(e *Editor) {
 			e.status.projectFiles = files
-			if e.status.quick == q {
+			if c := e.status.cmd; c != nil && c.prompt == prompt(q) {
 				q.loading = false
 				q.refresh(e)
 				e.renderRequested = true
@@ -108,9 +100,8 @@ func (e *Editor) loadProjectFiles() {
 	}()
 }
 
-// quickOpenInput handles the picker keys. Other input edits the command line as usual.
-func (e *Editor) quickOpenInput(b []byte) (handled bool) {
-	q := e.status.quick
+// input handles the picker keys. Other input edits the command line as usual.
+func (q *quickOpen) input(_ *Editor, b []byte) (handled bool) {
 	var (
 		arrow inputs.Cursor
 		mod   inputs.Modifier
@@ -127,18 +118,16 @@ func (e *Editor) quickOpenInput(b []byte) (handled bool) {
 		q.move(1)
 	case inputs.IsBacktab(b):
 		q.move(-1)
-	case len(b) == 1 && b[0] == '\r':
-		e.openQuickMatch()
 	default:
 		return false
 	}
 	return true
 }
 
-// openQuickMatch opens the selected match. Without matches, the query is treated as
+// submit opens the selected match. Without matches, the query is treated as
 // a path in the project root, and a new buffer is created if the file does not exist.
-func (e *Editor) openQuickMatch() {
-	q := e.status.quick
+func (q *quickOpen) submit(e *Editor) (quit bool) {
+	q.cancel(e)
 	var path string
 	switch {
 	case len(q.matches) > 0:
@@ -148,21 +137,21 @@ func (e *Editor) openQuickMatch() {
 	case q.query != "":
 		path = filepath.Join(e.root(), q.query)
 	}
-	e.closeQuickOpen()
 	if path == "" || e.findAndActivateBuffer(path) {
-		return
+		return false
 	}
 	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
 		buf := NewScratchBuffer()
 		buf.Path = path
 		e.push(buf)
-		return
+		return false
 	}
 	if e.OpenPath != nil {
 		e.OpenPath(path)
 	} else {
 		(&OpenFile{Path: path}).DoOnEditor(e)
 	}
+	return false
 }
 
 func (q *quickOpen) move(d int) {
@@ -189,7 +178,7 @@ func (q *quickOpen) refresh(e *Editor) {
 		if _, ok := fuzzyScore(q.query, m.display); !ok {
 			continue
 		}
-		if b == q.buf {
+		if b == q.c.buf {
 			current = append(current, m)
 		} else {
 			q.matches = append(q.matches, m)
@@ -365,14 +354,14 @@ const (
 	minInlineMatches = 3 // matches to show next to the command line, a separate row is used otherwise
 )
 
-func (q *quickOpen) cmdWidth() int { return 1 + utf8.RuneCountInString(q.buf.cmdline) }
+func (q *quickOpen) cmdWidth() int { return utf8.RuneCountInString(q.prefix() + q.c.text) }
 
 // render prints the command line and the matches.
 func (q *quickOpen) render(out io.Writer, w int) {
 	restore := escape.ReverseVideo(out)
 	defer func() { restore() }()
 
-	cmd := ":" + q.buf.cmdline
+	cmd := q.prefix() + q.c.text
 	escape.ClearLine(out)
 	if q.tall {
 		from, to := q.window(w)

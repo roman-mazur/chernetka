@@ -3,6 +3,7 @@ package editor
 import (
 	"bytes"
 	"errors"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -49,14 +50,22 @@ func newSearchEditor(t *testing.T, lines ...string) (*Editor, func(keys ...strin
 	return &e, func(keys ...string) {
 		for _, k := range keys {
 			if len(k) > 1 && k[0] != '\x1b' {
-				for _, c := range []byte(k) {
-					e.handleInput([]byte{c})
+				for _, r := range k {
+					e.handleInput([]byte(string(r)))
 				}
 				continue
 			}
 			e.handleInput([]byte(k))
 		}
 	}
+}
+
+// searchFailure returns the failure shown while the search pattern is typed.
+func searchFailure(e *Editor) string {
+	if p, ok := e.status.cmd.prompt.(*searchPrompt); ok {
+		return p.failure
+	}
+	return ""
 }
 
 func pos(line, col int) content.Position { return content.Position{Line: line, Col: col} }
@@ -82,8 +91,8 @@ func TestSearch(t *testing.T) {
 		b := e.Top()
 		b.c = pos(1, 0)
 		input("/")
-		if b.mode != ModeCommand || b.cmdline != "/" {
-			t.Fatalf("mode %s, cmdline %q", b.mode, b.cmdline)
+		if !prompting[*searchPrompt](e) || e.status.cmd.text != "" {
+			t.Fatalf("command line %+v", e.status.cmd)
 		}
 		input("t")
 		if b.c != pos(1, 0) {
@@ -94,12 +103,12 @@ func TestSearch(t *testing.T) {
 			t.Errorf("cursor at %s, want the first match after the cursor", b.c)
 		}
 		input("x")
-		if b.c != pos(1, 0) || b.search.failure != "no matches" {
-			t.Errorf("cursor at %s, failure %q", b.c, b.search.failure)
+		if b.c != pos(1, 0) || searchFailure(e) != "no matches" {
+			t.Errorf("cursor at %s, failure %q", b.c, searchFailure(e))
 		}
 		input("\x7f", enter)
-		if b.mode != ModeNormal || b.c != pos(1, 6) || b.search.re == nil {
-			t.Errorf("mode %s, cursor at %s, pattern %v", b.mode, b.c, b.search.re)
+		if e.status.cmd != nil || b.c != pos(1, 6) || b.search == nil {
+			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c, b.search)
 		}
 	})
 
@@ -131,7 +140,7 @@ func TestSearch(t *testing.T) {
 			t.Errorf("N: cursor at %s", b.c)
 		}
 		input(esc)
-		if b.search.re != nil {
+		if b.search != nil {
 			t.Error("search is not cleared with Esc")
 		}
 		input("n")
@@ -159,13 +168,41 @@ func TestSearch(t *testing.T) {
 		b := e.Top()
 		b.c = pos(2, 1)
 		input("/two", esc)
-		if b.mode != ModeNormal || b.c != pos(2, 1) || b.search.re != nil || b.cmdline != "" {
-			t.Errorf("mode %s, cursor at %s, pattern %v, cmdline %q", b.mode, b.c, b.search.re, b.cmdline)
+		if b.mode != ModeNormal || b.c != pos(2, 1) || b.search != nil || e.status.cmd != nil {
+			t.Errorf("mode %s, cursor at %s, pattern %v, command line %+v", b.mode, b.c, b.search, e.status.cmd)
 		}
 
 		input("/t", "\x7f", "\x7f")
-		if b.mode != ModeNormal || b.search.typing {
-			t.Errorf("deleting the prefix: mode %s, typing %t", b.mode, b.search.typing)
+		if b.mode != ModeNormal || e.status.cmd != nil {
+			t.Errorf("deleting the pattern: mode %s, command line %+v", b.mode, e.status.cmd)
+		}
+	})
+
+	t.Run("cancel restores the previous search", func(t *testing.T) {
+		e, input := newSearchEditor(t, sample...)
+		b := e.Top()
+		input("/two", enter, "/four", esc)
+		if b.search == nil || b.search.String() != "two" || b.c != pos(0, 4) {
+			t.Errorf("pattern %v, cursor at %s", b.search, b.c)
+		}
+	})
+
+	t.Run("ctrl+f in the file picker", func(t *testing.T) {
+		e, input := newSearchEditor(t, sample...)
+		input("\x0f", ctrlF)
+		if !prompting[*searchPrompt](e) || e.status.cmd.text != "" {
+			t.Errorf("command line %+v", e.status.cmd)
+		}
+	})
+
+	t.Run("switching the buffer cancels", func(t *testing.T) {
+		e, input := newSearchEditor(t, sample...)
+		b := e.Top()
+		b.c = pos(2, 1)
+		input("/two")
+		e.New()
+		if e.status.cmd != nil || b.c != pos(2, 1) || b.search != nil {
+			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c, b.search)
 		}
 	})
 
@@ -181,12 +218,12 @@ func TestSearch(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
 		input("/tw(")
-		if b.search.failure != "invalid pattern" || b.search.re.String() != "tw" {
-			t.Errorf("failure %q, pattern %v", b.search.failure, b.search.re)
+		if searchFailure(e) != "invalid pattern" || b.search.String() != "tw" {
+			t.Errorf("failure %q, pattern %v", searchFailure(e), b.search)
 		}
 		input(enter)
-		if b.search.re != nil || b.mode != ModeNormal {
-			t.Errorf("pattern %v, mode %s", b.search.re, b.mode)
+		if b.search != nil || e.status.cmd != nil {
+			t.Errorf("pattern %v, command line %+v", b.search, e.status.cmd)
 		}
 	})
 
@@ -194,8 +231,8 @@ func TestSearch(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
 		input("i", ctrlF)
-		if b.mode != ModeCommand || !b.search.typing {
-			t.Fatalf("mode %s, typing %t", b.mode, b.search.typing)
+		if b.mode != ModeNormal || !prompting[*searchPrompt](e) {
+			t.Fatalf("mode %s, command line %+v", b.mode, e.status.cmd)
 		}
 		input("four", enter)
 		if b.mode != ModeInsert || b.c != pos(2, 0) {
@@ -220,8 +257,8 @@ func TestSearch(t *testing.T) {
 		if b.Text() != want {
 			t.Errorf("text %q, want %q", b.Text(), want)
 		}
-		if b.c != pos(1, 6) || b.mode != ModeNormal || b.search.re != nil || !b.dirty {
-			t.Errorf("cursor at %s, mode %s, pattern %v, dirty %t", b.c, b.mode, b.search.re, b.dirty)
+		if b.c != pos(1, 6) || b.mode != ModeNormal || b.search != nil || !b.dirty {
+			t.Errorf("cursor at %s, mode %s, pattern %v, dirty %t", b.c, b.mode, b.search, b.dirty)
 		}
 	})
 
@@ -245,9 +282,7 @@ func TestSearch(t *testing.T) {
 
 func TestSearch_Highlight(t *testing.T) {
 	b := &Buffer{Content: &content.FullText{content.TextLine("ab ab ab")}}
-	b.startSearch()
-	b.cmdline = "/ab"
-	b.syncSearch()
+	b.search = regexp.MustCompile("ab")
 	b.searchMove(1)
 	b.sel = []content.Span{{Start: pos(0, 7), End: pos(0, 8)}}
 
@@ -274,33 +309,27 @@ func TestSearch_Highlight(t *testing.T) {
 }
 
 func TestStatusBar_Search(t *testing.T) {
-	b := &Buffer{Content: &content.FullText{content.TextLine("abc")}, w: 40, h: 1}
-	s := StatusBar{buf: b}
-	b.startSearch()
-	b.cmdline = "/x"
-	b.syncSearch()
+	e, input := newSearchEditor(t, "abc")
+	render := func() string {
+		e.status.buf = e.Top()
+		e.Top().w = 40
+		var out bytes.Buffer
+		e.status.Render(&out)
+		return escape.Clean(out.String())
+	}
 
-	var out bytes.Buffer
-	s.Render(&out)
-	got := escape.Clean(out.String())
-	if !strings.Contains(got, "/x") || strings.Contains(got, ":/x") || !strings.Contains(got, "no matches") {
+	input("/x")
+	if got := render(); !strings.HasPrefix(got, "/x ") || !strings.Contains(got, "no matches") {
 		t.Errorf("status %q", got)
 	}
 
-	b.cmdline = "/b/y"
-	b.syncSearch()
-	out.Reset()
-	s.Render(&out)
-	if got := escape.Clean(out.String()); !strings.Contains(got, "replace all") {
+	input("\x7f", "b/y")
+	if got := render(); !strings.HasPrefix(got, "/b/y ") || !strings.Contains(got, "replace all") {
 		t.Errorf("status %q", got)
 	}
 
-	b.cmdline = "/b"
-	b.syncSearch()
-	b.finishSearch()
-	out.Reset()
-	s.Render(&out)
-	if got := escape.Clean(out.String()); !strings.Contains(got, "NORMAL") || !strings.Contains(got, "/b") {
+	input("\x7f", "\x7f", "\r")
+	if got := render(); !strings.Contains(got, "NORMAL") || !strings.Contains(got, "/b") {
 		t.Errorf("status %q", got)
 	}
 }
@@ -310,10 +339,8 @@ func TestSearch_Render(t *testing.T) {
 		content.TextLine("\tкіт ab"),
 		content.TextLine("ab"),
 	}, w: 40, h: 2}
-	b.startSearch()
-	b.cmdline = "/кіт|ab"
-	b.syncSearch()
-	b.finishSearch()
+	b.search = regexp.MustCompile("кіт|ab")
+	b.searchMove(1)
 
 	var out bytes.Buffer
 	b.Render(&out, &RenderPrefs{TabSize: 4})
