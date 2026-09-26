@@ -23,6 +23,8 @@ func TestVisual(t *testing.T) {
 	for _, tc := range []struct{ path, text string }{
 		{"visual.md", visualMarkdown},
 		{"visual.go", visualGo},
+		{"visual.nix", visualNix},
+		{"visual.cue", visualCUE},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -146,6 +148,65 @@ func main() {
 	g := &Greeter{Name: "chernetka", Count: 3}
 	literals := []any{0x1f, 1.5e3, 'r', true, false, nil}
 	_, _ = g, literals
+}
+`
+
+const visualNix = `# A package, to be looked at.
+{ lib, stdenv, fetchurl, enableTests ? true, ... }@args:
+
+let
+  version = "1.2.${toString 3}";
+  greet = name: "hello \${name}\n";
+  script = ''
+    echo ${lib.escapeShellArg version} ''${literal}
+  '';
+in
+stdenv.mkDerivation rec {
+  pname = "chernetka";
+  inherit version;
+  src = fetchurl {
+    url = "https://example.com/${pname}-${version}.tar.gz";
+    hash = lib.fakeHash;
+  };
+  doCheck = enableTests && args ? lib;
+  paths = [ ./src ~/config <nixpkgs> https://nixos.org ];
+  meta = with lib; {
+    license = licenses.mit or null;
+    count = builtins.length [ 1 2.5 ];
+    broken = if stdenv.isDarwin then false else null;
+  };
+}
+`
+
+const visualCUE = `// Package config is here to be looked at.
+package config
+
+import (
+	"strings"
+	"list"
+)
+
+// #Service describes a service.
+#Service: {
+	name!:     string & strings.MinRunes(1)
+	port:      int | *8080
+	replicas?: >=1 & <=10
+	labels: [string]: string
+	...
+}
+
+_#internal: {tags: [...string]}
+
+svc: #Service & {
+	name: "api"
+	url:  "http://\(name):\(port + 1)/\n"
+	if port > 80 {tls: true}
+	sorted: list.Sort([3, 1.5], list.Ascending)
+	count:  len(sorted)
+	extra:  null | _ | _|_
+	let base = "x"
+	items: [for i, x in sorted {"\(base)-\(i)": x}]
+	id: string @go(ID)
 }
 `
 

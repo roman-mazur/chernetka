@@ -9,6 +9,8 @@ import (
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	"rmazur.io/chernetka/internal/content/code"
+	cuesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
+	nixsitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
 )
 
 func init() {
@@ -22,6 +24,26 @@ var goQuery string
 var goGrammar = &tsGrammar{
 	load:   func() *treesitter.Language { return treesitter.NewLanguage(gositter.Language()) },
 	query:  goQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/nix.scm
+var nixQuery string
+
+// nixGrammar highlights Nix using the grammar copied from tree-sitter-nix.
+var nixGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(nixsitter.Language()) },
+	query:  nixQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/cue.scm
+var cueQuery string
+
+// cueGrammar highlights CUE using the grammar copied from tree-sitter-cue.
+var cueGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(cuesitter.Language()) },
+	query:  cueQuery,
 	tokens: defaultCaptureTokens,
 }
 
@@ -43,6 +65,9 @@ var defaultCaptureTokens = map[string]code.TokenType{
 	"number":          code.TtNumberLiteral,
 	"constant":        code.TtConstant,
 	"comment":         code.TtComment,
+	// Code embedded in a string, like an interpolated expression, is plain
+	// text again rather than a part of the string.
+	"embedded": code.TtIdentifier,
 }
 
 // tsGrammar is a tree-sitter grammar paired with its highlight query. Both are

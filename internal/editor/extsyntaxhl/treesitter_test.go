@@ -78,12 +78,93 @@ func TestGoHighlightAfterEdit(t *testing.T) {
 	shifted.check(t, hl)
 }
 
+func TestNixHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"# A comment.", []string{"0:12:Comment"}},
+		{"{ lib, enable ? true, ... }@args:", []string{
+			"2:5:Identifier", "7:13:Identifier", "16:20:Constant", "28:32:Identifier",
+		}},
+		{"let", []string{"0:3:Keyword"}},
+		{"  greet = name: \"hi ${name}\\n\";", []string{
+			"2:7:FuncDeclaration", "10:14:Identifier", "16:20:StringLiteral",
+			"20:22:Escape", "22:26:Identifier", "26:29:Escape", "29:30:StringLiteral",
+		}},
+		{"in rec {", []string{"0:2:Keyword", "3:6:Keyword"}},
+		{"  a.b = lib.mkIf enable [ ./src 1.5 ];", []string{
+			"2:3:Field", "4:5:Field", "8:11:Identifier", "12:16:Call", "17:23:Identifier",
+			"26:31:StringLiteral", "32:35:NumberLiteral",
+		}},
+		{"  inherit (builtins) toString;", []string{"2:9:Keyword", "11:19:ImportRef", "21:29:Field"}},
+		{"  c = args.x or null;", []string{
+			"2:3:Field", "6:10:Identifier", "11:12:Field", "13:15:Keyword", "16:20:Constant",
+		}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "default.nix", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestCUEHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"package config", []string{"0:7:Keyword", "8:14:Identifier"}},
+		{"", nil},
+		{"import \"strings\"", []string{"0:6:Keyword", "7:16:ImportRef"}},
+		{"", nil},
+		{"// #Service is a definition.", []string{"0:28:Comment"}},
+		{"#Service: {", []string{"0:8:TypeRef"}},
+		{"\tname!:  string & strings.MinRunes(1)", []string{
+			"1:5:Field", "9:15:TypeRef", "18:25:Identifier", "26:34:Call", "35:36:NumberLiteral",
+		}},
+		{"\tport?:  int | *8080 @go(Port)", []string{
+			"1:5:Field", "9:12:TypeRef", "16:20:NumberLiteral", "21:30:Constant",
+		}},
+		{"}", nil},
+		{"", nil},
+		{"svc: #Service & {", []string{"0:3:Field", "5:13:TypeRef"}},
+		// The interpolated expression is code, so the string doesn't color it.
+		{"\turl: \"http://\\(name):\\(port + 1)\\n\"", []string{
+			"1:4:Field", "6:14:StringLiteral", "14:16:Escape", "16:20:Identifier", "20:21:Escape",
+			"21:22:StringLiteral", "22:24:Escape", "24:31:Identifier", "31:32:NumberLiteral",
+			"32:35:Escape", "35:36:StringLiteral",
+		}},
+		{"\tif port > 80 {tls: true}", []string{
+			"1:3:Keyword", "4:8:Identifier", "11:13:NumberLiteral", "15:18:Field", "20:24:Constant",
+		}},
+		{"\tn: len([for x in [1, 2.5] {x}])", []string{
+			"1:2:Field", "4:7:Call", "9:12:Keyword", "13:14:Identifier", "15:17:Keyword",
+			"19:20:NumberLiteral", "22:25:NumberLiteral", "28:29:Identifier",
+		}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "config.cue", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+// TestGrammarsPrepare checks that every tree-sitter grammar loads and that its
+// highlight query compiles. A broken query leaves the language uncolored
+// without any other sign of trouble.
+func TestGrammarsPrepare(t *testing.T) {
+	for _, lang := range languages {
+		hl, ok := lang.newHighlighter().(*tsHighlighter)
+		if !ok {
+			continue
+		}
+		if err := hl.grammar.prepare(); err != nil {
+			t.Errorf("%s: %s", lang.name, err)
+		}
+	}
+}
+
 // TestLanguageForPath checks that only the recognized file types get a
 // highlighter, and that an unknown one is left alone rather than mishandled.
 func TestLanguageForPath(t *testing.T) {
 	for path, want := range map[string]string{
 		"main.go":         "go",
 		"a/b/main.GO":     "go",
+		"flake.nix":       "nix",
+		"schema.CUE":      "cue",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",

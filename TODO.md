@@ -11,7 +11,7 @@
 - Horizontal scroll
 - Run tests from normal mode (action on a test function definition)
 - Same for main function
-- SQL, CUE, JSON syntax highlight
+- SQL, JSON syntax highlight
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy
 

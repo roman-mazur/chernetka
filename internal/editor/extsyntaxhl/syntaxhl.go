@@ -46,6 +46,16 @@ var languages = []language{
 		newHighlighter: newTreeSitter(goGrammar),
 	},
 	{
+		name:           "nix",
+		matcher:        matchExtensions(".nix"),
+		newHighlighter: newTreeSitter(nixGrammar),
+	},
+	{
+		name:           "cue",
+		matcher:        matchExtensions(".cue"),
+		newHighlighter: newTreeSitter(cueGrammar),
+	},
+	{
 		name:           "markdown",
 		matcher:        matchExtensions(".md", ".markdown"),
 		newHighlighter: newMarkdown,
