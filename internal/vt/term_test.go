@@ -1,6 +1,10 @@
 package vt
 
-import "testing"
+import (
+	"bytes"
+	"io"
+	"testing"
+)
 
 func TestWindowSize_CellSize(t *testing.T) {
 	for _, tc := range []struct {
@@ -28,5 +32,22 @@ func TestTestTerminal_Size(t *testing.T) {
 	size, err := TestTerminal(80, 24, nil).Size()
 	if err != nil || size != (WindowSize{Cols: 80, Rows: 24}) {
 		t.Errorf("Size() = %+v, %v", size, err)
+	}
+}
+
+func TestTestTerminal_Configure(t *testing.T) {
+	var out bytes.Buffer
+	term := TestTerminal(80, 24, &out)
+	term.Configure(func(w io.Writer) func() {
+		_, _ = io.WriteString(w, "on;")
+		return func() { _, _ = io.WriteString(w, "off;") }
+	})
+	for range 2 {
+		if err := term.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := out.String(), "on;off;"; got != want {
+		t.Errorf("output = %q, want %q", got, want)
 	}
 }

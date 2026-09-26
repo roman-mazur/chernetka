@@ -1,12 +1,16 @@
 package editor
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/vt"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 func TestEditor_OpenReader(t *testing.T) {
@@ -257,6 +261,54 @@ func TestEditor_LayoutWindowSize(t *testing.T) {
 				if buf.w != tc.wantW || buf.h != tc.wantH {
 					t.Errorf("buffer size = %dx%d, want %dx%d", buf.w, buf.h, tc.wantW, tc.wantH)
 				}
+			}
+		})
+	}
+}
+
+func TestEditor_Run_ConfiguresTerminal(t *testing.T) {
+	var out bytes.Buffer
+	term := vt.TestTerminal(80, 40, struct {
+		io.Reader
+		io.Writer
+	}{strings.NewReader(""), &out}) // Input EOF makes the editor quit.
+
+	var e Editor
+	runFinished := make(chan struct{})
+	go func() {
+		defer close(runFinished)
+		e.Run(term)
+	}()
+	select {
+	case <-runFinished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not finish on input EOF")
+	}
+	got := out.String()
+
+	for _, tc := range []struct {
+		name string
+		f    escape.ConfigFunc
+	}{
+		{"mouse", escape.EnableMouse},
+		{"alternative buffer", escape.EnableAlternativeBuffer},
+		{"line wrapping", escape.DisableLineWrapping},
+		{"bracketed paste", escape.EnableBracketedPasteMode},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var seq bytes.Buffer
+			restore := tc.f(&seq)
+			enable := seq.String()
+			seq.Reset()
+			restore()
+			disable := seq.String()
+
+			on := strings.Index(got, enable)
+			if on < 0 {
+				t.Fatalf("terminal is not configured: missing %q in the output", enable)
+			}
+			if off := strings.LastIndex(got, disable); off < on {
+				t.Errorf("terminal is not restored on exit: missing %q after %q", disable, enable)
 			}
 		})
 	}

@@ -104,18 +104,25 @@ func (st *sysTerminal) Size() (WindowSize, error) {
 	return windowSize(int(st.out.Fd()))
 }
 
+// Close restores the terminal state. Subsequent calls do nothing.
 func (st *sysTerminal) Close() error {
-	for _, f := range slices.Backward(st.cleanup) {
+	runCleanup(st.cleanup)
+	st.cleanup = nil
+	return nil
+}
+
+func runCleanup(ops []func()) {
+	for _, f := range slices.Backward(ops) {
 		if f != nil {
 			f()
 		}
 	}
-	return nil
 }
 
 // TestTerminal produces a test Terminal that never emits a window change event.
 // Reader and writer are provided in the arguments. If it's also an io.Closer, it will be closed in Close.
 // The terminal does not report its size in pixels, set SizeFunc to change it.
+// Configure writes the escape sequences to the writer, and Close writes the restoring ones.
 func TestTerminal(w, h int, rw io.ReadWriter) *MockTerminal {
 	return &MockTerminal{
 		ReadWriter: rw,
@@ -128,13 +135,22 @@ func TestTerminal(w, h int, rw io.ReadWriter) *MockTerminal {
 type MockTerminal struct {
 	io.ReadWriter
 	SizeFunc func() (WindowSize, error)
+
+	restore []func()
 }
 
 func (t *MockTerminal) WindowSizeChanges() <-chan struct{} { return nil }
 func (t *MockTerminal) Size() (WindowSize, error)          { return t.SizeFunc() }
-func (t *MockTerminal) Configure(...escape.ConfigFunc)     {}
+
+func (t *MockTerminal) Configure(opts ...escape.ConfigFunc) {
+	for _, opt := range opts {
+		t.restore = append(t.restore, opt(t))
+	}
+}
 
 func (t *MockTerminal) Close() error {
+	runCleanup(t.restore)
+	t.restore = nil
 	if c, ok := t.ReadWriter.(io.Closer); ok {
 		return c.Close()
 	}
