@@ -68,6 +68,7 @@ func main() {
 
 		info, err := os.Stat(path)
 		if err != nil {
+			_ = term.Close() // log.Fatal skips deferred calls.
 			log.Fatal("cannot get path info:", err)
 		}
 		if info.IsDir() {
