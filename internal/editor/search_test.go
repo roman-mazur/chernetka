@@ -292,11 +292,11 @@ func TestSearch_Highlight(t *testing.T) {
 
 	c := styles.DefaultColors
 	want := []colorSpan{
-		{Span: content.Span{Start: pos(0, 0), End: pos(0, 2)}, color: c.SearchMatchBg},
-		{Span: content.Span{Start: pos(0, 2), End: pos(0, 3)}},
-		{Span: content.Span{Start: pos(0, 3), End: pos(0, 5)}, color: c.SearchCursorBg},
-		{Span: content.Span{Start: pos(0, 5), End: pos(0, 7)}},
-		{Span: content.Span{Start: pos(0, 7), End: pos(0, 8)}, color: c.TextSelectedBg},
+		{Start: pos(0, 0), End: pos(0, 2), color: c.SearchMatchBg},
+		{Start: pos(0, 2), End: pos(0, 3)},
+		{Start: pos(0, 3), End: pos(0, 5), color: c.SearchCursorBg},
+		{Start: pos(0, 5), End: pos(0, 7)},
+		{Start: pos(0, 7), End: pos(0, 8), color: c.TextSelectedBg},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)

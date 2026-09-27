@@ -188,8 +188,8 @@ func (b *Buffer) replaceAll(template string) {
 	first, found := b.findMatch(b.c, 1, true)
 
 	lines := b.Content.Lines()
-	for ln := len(lines) - 1; ln >= 0; ln-- {
-		line := lines[ln].String()
+	for ln, line := range slices.Backward(lines) {
+		line := line.String()
 		replaced := b.search.ReplaceAllString(line, template)
 		if replaced == line {
 			continue

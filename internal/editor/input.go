@@ -188,7 +188,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		return false
 
 	case input.Ctrl('s'):
-		e.execBufferCmd(&Save{buf.Path}) // Formatting may change it.
+		e.execBufferCmd(&Save{buf.Path})
 		return false
 
 	// Re-run the last engaged line action.

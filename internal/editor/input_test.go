@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -10,12 +11,7 @@ import (
 // handleInput handles the keys decoded from the terminal input like the editor loop does.
 func (e *Editor) handleInput(b []byte) (quit bool) {
 	keys, _ := input.Keys(b)
-	for _, k := range keys {
-		if e.handleKey(k) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(keys, e.handleKey)
 }
 
 // sendChunks passes the chunks to sendInput like they are read from the terminal,

@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -98,7 +99,7 @@ func TestEvalCompletion(t *testing.T) {
 	}
 	if *evalFilter != "" {
 		keep := map[string]bool{}
-		for _, n := range strings.Split(*evalFilter, ",") {
+		for n := range strings.SplitSeq(*evalFilter, ",") {
 			keep[n] = true
 		}
 		var filtered []evalSession
@@ -116,14 +117,12 @@ func TestEvalCompletion(t *testing.T) {
 		wg sync.WaitGroup
 	)
 	for _, s := range sessions {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			pts := cachedSession(t, root, s, samples)
 			mu.Lock()
 			results[s.name] = pts
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -221,7 +220,7 @@ func score(st evalStrategy, lines [][]point) metrics {
 		cost1 += simulate(line, start, pts, ghosts, 1)
 		cost3 += simulate(line, start, pts, ghosts, 3)
 	}
-	sort.Slice(lats, func(i, j int) bool { return lats[i] < lats[j] })
+	slices.Sort(lats)
 	var m metrics
 	if positions > 0 {
 		m.shownPct = 100 * float64(shown) / float64(positions)
@@ -385,8 +384,8 @@ func snippets(next candidate) candidate {
 }
 
 func snippetPrefix(s string) string {
-	if i := strings.Index(s, "$"); i >= 0 {
-		return s[:i]
+	if before, _, ok := strings.Cut(s, "$"); ok {
+		return before
 	}
 	return s
 }
@@ -519,7 +518,7 @@ func cachedSession(t *testing.T, root string, s evalSession, samples []sample) [
 	if *evalCache != "" {
 		path = filepath.Join(*evalCache, fmt.Sprintf("%s-%d.jsonl", s.name, *evalSeed))
 		if b, err := os.ReadFile(path); err == nil {
-			for _, l := range strings.Split(string(b), "\n") {
+			for l := range strings.SplitSeq(string(b), "\n") {
 				var pts []point
 				if l != "" && json.Unmarshal([]byte(l), &pts) == nil {
 					res = append(res, pts)
@@ -797,7 +796,7 @@ func TestSyncModes(t *testing.T) {
 
 func median(ds []time.Duration) time.Duration {
 	s := append([]time.Duration(nil), ds...)
-	sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
+	slices.Sort(s)
 	return s[len(s)/2].Round(100 * time.Microsecond)
 }
 
