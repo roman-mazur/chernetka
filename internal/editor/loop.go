@@ -182,18 +182,40 @@ func (lps *layoutState) resolveWindowSize() (w int, h int) {
 }
 
 func (lps *layoutState) Pass() iter.Seq[*Buffer] {
-	done := false
 	w, h := lps.resolveWindowSize()
-	return func(yield func(*Buffer) bool) {
-		if done {
-			return
-		}
-		// TODO: consider rendering multiple buffers.
-		buf := lps.editor.Top()
-		buf.w = w
-		buf.h = max(h-lps.editor.status.Height(), 0)
 
-		done = true
-		yield(buf)
+	var (
+		lBufs [2]*Buffer
+		res   = lBufs[:0]
+	)
+	availableHeight := func() int {
+		rh := h - lps.editor.status.Height()
+		if rh <= 0 {
+			return 0
+		}
+		for i := range res {
+			rh -= res[i].h
+		}
+		return max(rh, 0)
+	}
+
+	// The height is resolved before the buffer is added to res: its h is from the previous pass.
+	if buf := lps.editor.toolBuf; buf != nil {
+		buf.w = w
+		buf.h = min(availableHeight()/4, 7)
+		res = append(res, buf)
+	}
+	if buf := lps.editor.Top(); buf != nil {
+		buf.w = w
+		buf.h = availableHeight()
+		res = append(res, buf)
+	}
+
+	return func(yield func(*Buffer) bool) {
+		for i := len(res) - 1; i >= 0; i-- {
+			if !yield(res[i]) {
+				return
+			}
+		}
 	}
 }

@@ -47,8 +47,9 @@ type Editor struct {
 	logger.LogEmbed
 	mouseHandler
 
-	bufs   []*Buffer // stack of open buffers, the active one is the last
-	status StatusBar // shown below the top buffer
+	bufs    []*Buffer // stack of open buffers, the active one is the last
+	status  StatusBar // shown below the top buffer
+	toolBuf *Buffer   // buffer used by tooling, e.g. to visualize search results
 
 	renderRequested bool
 	cmdChannel      chan Command
