@@ -15,7 +15,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
-	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/logger"
 )
 
@@ -141,10 +140,6 @@ func (in *Integration) AfterEdit(_ *editor.Editor, buf *editor.Buffer) {
 	}
 	in.Debugf("AfterEdit(_, %q)", buf.Path)
 	doc.ensureParsed(buf.Text())
-}
-
-func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, inputs.Key) (handled bool) {
-	return false
 }
 
 // document is the per-buffer extension data. It owns the language highlighter

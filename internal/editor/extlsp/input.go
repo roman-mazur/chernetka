@@ -8,7 +8,9 @@ import (
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPrefs, k inputs.Key) (handled bool) {
+// HandleInsertKey implements editor.InsertKeyHandler: it accepts the suggestion with Tab,
+// cycles through the alternatives with the arrows, and dismisses it with Esc.
+func (le *Integration) HandleInsertKey(buf *editor.Buffer, k inputs.Key) (handled bool) {
 	data, ok := buf.ExtensionData(le.ID()).(*BufferData)
 	if !ok || !data.HasSuggestions() {
 		return false
@@ -57,3 +59,5 @@ func applyEdits(buf *editor.Buffer, edits []protocol.TextEdit) {
 		}
 	}
 }
+
+var _ editor.InsertKeyHandler = new(Integration)

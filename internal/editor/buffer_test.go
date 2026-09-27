@@ -704,9 +704,8 @@ func (ae *actionsExt) MakeBufferData(*Buffer) BufferExtData { return ae.actions 
 
 type noopExt struct{}
 
-func (noopExt) ID() string                                               { return "actions" }
-func (noopExt) AfterEdit(*Editor, *Buffer)                               {}
-func (noopExt) HandleInsertInput(*Buffer, *RenderPrefs, inputs.Key) bool { return false }
+func (noopExt) ID() string                 { return "actions" }
+func (noopExt) AfterEdit(*Editor, *Buffer) {}
 
 func TestEditor_RerunAction(t *testing.T) {
 	const ctrlR = 0x12

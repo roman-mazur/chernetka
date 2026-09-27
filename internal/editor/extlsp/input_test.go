@@ -9,7 +9,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-// Raw byte sequences for the inputs HandleInsertInput reacts to.
+// Raw byte sequences for the inputs HandleInsertKey reacts to.
 var (
 	keyArrowUp    = inputs.Move(inputs.CursorArrowUp, 0)
 	keyArrowDown  = inputs.Move(inputs.CursorArrowDown, 0)
@@ -19,7 +19,7 @@ var (
 	keyTab        = inputs.Of(inputs.Tab)
 )
 
-func TestIntegration_HandleInsertInput(t *testing.T) {
+func TestIntegration_HandleInsertKey(t *testing.T) {
 	cases := []struct {
 		name        string
 		suggestions []string // assigned before the input; nil leaves the list empty
@@ -94,10 +94,10 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 				data.Assign(tc.suggestions)
 			}
 
-			handled := le.HandleInsertInput(buf, &editor.RenderPrefs{}, tc.input)
+			handled := le.HandleInsertKey(buf, tc.input)
 
 			if handled != tc.wantHandled {
-				t.Errorf("HandleInsertInput = (handled %t), want (%t)", handled, tc.wantHandled)
+				t.Errorf("HandleInsertKey = (handled %t), want (%t)", handled, tc.wantHandled)
 			}
 			if tc.wantCurrent == "" {
 				if data.HasSuggestions() {
@@ -113,9 +113,9 @@ func TestIntegration_HandleInsertInput(t *testing.T) {
 	}
 }
 
-// TestIntegration_HandleInsertInput_NoBufferData verifies the extension stays
+// TestIntegration_HandleInsertKey_NoBufferData verifies the extension stays
 // out of the way for buffers it never attached data to (e.g. non-Go files).
-func TestIntegration_HandleInsertInput_NoBufferData(t *testing.T) {
+func TestIntegration_HandleInsertKey_NoBufferData(t *testing.T) {
 	var le Integration
 	le.Starter = func(context.Context, string, string) (lspClient, error) {
 		t.Fatal("LSP should not start for a non-Go buffer")
@@ -129,8 +129,8 @@ func TestIntegration_HandleInsertInput_NoBufferData(t *testing.T) {
 	}
 	buf := h.Top()
 
-	handled := le.HandleInsertInput(buf, &editor.RenderPrefs{}, keyTab)
+	handled := le.HandleInsertKey(buf, keyTab)
 	if handled {
-		t.Errorf("HandleInsertInput = (%t), want (false)", handled)
+		t.Errorf("HandleInsertKey = (%t), want (false)", handled)
 	}
 }

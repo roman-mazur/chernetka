@@ -11,7 +11,7 @@ import (
 )
 
 // recordingExt is a stub Extension that counts how often each method is invoked
-// and lets a test dictate what HandleInsertInput reports back to the editor.
+// and lets a test dictate what HandleInsertKey reports back to the editor.
 type recordingExt struct {
 	id string
 
@@ -20,7 +20,7 @@ type recordingExt struct {
 	handleInsert   chan struct{}
 	lastInsert     chan inputs.Key
 
-	handled bool // what HandleInsertInput returns
+	handled bool // what HandleInsertKey returns
 }
 
 func initRecordingExt(id string, handled bool) *recordingExt {
@@ -46,7 +46,7 @@ func (r *recordingExt) AfterEdit(*editor.Editor, *editor.Buffer) {
 	r.afterEdit <- struct{}{}
 }
 
-func (r *recordingExt) HandleInsertInput(_ *editor.Buffer, _ *editor.RenderPrefs, k inputs.Key) (handled bool) {
+func (r *recordingExt) HandleInsertKey(_ *editor.Buffer, k inputs.Key) (handled bool) {
 	r.handleInsert <- struct{}{}
 	r.lastInsert <- k
 	return r.handled
@@ -80,14 +80,14 @@ func TestEditor_MakeBufferDataOnOpen(t *testing.T) {
 }
 
 // TestEditor_InputHandle verifies that insert-mode input always reaches
-// HandleInsertInput, and that AfterEdit fires exactly when the resulting edit
+// HandleInsertKey, and that AfterEdit fires exactly when the resulting edit
 // changed the buffer — whether the change came from the extension or the
 // editor's own insertion.
 func TestEditor_InputHandle(t *testing.T) {
 	cases := []struct {
 		name       string
-		handled    bool // HandleInsertInput's reported "handled"
-		changed    bool // HandleInsertInput's reported "changed"
+		handled    bool // HandleInsertKey's reported "handled"
+		changed    bool // HandleInsertKey's reported "changed"
 		wantHandle bool
 		wantAfter  bool
 		wantText   string
@@ -128,14 +128,14 @@ func TestEditor_InputHandle(t *testing.T) {
 			h.SendInput(t, []byte{'a'})
 
 			if called := checkCallbackInvoked(ext.handleInsert, time.Second); called != tc.wantHandle {
-				t.Errorf("HandleInsertInput called = %t, want %t", called, tc.wantHandle)
+				t.Errorf("HandleInsertKey called = %t, want %t", called, tc.wantHandle)
 			}
 			if called := checkCallbackInvoked(ext.afterEdit, time.Second); called != tc.wantAfter {
 				t.Errorf("AfterEdit called = %t, want %t", called, tc.wantAfter)
 			}
 			lastInsert := <-ext.lastInsert
 			if lastInsert != inputs.Rune('a') {
-				t.Errorf("HandleInsertInput saw %s, want a", lastInsert)
+				t.Errorf("HandleInsertKey saw %s, want a", lastInsert)
 			}
 
 			editorText := make(chan string, 1)

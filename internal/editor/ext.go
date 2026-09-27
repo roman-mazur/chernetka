@@ -15,7 +15,12 @@ type Extension interface {
 	MakeBufferData(buf *Buffer) BufferExtData
 
 	AfterEdit(e *Editor, buf *Buffer)
-	HandleInsertInput(buf *Buffer, prefs *RenderPrefs, k inputs.Key) (handled bool)
+}
+
+// InsertKeyHandler can be optionally implemented by an Extension to handle the keys
+// typed in the insert mode before the editor does.
+type InsertKeyHandler interface {
+	HandleInsertKey(buf *Buffer, k inputs.Key) (handled bool)
 }
 
 // BufferExtData represents data associated with a Buffer and managed by an Extension.

@@ -401,7 +401,7 @@ func TestIntegration_AcceptAppliesImport(t *testing.T) {
 		}},
 	}}, anchor{line: "\tstrings.Sp", cx: 11, cy: 7})
 
-	if !le.HandleInsertInput(buf, &editor.RenderPrefs{}, keyTab) {
+	if !le.HandleInsertKey(buf, keyTab) {
 		t.Fatal("tab not handled")
 	}
 	want := "package main\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n)\n\nfunc main() {\n\tstrings.Split\n}"

@@ -267,10 +267,9 @@ func (e *Editor) showDiff(buf *Buffer) {
 
 func (e *Editor) extHandleInsert(buf *Buffer, k inputs.Key) (handled bool) {
 	for _, ext := range e.x {
-		handled = ext.HandleInsertInput(buf, &e.rPrefs, k)
-		if handled {
-			return
+		if h, ok := ext.(InsertKeyHandler); ok && h.HandleInsertKey(buf, k) {
+			return true
 		}
 	}
-	return
+	return false
 }

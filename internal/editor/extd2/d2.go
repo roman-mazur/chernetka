@@ -16,7 +16,6 @@ import (
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
-	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/logger"
 )
 
@@ -52,10 +51,6 @@ func (in *Integration) AfterEdit(_ *editor.Editor, buf *editor.Buffer) {
 	if md, ok := buf.ExtensionData(in.ID()).(*markdown); ok {
 		md.sync()
 	}
-}
-
-func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, inputs.Key) (handled bool) {
-	return false
 }
 
 func (in *Integration) show(d cheimg.Item) {
