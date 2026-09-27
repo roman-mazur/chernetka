@@ -6,6 +6,7 @@ import (
 
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 )
@@ -152,7 +153,29 @@ func (lbd *BufferData) Format(prefs editor.RenderPrefs) {
 	}
 }
 
+// FindDefinition makes the server look for the definition of the symbol at pos
+// once it has the current text. The editor moves to it when it's found.
+func (lbd *BufferData) FindDefinition(loop editor.Sender, pos content.Position) {
+	if lbd.srv == nil || lbd.srv.failed.Load() || lbd.docUri == "" {
+		return
+	}
+	lines := lbd.buf.Content.Lines()
+	if pos.Line >= len(lines) {
+		return
+	}
+	lbd.version++
+	lbd.srv.queue.push(syncReq{
+		editor:     loop,
+		buf:        lbd.buf,
+		bufData:    lbd,
+		text:       lbd.buf.Text(),
+		version:    lbd.version,
+		definition: &definitionReq{at: lspPosition(lines[pos.Line].String(), pos)},
+	})
+}
+
 var (
-	_ editor.CodeAssist = new(BufferData) // enforce code assist interface implementation
-	_ editor.Formatter  = new(BufferData)
+	_ editor.CodeAssist       = new(BufferData) // enforce code assist interface implementation
+	_ editor.Formatter        = new(BufferData)
+	_ editor.DefinitionFinder = new(BufferData)
 )

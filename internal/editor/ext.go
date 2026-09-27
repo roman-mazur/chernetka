@@ -56,6 +56,16 @@ type Formatter interface {
 	Format(prefs RenderPrefs)
 }
 
+// DefinitionFinder can be optionally implemented by BufferExtData to find where
+// the symbol at a position of its buffer is defined.
+type DefinitionFinder interface {
+	BufferExtData
+
+	// FindDefinition looks for the definition of the symbol at pos in the
+	// background. When it's found, a GoTo command is sent to the loop.
+	FindDefinition(loop Sender, pos content.Position)
+}
+
 // SyntaxHighlighter can be optionally implemented by BufferExtData.
 type SyntaxHighlighter interface {
 	BufferExtData

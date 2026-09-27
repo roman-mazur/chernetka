@@ -26,6 +26,7 @@ type Buffer struct {
 
 	c      content.Position // cursor position
 	offset int              // first visible row (scroll)
+	reveal bool             // scroll the cursor line to the upper part of the screen on the next render
 	xoff   int              // first visible screen column of the text (horizontal scroll)
 	w, h   int              // dimensions of the area to render the content in
 
@@ -95,6 +96,11 @@ func (b *Buffer) clampCursor(tabSize int) {
 	for b.c.Col > 0 && b.c.Col < len(line) && !utf8.RuneStart(line[b.c.Col]) {
 		b.c.Col--
 	}
+
+	if b.reveal && (b.c.Line < b.offset || b.c.Line >= b.offset+b.h) {
+		b.offset = max(0, min(b.c.Line-b.h/3, len(lines)-b.h))
+	}
+	b.reveal = false
 
 	// Adjust scroll so cursor is visible.
 	if !b.noKeyboard {

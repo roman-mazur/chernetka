@@ -144,6 +144,9 @@ type fakeLSP struct {
 
 	format     func(text string) string // what formatting makes of the text
 	formatOpts protocol.FormattingOptions
+
+	definitions []protocol.Location // what a definition request returns
+	definedAt   []string            // the text before the position of every definition request
 }
 
 func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, languageID, text string, v int32) error {
@@ -203,6 +206,14 @@ func (f *fakeLSP) Formatting(_ context.Context, _ uri.URI, opts protocol.Formatt
 	}
 	change := diff(f.text, f.format(f.text))
 	return []protocol.TextEdit{{Range: *change.Range, NewText: change.Text}}, nil
+}
+
+func (f *fakeLSP) Definition(_ context.Context, _ uri.URI, line, char uint32) ([]protocol.Location, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	lines := strings.Split(f.text, "\n")
+	f.definedAt = append(f.definedAt, strings.Join(lines[:line], "\n")+"\n"+lines[line][:byteOffset(lines[line], char)])
+	return f.definitions, nil
 }
 
 func (f *fakeLSP) Shutdown(context.Context) error { return nil }

@@ -3,6 +3,7 @@ package extlsp
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -28,6 +29,7 @@ type lspClient interface {
 	DidOpen(ctx context.Context, fileURI uri.URI, languageID, text string, version int32) error
 	DidChange(ctx context.Context, fileURI uri.URI, version int32, changes ...lsp.TextChange) error
 	Completion(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.CompletionItem, error)
+	Definition(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.Location, error)
 	OrganizeImports(ctx context.Context, fileURI uri.URI) ([]protocol.TextEdit, error)
 	Formatting(ctx context.Context, fileURI uri.URI, opts protocol.FormattingOptions) ([]protocol.TextEdit, error)
 	Shutdown(ctx context.Context) error
@@ -46,6 +48,8 @@ type lspStarter func(ctx context.Context, languageID, rootDir string) (lspClient
 // that can be accepted with Tab.
 //
 // Saving a buffer formats it with the server first.
+//
+// Ctrl+click on a symbol goes to its definition found by the server.
 type Integration struct {
 	logger.LogEmbed
 
@@ -282,6 +286,9 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	if req.addImports {
 		srv.addImports(ctx, client, req)
 	}
+	if req.definition != nil {
+		srv.goToDefinition(ctx, client, req)
+	}
 	if req.completion == nil || srv.queue.hasPending(req.bufData) {
 		return // Nothing to ask, or a newer edit makes the answer useless.
 	}
@@ -414,6 +421,36 @@ func (srv *server) addImports(ctx context.Context, client lspClient, req syncReq
 	}))
 }
 
+// goToDefinition asks the server where the symbol at the position of req is
+// defined and moves the editor there.
+func (srv *server) goToDefinition(ctx context.Context, client lspClient, req syncReq) {
+	le := srv.le
+	at := req.definition.at
+	locs, err := client.Definition(ctx, req.bufData.docUri, at.Line, at.Character)
+	if err != nil {
+		le.Debugf("definition failed: %s", err)
+		return
+	}
+	if len(locs) == 0 {
+		le.Logf("no definition found at %d:%d", at.Line, at.Character)
+		return
+	}
+	loc := locs[0]
+	path := loc.URI.Filename()
+	// The column is converted to bytes with the text the server has.
+	text := req.text
+	if loc.URI != req.bufData.docUri {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			le.Logf("cannot read the definition file: %s", err)
+			return
+		}
+		text = string(data)
+	}
+	le.Debugf("definition at %s:%d:%d", path, loc.Range.Start.Line, loc.Range.Start.Character)
+	req.editor.Send(&editor.GoTo{Path: path, Pos: textPosition(text, loc.Range.Start)})
+}
+
 func positionBefore(a, b protocol.Position) bool {
 	return a.Line < b.Line || (a.Line == b.Line && a.Character < b.Character)
 }
@@ -463,6 +500,11 @@ type syncReq struct {
 	completion *completionReq // nil if no completion is needed
 	addImports bool           // add the imports missing after the change
 	format     *formatReq     // nil if no formatting is needed
+	definition *definitionReq // nil if no definition is looked for
+}
+
+type definitionReq struct {
+	at protocol.Position // the symbol position
 }
 
 type completionReq struct {

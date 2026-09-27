@@ -71,6 +71,32 @@ func (of *OpenFile) handleError(e *Editor, err error) {
 	})
 }
 
+// GoTo opens the file at Path, unless it's open already, and moves the cursor to Pos.
+// If Pos is not visible, it's scrolled to the upper third of the screen.
+type GoTo struct {
+	Path string
+	Pos  content.Position
+}
+
+func (g *GoTo) DoOnEditor(e *Editor) {
+	e.renderRequested = true
+	if !e.findAndActivateBuffer(g.Path) {
+		if e.OpenPath != nil {
+			e.OpenPath(g.Path)
+		} else {
+			(&OpenFile{Path: g.Path}).DoOnEditor(e)
+		}
+	}
+	buf := e.Top()
+	if buf == nil || !samePath(buf.Path, g.Path) {
+		return // Opened elsewhere, like an image.
+	}
+	buf.cancelSelection()
+	buf.c = g.Pos
+	buf.noKeyboard = false
+	buf.reveal = true
+}
+
 // OpenDir adds a new buffer to the Editor by reading the directory content.
 func (e *Editor) OpenDir(path string, open content.OpenFile) {
 	displayPath := path

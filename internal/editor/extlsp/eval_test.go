@@ -30,6 +30,7 @@ import (
 
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/lsp"
@@ -914,4 +915,46 @@ func TestRealGoplsFormatsOnSave(t *testing.T) {
 		(&editor.Save{DstPath: path}).DoOnBuffer(e.Top(), editor.RenderPrefs{})
 	}))
 	fmt.Printf("saved again in %s\n", time.Since(started).Round(time.Millisecond))
+}
+
+// TestRealGoplsGoesToDefinition finds definitions in the same file and in the
+// standard library with the production integration and a real gopls.
+func TestRealGoplsGoesToDefinition(t *testing.T) {
+	skipUnlessEval(t)
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/x\n\ngo 1.22\n"), 0o644)
+	src := "package main\n\nimport \"strings\"\n\nfunc foo() string { return strings.ToUpper(\"x\") }\n\nfunc main() { foo() }\n"
+	path := filepath.Join(dir, "main.go")
+	_ = os.WriteFile(path, []byte(src), 0o644)
+
+	var le Integration
+	h := editor.NewTestHarness()
+	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
+	h.Extend(&le)
+	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
+		t.Fatal(err)
+	}
+	defer le.Close()
+	data := h.Top().ExtensionData(le.ID()).(*BufferData)
+
+	find := func(line int, before string) *editor.GoTo {
+		t.Helper()
+		data.FindDefinition(h.Editor, content.Position{Line: line, Col: len(before)})
+		select {
+		case cmd := <-h.Commands():
+			return cmd.(*editor.GoTo)
+		case <-time.After(30 * time.Second):
+			t.Fatal("no definition found")
+			return nil
+		}
+	}
+
+	if got := find(6, "func main() { f"); got.Path != path || got.Pos != (content.Position{Line: 4, Col: len("func ")}) {
+		t.Errorf("foo is defined at %s:%v", got.Path, got.Pos)
+	}
+	got := find(4, "func foo() string { return strings.To")
+	fmt.Printf("strings.ToUpper is defined at %s:%v\n", got.Path, got.Pos)
+	if filepath.Base(got.Path) != "strings.go" {
+		t.Errorf("strings.ToUpper is defined in %s", got.Path)
+	}
 }

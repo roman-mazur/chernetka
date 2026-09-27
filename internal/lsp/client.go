@@ -2,11 +2,13 @@
 // suggestions and formatting from a language server, like gopls.
 //
 // It exposes the small subset of LSP methods the editor needs: initialize,
-// didOpen, didChange, completion, formatting, organize imports, and shutdown.
+// didOpen, didChange, completion, definition, formatting, organize imports,
+// and shutdown.
 // The transport is JSON-RPC over the server's stdio.
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -238,6 +240,41 @@ func (c *Client) Completion(ctx context.Context, fileURI uri.URI, line, characte
 		return nil, err
 	}
 	return list.Items, nil
+}
+
+// Definition returns the locations where the symbol at the given zero-based
+// position is defined. It's empty if the symbol is unknown.
+func (c *Client) Definition(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.Location, error) {
+	var raw json.RawMessage
+	if _, err := c.conn.Call(ctx, protocol.MethodTextDocumentDefinition, &protocol.DefinitionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
+			Position:     protocol.Position{Line: line, Character: character},
+		},
+	}, &raw); err != nil {
+		return nil, err
+	}
+	return decodeLocations(raw)
+}
+
+// decodeLocations decodes a definition result: null, a location, or a list of
+// them. Location links aren't expected: the client doesn't declare their support.
+func decodeLocations(raw json.RawMessage) ([]protocol.Location, error) {
+	raw = bytes.TrimSpace(raw)
+	switch {
+	case len(raw) == 0 || string(raw) == "null":
+		return nil, nil
+	case raw[0] == '[':
+		var locs []protocol.Location
+		err := json.Unmarshal(raw, &locs)
+		return locs, err
+	default:
+		var loc protocol.Location
+		if err := json.Unmarshal(raw, &loc); err != nil {
+			return nil, err
+		}
+		return []protocol.Location{loc}, nil
+	}
 }
 
 // Formatting returns the edits formatting the document with the given options

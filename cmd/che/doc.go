@@ -85,6 +85,9 @@
 //
 // Go and CUE files are formatted with their language server when saved.
 //
+// Ctrl+click on a symbol goes to its definition, opening its file if needed.
+// Ctrl+O and Enter switch back to the previous buffer.
+//
 // Unsaved changes of a file are saved automatically when switching to another
 // buffer or when the terminal loses focus (if the terminal supports focus reporting).
 // When an open file is changed outside the editor, its buffer is reloaded,

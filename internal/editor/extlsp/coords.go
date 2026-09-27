@@ -1,6 +1,7 @@
 package extlsp
 
 import (
+	"strings"
 	"unicode/utf16"
 
 	"go.lsp.dev/protocol"
@@ -24,6 +25,16 @@ func positionOf(lines []content.Line, p protocol.Position) (content.Position, bo
 		return content.Position{}, false
 	}
 	return content.Position{Line: int(p.Line), Col: byteOffset(lines[p.Line].String(), p.Character)}, true
+}
+
+// textPosition converts an LSP position in text to an editor one. A line past
+// the end of text is kept as is, for the editor to clamp.
+func textPosition(text string, p protocol.Position) content.Position {
+	lines := strings.SplitN(text, "\n", int(p.Line)+2)
+	if int(p.Line) >= len(lines) {
+		return content.Position{Line: int(p.Line)}
+	}
+	return content.Position{Line: int(p.Line), Col: byteOffset(lines[p.Line], p.Character)}
 }
 
 // lspPosition converts an editor position to an LSP one. line is the text of

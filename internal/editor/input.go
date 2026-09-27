@@ -157,7 +157,10 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		if e.ensureMouseTextShape(overContent) {
 			e.renderRequested = true
 		}
-		if event.Button != input.MouseButtonLeft || !event.Pressed {
+		// Some terminals on macOS report Ctrl+click as a right click with Ctrl.
+		ctrlClick := event.Pressed && event.Mod.HasCtrl() && !event.Mod.HasMotion() &&
+			(event.Button == input.MouseButtonLeft || event.Button == input.MouseButtonRight)
+		if !ctrlClick && (event.Button != input.MouseButtonLeft || !event.Pressed) {
 			return
 		}
 
@@ -168,8 +171,19 @@ func (e *Editor) handleMouse(data input.Mouse) {
 			buf.sel = nil
 		}
 		e.renderRequested = true
+		if ctrlClick && overContent {
+			e.goToDefinition(buf)
+		}
 	}
 
+}
+
+// goToDefinition moves the cursor to the definition of the symbol under it
+// if an extension can find it.
+func (e *Editor) goToDefinition(buf *Buffer) {
+	if f, ok := FindExtData[DefinitionFinder](buf); ok {
+		f.FindDefinition(e, buf.c)
+	}
 }
 
 func (e *Editor) handleKey(k input.Key) (quit bool) {

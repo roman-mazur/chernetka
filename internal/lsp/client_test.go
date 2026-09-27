@@ -48,6 +48,16 @@ func TestClient_RoundTrip(t *testing.T) {
 			return reply(ctx, &protocol.CompletionList{
 				Items: []protocol.CompletionItem{{Label: "Println", InsertText: "Println"}},
 			}, nil)
+		case protocol.MethodTextDocumentDefinition:
+			var p protocol.DefinitionParams
+			if err := jsonrpc2DecodeParams(req, &p); err != nil || p.Position.Line != 2 || p.Position.Character != 5 {
+				return reply(ctx, nil, fmt.Errorf("unexpected params %+v (%v)", p, err))
+			}
+			// A single location, not a list.
+			return reply(ctx, &protocol.Location{
+				URI:   uri.File("/tmp/y.go"),
+				Range: protocol.Range{Start: protocol.Position{Line: 7, Character: 5}, End: protocol.Position{Line: 7, Character: 6}},
+			}, nil)
 		case protocol.MethodTextDocumentFormatting:
 			var p protocol.DocumentFormattingParams
 			if err := jsonrpc2DecodeParams(req, &p); err != nil || p.Options.TabSize != 8 {
@@ -108,6 +118,14 @@ func TestClient_RoundTrip(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Label != "Println" {
 		t.Fatalf("got items=%v, want one Println", items)
+	}
+
+	locs, err := c.Definition(ctx, fileURI, 2, 5)
+	if err != nil {
+		t.Fatalf("Definition: %v", err)
+	}
+	if len(locs) != 1 || locs[0].URI.Filename() != "/tmp/y.go" || locs[0].Range.Start.Line != 7 {
+		t.Errorf("got locations=%+v, want one in /tmp/y.go on line 7", locs)
 	}
 
 	edits, err := c.Formatting(ctx, fileURI, protocol.FormattingOptions{TabSize: 8})
@@ -171,5 +189,32 @@ func TestClient_LogsServerErrors(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatal("server error not logged")
+	}
+}
+
+func TestDecodeLocations(t *testing.T) {
+	loc := `{"uri":"file:///tmp/x.go","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":3}}}`
+	for _, tc := range []struct {
+		raw  string
+		want int
+	}{
+		{raw: "null", want: 0},
+		{raw: "[]", want: 0},
+		{raw: loc, want: 1},
+		{raw: "[" + loc + "," + loc + "]", want: 2},
+	} {
+		locs, err := decodeLocations(json.RawMessage(tc.raw))
+		if err != nil {
+			t.Errorf("decodeLocations(%s): %s", tc.raw, err)
+			continue
+		}
+		if len(locs) != tc.want {
+			t.Errorf("decodeLocations(%s) = %+v, want %d locations", tc.raw, locs, tc.want)
+		}
+		for _, l := range locs {
+			if l.URI.Filename() != "/tmp/x.go" || l.Range.Start.Character != 2 {
+				t.Errorf("decodeLocations(%s): bad location %+v", tc.raw, l)
+			}
+		}
 	}
 }
