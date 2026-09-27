@@ -99,18 +99,6 @@ func ReadMouse(inData []byte) (data Mouse, n int, err error) {
 	return
 }
 
-func discard(in *bufio.Reader, x int) (err error) {
-	for x > 0 {
-		var n int
-		n, err = in.Discard(x)
-		if err != nil {
-			return
-		}
-		x -= n
-	}
-	return
-}
-
 func termParseNextInt(in io.Reader) (int, byte, int, error) {
 	var (
 		digits []byte
