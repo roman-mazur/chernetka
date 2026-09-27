@@ -20,7 +20,7 @@ require (
 	golang.org/x/sys v0.44.0
 	golang.org/x/term v0.43.0
 	oss.terrastruct.com/d2 v0.7.2
-	rmazur.io/watch v0.0.3
+	rmazur.io/watch v0.0.4
 )
 
 require (

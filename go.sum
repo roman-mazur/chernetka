@@ -208,3 +208,5 @@ oss.terrastruct.com/util-go v0.0.0-20250213174338-243d8661088a h1:UXF/Z9i9tOx/wq
 oss.terrastruct.com/util-go v0.0.0-20250213174338-243d8661088a/go.mod h1:eMWv0sOtD9T2RUl90DLWfuShZCYp4NrsqNpI8eqO6U4=
 rmazur.io/watch v0.0.3 h1:QrRi9A8pjs8nGnUxSwTgmBVM4j673FT5N4UbcbBnRFU=
 rmazur.io/watch v0.0.3/go.mod h1:uCZfT5gx8cfSt0QAlEz1nKLp6KhZCDQ+oV8UsYgf5GU=
+rmazur.io/watch v0.0.4 h1:cdJ4t0PkM9mY0sCjcIHCh7sKotBLT+duj6SglipZjSk=
+rmazur.io/watch v0.0.4/go.mod h1:uCZfT5gx8cfSt0QAlEz1nKLp6KhZCDQ+oV8UsYgf5GU=
