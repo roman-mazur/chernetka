@@ -83,18 +83,11 @@ func (b *Buffer) Close() error {
 
 func (b *Buffer) clampCursor(tabSize int) {
 	lines := b.Content.Lines()
-
-	b.c.Line = max(0, min(b.c.Line, len(lines)-1))
+	b.clampPos()
 
 	var line string
 	if len(lines) > 0 {
 		line = lines[b.c.Line].String()
-	}
-	b.c.Col = max(0, min(b.c.Col, len(line)))
-
-	// Vertical movement may land cx mid-rune; snap back to the rune start.
-	for b.c.Col > 0 && b.c.Col < len(line) && !utf8.RuneStart(line[b.c.Col]) {
-		b.c.Col--
 	}
 
 	if b.reveal && (b.c.Line < b.offset || b.c.Line >= b.offset+b.h) {
@@ -111,6 +104,24 @@ func (b *Buffer) clampCursor(tabSize int) {
 			b.offset = b.c.Line - b.h + 1
 		}
 		b.followCursorX(runeToScreenCol(line, b.c.Col, tabSize))
+	}
+}
+
+// clampPos moves the cursor to the closest valid content position.
+func (b *Buffer) clampPos() {
+	lines := b.Content.Lines()
+
+	b.c.Line = max(0, min(b.c.Line, len(lines)-1))
+
+	var line string
+	if len(lines) > 0 {
+		line = lines[b.c.Line].String()
+	}
+	b.c.Col = max(0, min(b.c.Col, len(line)))
+
+	// Vertical movement may land cx mid-rune; snap back to the rune start.
+	for b.c.Col > 0 && b.c.Col < len(line) && !utf8.RuneStart(line[b.c.Col]) {
+		b.c.Col--
 	}
 }
 
@@ -345,8 +356,21 @@ func (b *Buffer) SelectedText() string {
 	return content.Select(b.Content, b.sel)
 }
 
+// hasSelection reports whether any text is selected.
+func (b *Buffer) hasSelection() bool {
+	for i := range b.sel {
+		if b.sel[i].Start != b.sel[i].End {
+			return true
+		}
+	}
+	return false
+}
+
+// updateSelection extends the selection being made to the cursor.
+// The cursor is clamped first: the selection must not refer to positions outside the content.
 func (b *Buffer) updateSelection() {
 	if b.selecting {
+		b.clampPos()
 		b.sel[len(b.sel)-1].End = b.c
 	}
 }

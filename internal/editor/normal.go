@@ -75,6 +75,7 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 		if !buf.canEdit() {
 			return false
 		}
+		buf.cancelSelection()
 		buf.c.Line++
 		buf.Mutate().Insert(buf.c.Line, content.TextLine(""))
 		buf.c.Col = 0
@@ -85,6 +86,11 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 		if !buf.canEdit() {
 			return false
 		}
+		if buf.hasSelection() {
+			DeleteSelection.DoOnBuffer(buf, *prefs)
+			return false
+		}
+		buf.cancelSelection()
 		line := lines[buf.c.Line].String()
 		if buf.c.Col < len(line) {
 			_, sz := utf8.DecodeRuneInString(line[buf.c.Col:])

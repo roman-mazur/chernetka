@@ -33,6 +33,7 @@ func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	if r.Dy != 0 {
 		buf.c.Line += r.Dy
 	}
+	buf.clampPos()
 	buf.updateSelection()
 }
 
@@ -170,11 +171,16 @@ var (
 		b.updateSelection()
 	})
 	// StartTextSelection begins selecting text at the current cursor position.
+	// A selection ending at the cursor (e.g., a selected word) is extended instead.
 	StartTextSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		if b.selecting {
 			return
 		}
+		b.clampPos()
 		b.selecting = true
+		if n := len(b.sel); n > 0 && b.sel[n-1].End == b.c {
+			return
+		}
 		b.sel = []content.Span{{b.c, b.c}}
 	})
 	// StopTextSelection finishes selecting text at the current cursor position.
@@ -182,8 +188,8 @@ var (
 		if !b.selecting {
 			return
 		}
+		b.updateSelection()
 		b.selecting = false
-		b.sel[len(b.sel)-1].End = b.c
 	})
 	// SelectWord adjusts the buffer selection to select the word at the current cursor.
 	SelectWord = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
@@ -218,19 +224,23 @@ var (
 				Start: content.Position{Line: b.c.Line, Col: start},
 				End:   content.Position{Line: b.c.Line, Col: end},
 			})
-			b.selecting = true
 			b.c.Col = end
 		}
 	})
-	// SelectLine adjusts the buffer selection to select the whole line at the current cursor.
+	// SelectLine adjusts the buffer selection to select the whole line at the current cursor,
+	// including its line break, and moves the cursor to the selection end.
 	SelectLine = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		b.cancelSelection()
-		b.sel = []content.Span{
-			{
-				Start: content.Position{Line: b.c.Line},
-				End:   content.Position{Line: b.c.Line, Col: b.Content.Lines()[b.c.Line].Len()},
-			},
+		if b.Content.Len() == 0 {
+			return
 		}
+		b.clampPos()
+		end := content.Position{Line: b.c.Line + 1}
+		if end.Line == b.Content.Len() {
+			end = content.Position{Line: b.c.Line, Col: b.Content.Lines()[b.c.Line].Len()}
+		}
+		b.sel = []content.Span{{Start: content.Position{Line: b.c.Line}, End: end}}
+		b.c = end
 	})
 	// DeleteSelection command deletes currently selected content in the buffer adjusting the cursor position.
 	DeleteSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
@@ -246,7 +256,7 @@ var (
 	})
 	// ClipboardCut copies selected text to the clipboard and removes it from the buffer.
 	ClipboardCut = BufferCommandFunc(func(b *Buffer, prefs RenderPrefs) {
-		if len(b.sel) == 0 || !b.canEdit() {
+		if !b.hasSelection() || !b.canEdit() {
 			return
 		}
 		clipboard.Write(b.SelectedText())
@@ -262,10 +272,15 @@ var clipboard clipb.Clipboard
 
 type PasteText string
 
-func (pt PasteText) DoOnBuffer(b *Buffer, _ RenderPrefs) {
+func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 	if !b.canEdit() {
 		return
 	}
+	if b.hasSelection() {
+		// The pasted text replaces the selection.
+		DeleteSelection.DoOnBuffer(b, prefs)
+	}
+	b.cancelSelection()
 	b.c = content.InsertText(b.Mutate(), b.c, string(pt))
 }
 

@@ -138,7 +138,7 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		e.execBufferCmd(Scroll(dir))
 
 	case mouseEventTypeDragStart:
-		if buf.CheckContentCoordinates(event.Y, event.X) {
+		if buf.CheckContentCoordinates(event.Y-1, event.X-1) {
 			e.execBufferCmd(StartTextSelection)
 		}
 		e.renderRequested = true
@@ -153,7 +153,7 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		e.execBufferCmd(SelectLine)
 
 	case mouseEventTypeRaw:
-		overContent := buf.CheckContentCoordinates(event.Y, event.X)
+		overContent := buf.CheckContentCoordinates(event.Y-1, event.X-1)
 		if e.ensureMouseTextShape(overContent) {
 			e.renderRequested = true
 		}
@@ -165,7 +165,8 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		}
 
 		buf.c = buf.screenToContentPosition(data.Y-1, data.X-1, e.rPrefs.TabSize)
-		if buf.selecting && event.Mod.HasMotion() && overContent {
+		if buf.selecting && event.Mod.HasMotion() {
+			// Dragging over the line numbers or below the text still selects the closest content.
 			buf.sel[len(buf.sel)-1].End = buf.c
 		} else if !buf.selecting {
 			buf.sel = nil

@@ -15,10 +15,11 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		return
 
 	case input.Esc:
-		if len(buf.sel) > 0 {
+		if buf.hasSelection() {
 			buf.cancelSelection()
 			return
 		}
+		buf.cancelSelection()
 		buf.mode = ModeNormal
 		if buf.c.Col > 0 {
 			buf.c.Col-- // Land on the last typed character.
@@ -37,13 +38,14 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	if !buf.canEdit() {
 		return
 	}
-	if len(buf.sel) > 0 {
+	if buf.hasSelection() {
 		// The input replaces the selection. The cursor may move to another line.
 		DeleteSelection.DoOnBuffer(buf, *prefs)
 		if k.Special == input.Backspace {
 			return
 		}
 	}
+	buf.cancelSelection() // An empty selection is not replaced, and the edit invalidates it.
 	lines := buf.Content.Lines()
 	line := lines[buf.c.Line].String()
 	mut := buf.Mutate()

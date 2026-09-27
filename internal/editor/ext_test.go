@@ -186,6 +186,7 @@ func TestEditor_AfterEditOnClipboard(t *testing.T) {
 	h.Run(t)
 
 	selectFirstLine := editor.CommandFunc(func(e *editor.Editor) {
+		editor.MoveContentStart.DoOnBuffer(e.Top(), editor.RenderPrefs{})
 		editor.SelectLine.DoOnBuffer(e.Top(), editor.RenderPrefs{})
 	})
 	checkText := func(want string) {
@@ -222,7 +223,7 @@ func TestEditor_AfterEditOnClipboard(t *testing.T) {
 			prepare:   selectFirstLine,
 			input:     "\x18", // Ctrl+X
 			wantAfter: true,
-			wantText:  "\nsecond",
+			wantText:  "second", // The line break is cut with the line.
 		},
 		{
 			name:      "paste",
