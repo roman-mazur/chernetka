@@ -42,7 +42,7 @@ func (r *recordingExt) MakeBufferData(*editor.Buffer) editor.BufferExtData {
 	return stubExtData{}
 }
 
-func (r *recordingExt) AfterEdit(*editor.Editor, *editor.Buffer) {
+func (r *recordingExt) AfterEdit(editor.Sender, *editor.Buffer) {
 	r.afterEdit <- struct{}{}
 }
 

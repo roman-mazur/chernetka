@@ -110,7 +110,7 @@ func (le *Integration) serverFor(lang *language, dir string) *server {
 }
 
 // AfterEdit runs on the editor loop after every buffer mutation.
-func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
+func (le *Integration) AfterEdit(loop editor.Sender, buf *editor.Buffer) {
 	data, active := le.activeOn(buf)
 	if !active {
 		return
@@ -131,7 +131,7 @@ func (le *Integration) AfterEdit(e *editor.Editor, buf *editor.Buffer) {
 	data.reqCompletion++
 	data.version++
 	req := syncReq{
-		editor:  e,
+		editor:  loop,
 		buf:     buf,
 		bufData: data,
 		text:    buf.Text(), // snapshot: the server must see exactly this version
@@ -453,7 +453,7 @@ func (srv *server) close() error {
 
 // syncReq is the state of a buffer to be sent to the server.
 type syncReq struct {
-	editor  *editor.Editor
+	editor  editor.Sender // nil for a format request
 	buf     *editor.Buffer
 	bufData *BufferData
 

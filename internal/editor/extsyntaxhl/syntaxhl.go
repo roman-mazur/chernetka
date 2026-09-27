@@ -133,7 +133,7 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	return doc
 }
 
-func (in *Integration) AfterEdit(_ *editor.Editor, buf *editor.Buffer) {
+func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer) {
 	doc, ok := buf.ExtensionData(in.ID()).(*document)
 	if !ok {
 		return

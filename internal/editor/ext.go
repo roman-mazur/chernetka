@@ -14,7 +14,19 @@ type Extension interface {
 	ID() string
 	MakeBufferData(buf *Buffer) BufferExtData
 
-	AfterEdit(e *Editor, buf *Buffer)
+	// AfterEdit runs on the editor loop after the buffer is changed. The results
+	// of the work started in the background are to be sent back to the loop.
+	AfterEdit(loop Sender, buf *Buffer)
+}
+
+// Sender queues the commands to run on the editor loop, where the editor and
+// its buffers can be changed. *Editor implements it.
+type Sender interface {
+	// Send queues the command.
+	Send(cmd Command)
+	// SendBufferCmd queues the command changing the active buffer, the extensions are
+	// notified about the changes.
+	SendBufferCmd(cmd BufferCommand)
 }
 
 // InsertKeyHandler can be optionally implemented by an Extension to handle the keys
