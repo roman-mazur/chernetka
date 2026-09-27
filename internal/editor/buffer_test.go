@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -671,12 +672,12 @@ func TestNormalInput_EngageAction(t *testing.T) {
 	buf, actions := newActionsTestBuffer("one\ntwo\nthree", 1)
 	prefs := newRenderPrefs()
 
-	normalInput(buf, []byte{'\r'}, &prefs)
+	normalInput(buf, inputs.Of(inputs.Enter), &prefs)
 	if buf.c.Line != 1 {
 		t.Fatalf("Enter on a plain line moved the cursor to %d, want 1", buf.c.Line)
 	}
 
-	normalInput(buf, []byte{'\r'}, &prefs)
+	normalInput(buf, inputs.Of(inputs.Enter), &prefs)
 	if got := actions[1].engaged; got != 1 {
 		t.Errorf("action engaged %d times, want 1", got)
 	}
@@ -703,9 +704,9 @@ func (ae *actionsExt) MakeBufferData(*Buffer) BufferExtData { return ae.actions 
 
 type noopExt struct{}
 
-func (noopExt) ID() string                                           { return "actions" }
-func (noopExt) AfterEdit(*Editor, *Buffer)                           {}
-func (noopExt) HandleInsertInput(*Buffer, *RenderPrefs, []byte) bool { return false }
+func (noopExt) ID() string                                               { return "actions" }
+func (noopExt) AfterEdit(*Editor, *Buffer)                               {}
+func (noopExt) HandleInsertInput(*Buffer, *RenderPrefs, inputs.Key) bool { return false }
 
 func TestEditor_RerunAction(t *testing.T) {
 	const ctrlR = 0x12

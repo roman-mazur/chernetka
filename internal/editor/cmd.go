@@ -238,19 +238,6 @@ var (
 	})
 )
 
-func ClipboardCommand(op inputs.ClipboardOp) BufferCommand {
-	switch op {
-	case inputs.ClipboardOpCopy:
-		return ClipboardCopy
-	case inputs.ClipboardOpPaste:
-		return ClipboardPaste
-	case inputs.ClipboardOpCut:
-		return ClipboardCut
-	default:
-		return nil
-	}
-}
-
 var clipboard clipb.Clipboard
 
 type PasteText string

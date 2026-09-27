@@ -26,7 +26,7 @@ type prompt interface {
 	prefix() string
 	// input handles the keys specific to the prompt. Other keys edit the text,
 	// Enter submits it, and Esc cancels the prompt.
-	input(e *Editor, b []byte) (handled bool)
+	input(e *Editor, k inputs.Key) (handled bool)
 	// changed follows the edits of the text. It may replace the prompt of the command line.
 	changed(e *Editor)
 	// submit runs after the command line is closed with Enter.
@@ -80,18 +80,18 @@ func (e *Editor) resume(c *cmdLine) {
 	e.renderRequested = true
 }
 
-// cmdLineInput edits the text of the command line or passes the input to its prompt.
-func (e *Editor) cmdLineInput(b []byte) (quit bool) {
+// cmdLineInput edits the text of the command line or passes the key to its prompt.
+func (e *Editor) cmdLineInput(k inputs.Key) (quit bool) {
 	c := e.status.cmd
-	if c.prompt.input(e, b) {
+	if c.prompt.input(e, k) {
 		return false
 	}
-	switch {
-	case inputs.IsEscape(b):
+	switch k.Special {
+	case inputs.Esc:
 		e.cancelCmdLine()
-	case len(b) == 1 && b[0] == '\r':
+	case inputs.Enter:
 		return e.submitCmdLine()
-	case len(b) == 1 && (b[0] == 0x7f || b[0] == 0x08): // Backspace.
+	case inputs.Backspace:
 		if c.text == "" {
 			e.cancelCmdLine()
 			return false
@@ -99,9 +99,9 @@ func (e *Editor) cmdLineInput(b []byte) (quit bool) {
 		_, sz := utf8.DecodeLastRuneInString(c.text)
 		c.text = c.text[:len(c.text)-sz]
 		c.prompt.changed(e)
-	default:
-		if r, sz := utf8.DecodeRune(b); sz == len(b) && unicode.IsPrint(r) {
-			c.text += string(b)
+	case inputs.Text:
+		if k.Mod == 0 && unicode.IsPrint(k.Rune) {
+			c.text += string(k.Rune)
 			c.prompt.changed(e)
 		}
 	}

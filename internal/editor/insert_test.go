@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 func TestInsertInput_HandleCursor(t *testing.T) {
@@ -15,7 +16,7 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 	buf := Buffer{
 		Content: &data,
 	}
-	insertInput(&buf, []byte{0x1b, '[', 'C'}, &RenderPrefs{TabSize: 2})
+	insertInput(&buf, inputs.Move(inputs.CursorArrowRight, 0), &RenderPrefs{TabSize: 2})
 	if buf.resetMutated() {
 		t.Error("unexpected mutation")
 	}
@@ -41,7 +42,7 @@ func TestInsertInput_AutomateBrackets(t *testing.T) {
 	const expectedBrackets = "{(['`\"\"`'])}"
 
 	for i := range expectedBrackets[:len(expectedBrackets)/2] {
-		insertInput(&buf, []byte{expectedBrackets[i]}, &prefs)
+		insertInput(&buf, inputs.Rune(rune(expectedBrackets[i])), &prefs)
 	}
 
 	if !buf.resetMutated() {
@@ -68,8 +69,8 @@ func TestInsertInput_HandleAutoClosingBracket(t *testing.T) {
 		"{}", "()", "[]", "''", "``", "\"\"",
 	} {
 		expected += pair
-		insertInput(&buf, []byte{pair[0]}, &prefs)
-		insertInput(&buf, []byte{pair[1]}, &prefs)
+		insertInput(&buf, inputs.Rune(rune(pair[0])), &prefs)
+		insertInput(&buf, inputs.Rune(rune(pair[1])), &prefs)
 		if !buf.resetMutated() {
 			t.Error("mutations expected but didn't seem to happen")
 		}
@@ -80,9 +81,9 @@ func TestInsertInput_HandleAutoClosingBracket(t *testing.T) {
 
 	t.Log("regression check: insert at 0 pos")
 	MoveHome.DoOnBuffer(&buf, prefs)
-	insertInput(&buf, []byte{'}'}, &prefs)
+	insertInput(&buf, inputs.Rune('}'), &prefs)
 	MoveHome.DoOnBuffer(&buf, prefs)
-	insertInput(&buf, []byte{'}'}, &prefs)
+	insertInput(&buf, inputs.Rune('}'), &prefs)
 	if buf.Text() != "}}"+expected {
 		t.Errorf("buf.Text()=%q, want %q", buf.Text(), "}}"+expected)
 	}
@@ -96,7 +97,7 @@ func TestInsertInput_AcceptUTF8(t *testing.T) {
 
 	const sample = "кохання вічне"
 	for _, sym := range sample {
-		insertInput(&buf, []byte(string(sym)), &prefs)
+		insertInput(&buf, inputs.Rune(sym), &prefs)
 	}
 
 	if !buf.resetMutated() {

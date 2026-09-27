@@ -8,50 +8,38 @@ import (
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPrefs, b []byte) (handled bool) {
+func (le *Integration) HandleInsertInput(buf *editor.Buffer, _ *editor.RenderPrefs, k inputs.Key) (handled bool) {
 	data, ok := buf.ExtensionData(le.ID()).(*BufferData)
-	if !ok {
-		return
+	if !ok || !data.HasSuggestions() {
+		return false
 	}
 
-	if !data.HasSuggestions() {
-		return
-	}
-
-	var (
-		arrow inputs.Cursor
-		mod   inputs.Modifier
-	)
-	if inputs.IsCursor(b, &arrow, &mod) {
+	switch k.Special {
+	case inputs.CursorMove:
 		multiple := len(data.suggestions) > 1
 		switch {
-		case arrow == inputs.CursorArrowUp && multiple:
+		case k.Cursor == inputs.CursorArrowUp && multiple:
 			data.SuggestPrev()
-			handled = true
-		case arrow == inputs.CursorArrowDown && multiple:
+			return true
+		case k.Cursor == inputs.CursorArrowDown && multiple:
 			data.SuggestNext()
-			handled = true
-		default:
-			data.ResetSuggestions()
+			return true
 		}
-		return
-	}
+		data.ResetSuggestions()
 
-	if inputs.IsEscape(b) {
+	case inputs.Esc:
 		// Only dismiss: the next Esc leaves the insert mode.
 		data.ResetSuggestions()
-		handled = true
-	}
+		return true
 
-	if inputs.IsTab(b) {
+	case inputs.Tab:
 		sug := data.suggestions[data.sugIdx]
 		data.ResetSuggestions()
 		applyEdits(buf, sug.edits)
 		buf.AcceptSuggestion(sug.text, sug.cursor)
-		handled = true
+		return true
 	}
-
-	return
+	return false
 }
 
 // applyEdits applies additional LSP text edits that come with a completion,

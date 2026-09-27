@@ -7,6 +7,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 // recordingExt is a stub Extension that counts how often each method is invoked
@@ -17,7 +18,7 @@ type recordingExt struct {
 	makeBufferData chan struct{}
 	afterEdit      chan struct{}
 	handleInsert   chan struct{}
-	lastInsert     chan []byte
+	lastInsert     chan inputs.Key
 
 	handled bool // what HandleInsertInput returns
 }
@@ -30,7 +31,7 @@ func initRecordingExt(id string, handled bool) *recordingExt {
 		makeBufferData: make(chan struct{}, 1),
 		afterEdit:      make(chan struct{}, 1),
 		handleInsert:   make(chan struct{}, 1),
-		lastInsert:     make(chan []byte, 1),
+		lastInsert:     make(chan inputs.Key, 1),
 	}
 }
 
@@ -45,9 +46,9 @@ func (r *recordingExt) AfterEdit(*editor.Editor, *editor.Buffer) {
 	r.afterEdit <- struct{}{}
 }
 
-func (r *recordingExt) HandleInsertInput(_ *editor.Buffer, _ *editor.RenderPrefs, b []byte) (handled bool) {
+func (r *recordingExt) HandleInsertInput(_ *editor.Buffer, _ *editor.RenderPrefs, k inputs.Key) (handled bool) {
 	r.handleInsert <- struct{}{}
-	r.lastInsert <- append([]byte(nil), b...)
+	r.lastInsert <- k
 	return r.handled
 }
 
@@ -133,8 +134,8 @@ func TestEditor_InputHandle(t *testing.T) {
 				t.Errorf("AfterEdit called = %t, want %t", called, tc.wantAfter)
 			}
 			lastInsert := <-ext.lastInsert
-			if string(lastInsert) != "a" {
-				t.Errorf("HandleInsertInput saw %q, want %q", string(lastInsert), "a")
+			if lastInsert != inputs.Rune('a') {
+				t.Errorf("HandleInsertInput saw %s, want a", lastInsert)
 			}
 
 			editorText := make(chan string, 1)

@@ -16,6 +16,7 @@ import (
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/inputs"
 	"rmazur.io/chernetka/internal/logger"
 )
 
@@ -53,7 +54,7 @@ func (in *Integration) AfterEdit(_ *editor.Editor, buf *editor.Buffer) {
 	}
 }
 
-func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, []byte) (handled bool) {
+func (in *Integration) HandleInsertInput(*editor.Buffer, *editor.RenderPrefs, inputs.Key) (handled bool) {
 	return false
 }
 

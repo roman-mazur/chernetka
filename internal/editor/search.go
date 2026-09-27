@@ -35,23 +35,14 @@ func (e *Editor) startSearch(buf *Buffer) {
 func (p *searchPrompt) prefix() string { return "/" }
 
 // input moves between the matches.
-func (p *searchPrompt) input(_ *Editor, b []byte) (handled bool) {
-	var (
-		arrow inputs.Cursor
-		mod   inputs.Modifier
-	)
+func (p *searchPrompt) input(_ *Editor, k inputs.Key) (handled bool) {
 	switch {
-	case inputs.IsCursor(b, &arrow, &mod):
-		switch arrow {
-		case inputs.CursorArrowUp:
-			p.c.buf.searchMove(-1)
-		case inputs.CursorArrowDown:
-			p.c.buf.searchMove(1)
-		}
-	case inputs.IsTab(b), inputs.IsFindCommand(b):
-		p.c.buf.searchMove(1)
-	case inputs.IsBacktab(b):
+	case k == inputs.Move(inputs.CursorArrowUp, 0), k == inputs.Of(inputs.Backtab):
 		p.c.buf.searchMove(-1)
+	case k == inputs.Move(inputs.CursorArrowDown, 0), k == inputs.Of(inputs.Tab), k == inputs.Ctrl('f'):
+		p.c.buf.searchMove(1)
+	case k.Special == inputs.CursorMove:
+		// Other cursor keys are ignored.
 	default:
 		return false
 	}

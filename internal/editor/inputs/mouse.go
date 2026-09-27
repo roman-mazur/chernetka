@@ -13,7 +13,7 @@ func IsMouseInput(b []byte) bool {
 	if len(b) < 3 {
 		return false
 	}
-	return b[0] == Escape && b[1] == '[' && b[2] == '<'
+	return b[0] == escByte && b[1] == '[' && b[2] == '<'
 }
 
 // Mouse click info.

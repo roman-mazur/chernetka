@@ -1,37 +1,36 @@
 package editor
 
 import (
+	"unicode"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
-func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
-	if len(b) == 0 {
+func insertInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) {
+	switch k.Special {
+	case inputs.CursorMove:
+		buf.handleCursor(k.Cursor, k.Mod, prefs)
 		return
-	}
 
-	var (
-		arrow inputs.Cursor
-		mod   inputs.Modifier
-	)
-	if inputs.IsCursor(b, &arrow, &mod) {
-		buf.handleCursor(arrow, mod, prefs)
-		return
-	}
-
-	// Esc.
-	if inputs.IsEscape(b) {
+	case inputs.Esc:
 		if len(buf.sel) > 0 {
 			buf.cancelSelection()
 			return
 		}
-
 		buf.mode = ModeNormal
 		if buf.c.Col > 0 {
 			buf.c.Col-- // Land on the last typed character.
 		}
+		return
+
+	case inputs.Text:
+		if k.Mod != 0 {
+			return // Not a typed character.
+		}
+	case inputs.Enter, inputs.Tab, inputs.Backspace:
+	default:
 		return
 	}
 
@@ -46,9 +45,8 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 		DeleteSelection.DoOnBuffer(buf, *prefs)
 	}
 
-	switch ch := b[0]; ch {
-	// Backspace.
-	case 0x7f, 0x08:
+	switch k.Special {
+	case inputs.Backspace:
 		if buf.c.Col > 0 {
 			_, sz := utf8.DecodeLastRuneInString(line[:buf.c.Col])
 			mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col-sz]+line[buf.c.Col:]))
@@ -60,38 +58,43 @@ func insertInput(buf *Buffer, b []byte, prefs *RenderPrefs) {
 			mut.Delete(buf.c.Line)
 			buf.c.Line--
 		}
+		return
 
-	// Enter.
-	case '\r':
+	case inputs.Enter:
 		mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col]))
 		mut.Insert(buf.c.Line+1, content.TextLine(line[buf.c.Col:]))
 		buf.c.Line++
 		buf.c.Col = 0
+		return
 
-	// Brackets.
-	case '{', '(', '[':
-		insertContent(buf, []byte{ch, bracketPair(ch)}, mut, line, 1)
-	case '}', ')', ']':
-		if isRepeatedBracket(buf, line, ch) {
-			buf.c.Col++
-		} else {
-			insertContent(buf, b, mut, line, len(b))
-		}
-	case '"', '\'', '`':
-		if isRepeatedBracket(buf, line, ch) {
-			buf.c.Col++
-		} else {
-			insertContent(buf, []byte{ch, bracketPair(ch)}, mut, line, 1)
-		}
-
-	// Printable ASCII.
-	default:
-		if inputs.IsTab(b) || ch >= 0x20 {
-			insertContent(buf, b, mut, line, len(b))
-		}
+	case inputs.Tab:
+		insertContent(buf, []byte{'\t'}, mut, line, 1)
+		return
 	}
 
-	return
+	switch ch := k.Rune; ch {
+	// Brackets.
+	case '{', '(', '[':
+		insertContent(buf, []byte{byte(ch), bracketPair(byte(ch))}, mut, line, 1)
+	case '}', ')', ']':
+		if isRepeatedBracket(buf, line, byte(ch)) {
+			buf.c.Col++
+		} else {
+			insertContent(buf, []byte{byte(ch)}, mut, line, 1)
+		}
+	case '"', '\'', '`':
+		if isRepeatedBracket(buf, line, byte(ch)) {
+			buf.c.Col++
+		} else {
+			insertContent(buf, []byte{byte(ch), bracketPair(byte(ch))}, mut, line, 1)
+		}
+
+	default:
+		if unicode.IsPrint(ch) {
+			text := []byte(string(ch))
+			insertContent(buf, text, mut, line, len(text))
+		}
+	}
 }
 
 func isRepeatedBracket(buf *Buffer, line string, ch byte) bool {

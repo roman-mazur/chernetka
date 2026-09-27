@@ -6,23 +6,24 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 // Raw byte sequences for the inputs HandleInsertInput reacts to.
 var (
-	keyArrowUp    = []byte{0x1b, '[', 'A'}
-	keyArrowDown  = []byte{0x1b, '[', 'B'}
-	keyArrowLeft  = []byte{0x1b, '[', 'D'}
-	keyArrowRight = []byte{0x1b, '[', 'C'}
-	keyEscape     = []byte{0x1b}
-	keyTab        = []byte{'\t'}
+	keyArrowUp    = inputs.Move(inputs.CursorArrowUp, 0)
+	keyArrowDown  = inputs.Move(inputs.CursorArrowDown, 0)
+	keyArrowLeft  = inputs.Move(inputs.CursorArrowLeft, 0)
+	keyArrowRight = inputs.Move(inputs.CursorArrowRight, 0)
+	keyEscape     = inputs.Of(inputs.Esc)
+	keyTab        = inputs.Of(inputs.Tab)
 )
 
 func TestIntegration_HandleInsertInput(t *testing.T) {
 	cases := []struct {
 		name        string
 		suggestions []string // assigned before the input; nil leaves the list empty
-		input       []byte
+		input       inputs.Key
 		wantHandled bool
 		wantCurrent string // CurrentSuggestion afterwards; "" means none remain
 		wantText    string // buffer contents afterwards

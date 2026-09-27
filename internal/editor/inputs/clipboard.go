@@ -18,7 +18,7 @@ func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, detected boo
 		res       bytes.Buffer
 	)
 	for {
-		data, err = input.ReadBytes(Escape)
+		data, err = input.ReadBytes(escByte)
 		if err != nil {
 			return
 		}
@@ -32,7 +32,7 @@ func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, detected boo
 		}
 		// Not the end-of-paste marker: the Escape and the probed bytes
 		// are part of the pasted content, keep them.
-		res.WriteByte(Escape)
+		res.WriteByte(escByte)
 		res.Write(markerBuf[:])
 	}
 
@@ -43,6 +43,6 @@ func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, detected boo
 const clipboardPasteCmdLen = 6
 
 func checkClipboardPaste(b []byte, marker string) bool {
-	return len(b) >= clipboardPasteCmdLen && IsEscape(b[:1]) && b[1] == '[' &&
+	return len(b) >= clipboardPasteCmdLen && b[0] == escByte && b[1] == '[' &&
 		string(b[2:clipboardPasteCmdLen]) == marker
 }

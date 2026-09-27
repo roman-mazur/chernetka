@@ -12,7 +12,7 @@ func TestConsumeClipboardPaste_NotAPaste(t *testing.T) {
 		name string
 		b    []byte
 	}{
-		{"too short", []byte{Escape, '['}},
+		{"too short", []byte{escByte, '['}},
 		{"empty", nil},
 		{"no escape", []byte("[200~hello")},
 		{"wrong marker", []byte("\x1b[201~hello")},

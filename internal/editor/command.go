@@ -3,6 +3,8 @@ package editor
 import (
 	"io"
 	"strings"
+
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 // exPrompt runs the typed command on Enter, see runExCommand.
@@ -15,7 +17,7 @@ func newExPrompt(c *cmdLine) prompt { return &exPrompt{c: c} }
 
 func (p *exPrompt) prefix() string { return ":" }
 
-func (p *exPrompt) input(*Editor, []byte) bool { return false }
+func (p *exPrompt) input(*Editor, inputs.Key) bool { return false }
 
 func (p *exPrompt) changed(e *Editor) {
 	if strings.HasPrefix(p.c.text, quickOpenPrefix) {

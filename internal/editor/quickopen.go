@@ -101,23 +101,14 @@ func (e *Editor) loadProjectFiles(q *quickOpen) {
 }
 
 // input handles the picker keys. Other input edits the command line as usual.
-func (q *quickOpen) input(_ *Editor, b []byte) (handled bool) {
-	var (
-		arrow inputs.Cursor
-		mod   inputs.Modifier
-	)
+func (q *quickOpen) input(_ *Editor, k inputs.Key) (handled bool) {
 	switch {
-	case inputs.IsCursor(b, &arrow, &mod):
-		switch arrow {
-		case inputs.CursorArrowUp:
-			q.move(-1)
-		case inputs.CursorArrowDown:
-			q.move(1)
-		}
-	case inputs.IsTab(b), inputs.IsQuickOpenCommand(b):
-		q.move(1)
-	case inputs.IsBacktab(b):
+	case k == inputs.Move(inputs.CursorArrowUp, 0), k == inputs.Of(inputs.Backtab):
 		q.move(-1)
+	case k == inputs.Move(inputs.CursorArrowDown, 0), k == inputs.Of(inputs.Tab), k == inputs.Ctrl('o'):
+		q.move(1)
+	case k.Special == inputs.CursorMove:
+		// Other cursor keys are ignored.
 	default:
 		return false
 	}

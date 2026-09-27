@@ -6,6 +6,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/editor/inputs"
 )
 
 // Extension represents an editor extension.
@@ -14,7 +15,7 @@ type Extension interface {
 	MakeBufferData(buf *Buffer) BufferExtData
 
 	AfterEdit(e *Editor, buf *Buffer)
-	HandleInsertInput(buf *Buffer, prefs *RenderPrefs, b []byte) (handled bool)
+	HandleInsertInput(buf *Buffer, prefs *RenderPrefs, k inputs.Key) (handled bool)
 }
 
 // BufferExtData represents data associated with a Buffer and managed by an Extension.
