@@ -19,6 +19,8 @@ type Key struct {
 // Special tells the keys that don't type text apart.
 type Special byte
 
+//go:generate go run golang.org/x/tools/cmd/stringer -type=Special
+
 const (
 	Text       Special = iota // a character in Key.Rune, which is a control one with ModCtrl
 	Enter                     // Enter (\r)
@@ -201,12 +203,4 @@ func (k Key) String() string {
 		sb.WriteString(k.Special.String())
 	}
 	return sb.String()
-}
-
-func (s Special) String() string {
-	names := [...]string{"Text", "Enter", "Tab", "Backtab", "Backspace", "Esc", "CursorMove", "FocusIn", "FocusOut"}
-	if int(s) < len(names) {
-		return names[s]
-	}
-	return "Special(" + strconv.Itoa(int(s)) + ")"
 }
