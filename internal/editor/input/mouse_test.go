@@ -77,6 +77,21 @@ func TestReadMouse(t *testing.T) {
 			wantErr: "expected 'm' or 'M'",
 		},
 		{
+			name:    "incomplete prefix",
+			input:   "\x1b[<",
+			wantErr: ErrIncomplete.Error(),
+		},
+		{
+			name:    "incomplete coordinates",
+			input:   "\x1b[<0;10",
+			wantErr: ErrIncomplete.Error(),
+		},
+		{
+			name:    "no terminator",
+			input:   "\x1b[<0;10;20",
+			wantErr: ErrIncomplete.Error(),
+		},
+		{
 			name:    "remaining text",
 			input:   "\x1b[<0;1;2Mhello",
 			want:    Mouse{Button: MouseButtonLeft, X: 1, Y: 2, Pressed: true},

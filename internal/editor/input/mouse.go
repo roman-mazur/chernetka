@@ -47,13 +47,24 @@ const (
 	ScrollDirectionRight
 )
 
-var ErrorNotMouse = errors.New("not a mouse input")
+var (
+	ErrorNotMouse = errors.New("not a mouse input")
+	// ErrIncomplete is returned when the input ends in the middle of a sequence,
+	// which is to be completed by the next read.
+	ErrIncomplete = errors.New("incomplete input")
+)
 
+// ReadMouse reads the mouse event at the start of the input returning the number of its bytes.
 func ReadMouse(inData []byte) (data Mouse, n int, err error) {
 	if !IsMouseInput(inData) {
 		err = ErrorNotMouse
 		return
 	}
+	defer func() {
+		if errors.Is(err, io.EOF) {
+			err = ErrIncomplete
+		}
+	}()
 	n = 3
 	in := bufio.NewReader(bytes.NewReader(inData[n:]))
 

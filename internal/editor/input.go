@@ -72,8 +72,8 @@ func (e *Editor) sendInput(data []byte, in io.Reader) (rest []byte, err error) {
 		// The keys stopped before a mouse event, a paste, or an incomplete sequence.
 		if input.IsMouseInput(data) {
 			mouse, n, err := input.ReadMouse(data)
-			if errors.Is(err, io.EOF) {
-				return data, nil // Incomplete.
+			if errors.Is(err, input.ErrIncomplete) {
+				return data, nil
 			}
 			if err != nil {
 				e.Logf("dropping bad mouse input %v: %s", data, err)
