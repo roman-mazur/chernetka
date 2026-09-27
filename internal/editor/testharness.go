@@ -22,6 +22,7 @@ type TestHarness struct {
 	runFinished chan struct{}
 	pipeReader  *io.PipeReader
 	pipeWriter  *io.PipeWriter
+	written     int64 // bytes written to the editor input
 }
 
 // NewTestHarness returns a harness around a fresh editor with an initialized
@@ -106,16 +107,31 @@ func (h *TestHarness) MoveCursorToLineEnd() {
 }
 
 // SendInput feeds raw input bytes through the editor's input handler, exactly as
-// the run loop would.
+// the run loop would, and waits until the commands for them are run.
 func (h *TestHarness) SendInput(t *testing.T, b []byte) {
 	t.Helper()
-	_, err := h.pipeWriter.Write(b)
-	if err != nil {
+	h.WriteInput(t, b)
+
+	// The write returns once the input is read: wait for the reader to send
+	// the commands for it, then for the commands to drain.
+	deadline := time.Now().Add(time.Second)
+	for h.inputSent.Load() < h.written {
+		if time.Now().After(deadline) {
+			t.Fatalf("input is not handled: %d of %d bytes", h.inputSent.Load(), h.written)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	h.Post(t, CommandFunc(func(e *Editor) {}))
+}
+
+// WriteInput writes the input without waiting for it to be handled, like a part of
+// a paste the editor waits the rest of. The next SendInput waits for both.
+func (h *TestHarness) WriteInput(t *testing.T, b []byte) {
+	t.Helper()
+	if _, err := h.pipeWriter.Write(b); err != nil {
 		t.Fatal(err)
 	}
-
-	// Wait for commands to drain after this.
-	h.Post(t, CommandFunc(func(e *Editor) {}))
+	h.written += int64(len(b))
 }
 
 // SendInputSequence sends each byte of the string as a dedicated input.

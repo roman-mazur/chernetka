@@ -4,6 +4,7 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
+	"sync/atomic"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
@@ -58,6 +59,8 @@ type Editor struct {
 	lastAction content.LineAction // the last engaged line action, can be re-run
 
 	x []Extension // extensions
+
+	inputSent atomic.Int64 // bytes of the terminal input sent to the loop, for the test harness
 }
 
 var debugInput = debugflags.IsEnabled("loginputs")

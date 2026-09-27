@@ -171,8 +171,8 @@ func TestEditor_Run(t *testing.T) {
 		// separate writes, exercising the reader continuation that
 		// readAndHandleInput relies on to reassemble a paste that
 		// straddles two terminal reads.
-		te.SendInput(t, []byte("\x1b[200~spl"))
-		te.SendInput(t, []byte("it\x1b[2"))
+		te.WriteInput(t, []byte("\x1b[200~spl"))
+		te.WriteInput(t, []byte("it\x1b[2"))
 		te.SendInput(t, []byte("01~"))
 
 		var line0 string

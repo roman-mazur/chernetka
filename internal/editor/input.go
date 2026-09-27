@@ -11,10 +11,11 @@ import (
 	"rmazur.io/chernetka/internal/editor/input"
 )
 
-func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader) {
+func (e *Editor) readAndHandleInput(ctx context.Context, terminal *bufio.Reader) {
 	var (
 		inBuf   [64]byte
 		pending []byte // an incomplete sequence at the end of the previous read
+		in      = &countingReader{r: terminal}
 	)
 	for ctx.Err() == nil {
 		n, err := in.Read(inBuf[:])
@@ -31,11 +32,24 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader) {
 			e.handleInputError(err)
 			break
 		}
+		e.inputSent.Store(in.n)
 		if len(pending) > maxPendingInput {
 			e.Logf("dropping unknown input: %v", pending)
 			pending = nil
 		}
 	}
+}
+
+// countingReader counts the bytes read from r.
+type countingReader struct {
+	r io.Reader
+	n int64
+}
+
+func (cr *countingReader) Read(p []byte) (int, error) {
+	n, err := cr.r.Read(p)
+	cr.n += int64(n)
+	return n, err
 }
 
 // maxPendingInput limits the incomplete sequence kept until the next read.
