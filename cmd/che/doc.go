@@ -17,6 +17,11 @@
 // The -root flag sets the project directory to search files in. It defaults to the
 // opened directory or the working one.
 //
+// Each terminal tab has its own main editor and che-img: the directory browser opens files
+// in the main editor of its tab. In Ghostty, the tab is the one selected when che starts;
+// the panes che creates remember their tab in the CHE_TAB environment variable.
+// In other terminals, all the tabs share one main editor and one che-img.
+//
 // # Images and diagrams
 //
 // PNG images and d2 diagrams are shown with che-img (see its docs in cmd/che-img).

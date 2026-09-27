@@ -11,7 +11,7 @@ import (
 	"rmazur.io/chernetka/internal/remotectl"
 )
 
-// Endpoint is the socket che-img listens on.
+// Endpoint is the socket che-img listens on, scoped to the terminal tab with InTab.
 const Endpoint remotectl.Endpoint = "che-img"
 
 // Kind tells what che-img displays.
@@ -85,8 +85,8 @@ func ParseCommand(cmd remotectl.CommandData) (Item, error) {
 	}
 }
 
-// Show sends the item to the running che-img process.
+// Show sends the item to the che-img process running in the same terminal tab.
 // It fails if there is no such process.
 func Show(it Item) error {
-	return remotectl.SendCommand(Endpoint, it.Command())
+	return remotectl.SendCommand(Endpoint.InTab(), it.Command())
 }

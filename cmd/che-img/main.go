@@ -47,7 +47,7 @@ func main() {
 	logf, _ := logger.UserLogFile()
 	logf = logger.Prefix(logf, "che-img: ")
 
-	srv, err := remotectl.NewServer(cheimg.Endpoint)
+	srv, err := remotectl.NewServer(cheimg.Endpoint.InTab())
 	if err != nil {
 		log.Fatalf("cannot listen for images (is che-img already running?): %s", err)
 	}

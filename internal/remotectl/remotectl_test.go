@@ -119,3 +119,37 @@ func TestNewServer_ActiveSocket(t *testing.T) {
 		t.Error("second server started on the endpoint in use")
 	}
 }
+
+func TestEndpoint_Scoped(t *testing.T) {
+	for _, tc := range []struct {
+		scope string
+		want  Endpoint
+	}{
+		{"", "ctl"},
+		{"tab-7f98af016230", "ctl-tab-7f98af016230"},
+		{"../a b", "ctl-___a_b"},
+	} {
+		if got := EditorEndpoint.Scoped(tc.scope); got != tc.want {
+			t.Errorf("Scoped(%q) = %q, want %q", tc.scope, got, tc.want)
+		}
+	}
+}
+
+func TestSendCommand_Scoped(t *testing.T) {
+	useTempSocketDir(t)
+	tab1 := startServer(t, EditorEndpoint.Scoped("tab1"))
+	tab2 := startServer(t, EditorEndpoint.Scoped("tab2"))
+
+	if err := SendCommand(EditorEndpoint.Scoped("tab2"), &CommandData{Action: "open"}); err != nil {
+		t.Fatal("SendCommand:", err)
+	}
+	receiveCommand(t, tab2)
+	select {
+	case cmd := <-tab1:
+		t.Errorf("the other tab received %+v", cmd)
+	default:
+	}
+	if err := SendCommand(EditorEndpoint.Scoped("tab3"), &CommandData{Action: "open"}); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("SendCommand to a tab without a server: %v, want os.ErrNotExist", err)
+	}
+}

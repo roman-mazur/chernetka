@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"rmazur.io/chernetka/internal/cheimg"
 	"rmazur.io/chernetka/internal/content"
@@ -19,6 +20,7 @@ import (
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/remotectl"
 	"rmazur.io/chernetka/internal/vt"
+	"rmazur.io/chernetka/internal/vt/tabscope"
 )
 
 func main() {
@@ -30,6 +32,7 @@ func main() {
 
 	rootFlag := flag.String("root", "", "project `dir` to search files in (defaults to the opened directory or the working one)")
 	flag.Parse()
+	go tabscope.ID() // Resolve the terminal tab early: talking to the terminal is slow.
 	var (
 		edit    editor.Editor
 		skipCtl bool
@@ -91,16 +94,45 @@ func main() {
 	edit.Root = delegate.root
 
 	if !skipCtl {
-		srv, err := remotectl.NewServer(remotectl.EditorEndpoint)
-		if err == nil {
-			defer srv.Close()
-			go srv.Run(&delegate, logf)
-		} else {
-			logf("ctl error: %s", err)
-		}
+		defer startCtlServer(&delegate, logf)()
 	}
 
 	edit.Run(term)
+}
+
+// startCtlServer receives the files to open from the other che processes in the same terminal tab.
+// Resolving the tab may take a while, so the server starts in the background.
+// The returned function stops the server.
+func startCtlServer(e remotectl.Executor, logf logger.Func) (stop func()) {
+	var (
+		mu      sync.Mutex
+		srv     *remotectl.Server
+		stopped bool
+	)
+	go func() {
+		s, err := remotectl.NewServer(remotectl.EditorEndpoint.InTab())
+		if err != nil {
+			logf("ctl error: %s", err)
+			return
+		}
+		mu.Lock()
+		if stopped {
+			mu.Unlock()
+			_ = s.Close()
+			return
+		}
+		srv = s
+		mu.Unlock()
+		s.Run(e, logf)
+	}()
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		stopped = true
+		if srv != nil {
+			_ = srv.Close()
+		}
+	}
 }
 
 const doDebugEnv = false
@@ -188,7 +220,8 @@ func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {
 	ed.edit.Send(editorCommand)
 }
 
-// OpenFile opens the file from the project directory in the main editor, starting one if necessary.
+// OpenFile opens the file from the project directory in the main editor of the terminal tab,
+// starting one if necessary.
 func (ed *editDelegate) OpenFile(path string) {
 	if !filepath.IsAbs(path) {
 		// The main editor may run in another directory.
@@ -212,7 +245,7 @@ func (ed *editDelegate) OpenFile(path string) {
 }
 
 func (ed *editDelegate) sendOpenCommand(path string) error {
-	return remotectl.SendCommand(remotectl.EditorEndpoint, &remotectl.CommandData{
+	return remotectl.SendCommand(remotectl.EditorEndpoint.InTab(), &remotectl.CommandData{
 		Action: "open",
 		Args:   []string{path},
 	})
