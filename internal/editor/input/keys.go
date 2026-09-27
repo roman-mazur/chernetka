@@ -21,7 +21,7 @@ type Special byte
 
 const (
 	Text       Special = iota // a character in Key.Rune, which is a control one with ModCtrl
-	Enter                     // Enter (\r) or a new line (\n)
+	Enter                     // Enter (\r)
 	Tab                       // Tab
 	Backtab                   // Shift+Tab
 	Backspace                 // Backspace
@@ -80,7 +80,7 @@ func Keys(b []byte) (keys []Key, n int) {
 			}
 			n += size
 
-		case c == '\r' || c == '\n':
+		case c == '\r':
 			keys = append(keys, Of(Enter))
 			n++
 		case c == '\t':
