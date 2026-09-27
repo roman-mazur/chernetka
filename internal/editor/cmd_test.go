@@ -199,6 +199,48 @@ func TestScroll(t *testing.T) {
 	}
 }
 
+func TestScroll_Horizontal(t *testing.T) {
+	buf := &Buffer{
+		Content: &content.FullText{
+			content.TextLine("0123456789abcdef"),
+			content.TextLine("0123"),
+		},
+		w: 12, h: 2,
+		hideLineNumbers: true,
+	}
+	prefs := RenderPrefs{TabSize: 4}
+	c := buf.c
+
+	for _, step := range []struct {
+		dir  input.ScrollDirection
+		want int
+	}{
+		{input.ScrollDirectionLeft, 0},
+		{input.ScrollDirectionRight, 2},
+		{input.ScrollDirectionRight, 4},
+		{input.ScrollDirectionRight, 5}, // the end of the widest line is shown
+		{input.ScrollDirectionRight, 5},
+		{input.ScrollDirectionLeft, 3},
+		{input.ScrollDirectionLeft, 1},
+		{input.ScrollDirectionLeft, 0},
+	} {
+		Scroll(step.dir).DoOnBuffer(buf, prefs)
+		if buf.xoff != step.want {
+			t.Errorf("scroll %d: xoff = %d, want %d", step.dir, buf.xoff, step.want)
+		}
+	}
+	if buf.c != c {
+		t.Errorf("cursor moved to %s", buf.c)
+	}
+
+	// Scrolled further by the cursor: scrolling right does not move back.
+	buf.xoff = 10
+	Scroll(input.ScrollDirectionRight).DoOnBuffer(buf, prefs)
+	if buf.xoff != 10 {
+		t.Errorf("xoff = %d, want 10", buf.xoff)
+	}
+}
+
 func TestSwitchMode(t *testing.T) {
 	var buf Buffer
 

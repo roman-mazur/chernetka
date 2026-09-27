@@ -18,6 +18,7 @@ type searchPrompt struct {
 
 	origin content.Position // the cursor position before the search was started
 	offset int              // the scroll offset before the search was started
+	xoff   int              // the horizontal scroll offset before the search was started
 	prev   *regexp.Regexp   // the search highlighted before
 
 	replace  bool   // the replacement is being typed
@@ -28,7 +29,7 @@ type searchPrompt struct {
 // startSearch shows the command line to type the search pattern.
 func (e *Editor) startSearch(buf *Buffer) {
 	e.openCmdLine(buf, "", func(c *cmdLine) prompt {
-		return &searchPrompt{c: c, origin: buf.c, offset: buf.offset, prev: buf.search}
+		return &searchPrompt{c: c, origin: buf.c, offset: buf.offset, xoff: buf.xoff, prev: buf.search}
 	})
 }
 
@@ -56,7 +57,7 @@ func (p *searchPrompt) changed(*Editor) {
 	p.replace, p.template, p.failure = replace, template, ""
 	if pattern == "" {
 		b.search = nil
-		b.c, b.offset = p.origin, p.offset
+		b.c, b.offset, b.xoff = p.origin, p.offset, p.xoff
 		return
 	}
 	re, err := regexp.Compile(pattern)
@@ -68,7 +69,7 @@ func (p *searchPrompt) changed(*Editor) {
 	if span, ok := b.findMatch(p.origin, 1, true); ok {
 		b.c = span.Start
 	} else {
-		b.c, b.offset = p.origin, p.offset
+		b.c, b.offset, b.xoff = p.origin, p.offset, p.xoff
 		p.failure = "no matches"
 	}
 }
@@ -90,7 +91,7 @@ func (p *searchPrompt) submit(*Editor) (quit bool) {
 // cancel returns the cursor where it was before, and restores the previous search.
 func (p *searchPrompt) cancel(*Editor) {
 	b := p.c.buf
-	b.c, b.offset = p.origin, p.offset
+	b.c, b.offset, b.xoff = p.origin, p.offset, p.xoff
 	b.search = p.prev
 }
 

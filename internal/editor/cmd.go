@@ -86,14 +86,34 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 
 type Scroll input.ScrollDirection
 
-func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
+func (s Scroll) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
 	switch input.ScrollDirection(s) {
 	case input.ScrollDirectionUp:
 		buf.offset--
 	case input.ScrollDirectionDown:
 		buf.offset++
+	case input.ScrollDirectionLeft:
+		buf.xoff = max(0, buf.xoff-scrollStepX)
+	case input.ScrollDirectionRight:
+		// Stop when the end of the widest visible line is shown,
+		// but don't jump back if the cursor has scrolled further.
+		buf.xoff = min(buf.xoff+scrollStepX, max(buf.xoff, buf.maxScrollX(prefs.TabSize)))
 	}
 	buf.offset = max(0, min(buf.offset, buf.Content.Len()-buf.h-1))
+}
+
+// scrollStepX is how many columns the text is scrolled horizontally by one wheel event.
+const scrollStepX = 2
+
+// maxScrollX returns the horizontal scroll that shows the end of the widest visible line.
+func (b *Buffer) maxScrollX(tabSize int) int {
+	lines := b.Content.Lines()
+	widest := 0
+	for ln := b.offset; ln < b.offset+b.printableLinesCount(); ln++ {
+		line := lines[ln].String()
+		widest = max(widest, runeToScreenCol(line, len(line), tabSize))
+	}
+	return max(0, widest-b.textWidth()+1)
 }
 
 func clampBufferCx(buf *Buffer) {

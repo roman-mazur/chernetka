@@ -26,6 +26,7 @@ type Buffer struct {
 
 	c      content.Position // cursor position
 	offset int              // first visible row (scroll)
+	xoff   int              // first visible screen column of the text (horizontal scroll)
 	w, h   int              // dimensions of the area to render the content in
 
 	sel       []content.Span // selected text
@@ -79,7 +80,7 @@ func (b *Buffer) Close() error {
 	return errors.Join(allErrors...)
 }
 
-func (b *Buffer) clampCursor() {
+func (b *Buffer) clampCursor(tabSize int) {
 	lines := b.Content.Lines()
 
 	b.c.Line = max(0, min(b.c.Line, len(lines)-1))
@@ -103,8 +104,33 @@ func (b *Buffer) clampCursor() {
 		if b.c.Line >= b.offset+b.h {
 			b.offset = b.c.Line - b.h + 1
 		}
+		b.followCursorX(runeToScreenCol(line, b.c.Col, tabSize))
 	}
 }
+
+// sideScrollMargin is how many columns are kept visible around the cursor when scrolling horizontally.
+const sideScrollMargin = 8
+
+// followCursorX adjusts the horizontal scroll so that the cursor at screen column sc is visible.
+// The text is not scrolled at all if the cursor is visible without it.
+func (b *Buffer) followCursorX(sc int) {
+	tw := b.textWidth()
+	if tw <= 0 {
+		return
+	}
+	margin := min(sideScrollMargin, tw/3)
+	switch {
+	case sc < tw-margin:
+		b.xoff = 0
+	case sc < b.xoff+margin:
+		b.xoff = max(0, sc-margin)
+	case sc >= b.xoff+tw-margin:
+		b.xoff = sc - tw + margin + 1
+	}
+}
+
+// textWidth returns the number of screen columns available for the content text.
+func (b *Buffer) textWidth() int { return b.w - b.lineNumberPrefixWidth() }
 
 func (b *Buffer) screenToContentPosition(row, col int, tabSize int) content.Position {
 	if b.Content.Len() == 0 {
@@ -112,16 +138,17 @@ func (b *Buffer) screenToContentPosition(row, col int, tabSize int) content.Posi
 	}
 	line := max(0, min(row+b.offset, b.Content.Len()-1))
 	str := b.Content.Lines()[line].String()
-	dx := b.lineNumberPrefixWidth()
-	x := 0
+	target := col - b.lineNumberPrefixWidth() + b.xoff
+	x := 0 // screen column where the rune starts
 	for i, r := range str {
-		if x >= col-dx {
+		if x >= target {
 			return content.Position{Line: line, Col: i}
 		}
 		if r == '\t' {
-			dx += tabSize - 1
+			x += tabSize
+		} else {
+			x++
 		}
-		x++
 	}
 	return content.Position{Line: line, Col: len(str)}
 }
@@ -171,7 +198,7 @@ func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
 		cursorLine = lines[b.c.Line].String()
 	}
 
-	screenCol := runeToScreenCol(cursorLine, b.c.Col, prefs.TabSize)
+	screenCol := runeToScreenCol(cursorLine, b.c.Col, prefs.TabSize) - b.xoff
 	screenRow := b.c.Line - b.offset + 1
 	numDisplayWidth := b.lineNumberPrefixWidth()
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)

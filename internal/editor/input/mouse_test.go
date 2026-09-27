@@ -27,6 +27,26 @@ func TestIsMouseInput(t *testing.T) {
 	}
 }
 
+func TestReadMouse_ScrollDirection(t *testing.T) {
+	for input, want := range map[string]ScrollDirection{
+		"\x1b[<64;10;20M": ScrollDirectionUp,
+		"\x1b[<65;10;20M": ScrollDirectionDown,
+		"\x1b[<66;10;20M": ScrollDirectionLeft,
+		"\x1b[<67;10;20M": ScrollDirectionRight,
+	} {
+		data, _, err := ReadMouse([]byte(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !data.Mod.HasWheel() {
+			t.Errorf("%q: no wheel modifier in %s", input, data.Mod)
+		}
+		if got := data.Mod.SrollDirection(data); got != want {
+			t.Errorf("%q: direction %d, want %d", input, got, want)
+		}
+	}
+}
+
 func TestReadMouse(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

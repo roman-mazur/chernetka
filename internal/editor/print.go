@@ -108,6 +108,8 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 		line: line,
 		ln:   ln,
 		bg:   cr.buildBgSpans(ln, len(line), hlLine),
+		from: cr.b.xoff,
+		to:   cr.b.xoff + cr.b.textWidth(),
 	}
 
 	// The suggestion is shown as ghost text at the cursor, in the middle of
@@ -161,6 +163,7 @@ func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, line
 		used += utf8.RuneCountInString(cr.suggestion.Text)
 		info = cr.suggestion.Info
 	}
+	used = max(0, used-cr.b.xoff) // only the visible part takes the space
 	free := cr.b.w - used
 	if !cr.b.hideLineNumbers {
 		free -= cr.lnDigits + 1
@@ -255,6 +258,9 @@ type colorLinePrinter struct {
 	bg   []colorSpan
 
 	li int // what part of the line text has been printed
+
+	x        int // screen column of the printed text
+	from, to int // visible screen columns range, the text outside of it is scrolled away
 }
 
 func (clp *colorLinePrinter) printedText(s string) string {
@@ -272,14 +278,14 @@ func (clp *colorLinePrinter) print(s string, style styles.TextStyle) {
 	bgIdx := clp.currentBgIdx()
 	if bgIdx == -1 {
 		appliedStyle.BgColor = nil
-		escape.StyleText(clp.out, clp.printedText(s), appliedStyle)
+		clp.emit(clp.printedText(s), appliedStyle)
 		return
 	}
 	for start := 0; start < len(s); {
 		bg := clp.bg[bgIdx]
 		end := min(len(s), bg.End.Col-clp.li)
 		appliedStyle.BgColor = bg.color
-		escape.StyleText(clp.out, clp.printedText(s[start:end]), appliedStyle)
+		clp.emit(clp.printedText(s[start:end]), appliedStyle)
 		start = end
 		if clp.li+start >= bg.End.Col {
 			bgIdx++
@@ -294,7 +300,29 @@ func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
 		style.BgColor = clp.bg[bgIdx].color
 	}
 
-	escape.StyleText(clp.out, clp.printedText(txt), style)
+	clp.emit(clp.printedText(txt), style)
+}
+
+// emit writes the part of the printed text that falls into the visible columns range.
+func (clp *colorLinePrinter) emit(s string, style styles.TextStyle) {
+	x := clp.x
+	clp.x += utf8.RuneCountInString(s)
+	if clp.x <= clp.from || x >= clp.to {
+		return
+	}
+	for ; x < clp.from; x++ {
+		_, sz := utf8.DecodeRuneInString(s)
+		s = s[sz:]
+	}
+	if clp.x > clp.to {
+		end := 0
+		for ; x < clp.to; x++ {
+			_, sz := utf8.DecodeRuneInString(s[end:])
+			end += sz
+		}
+		s = s[:end]
+	}
+	escape.StyleText(clp.out, s, style)
 }
 
 func nlDigitsLen(x int) int {

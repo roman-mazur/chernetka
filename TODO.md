@@ -8,7 +8,7 @@
 
 - Better logic for triggering LSP calls
 - Action on md checkboxes
-- Horizontal scroll
+- [x] Horizontal scroll
 - Run tests from normal mode (action on a test function definition)
 - Same for main function
 - SQL syntax highlight

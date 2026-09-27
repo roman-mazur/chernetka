@@ -37,12 +37,12 @@ const (
 	MouseButtonNone // used for hover
 )
 
+// ScrollDirection is the wheel "button" reported with the wheel modifier: 64-67 in the SGR encoding.
 type ScrollDirection byte
 
 const (
 	ScrollDirectionUp ScrollDirection = iota
 	ScrollDirectionDown
-	S
 	ScrollDirectionLeft
 	ScrollDirectionRight
 )

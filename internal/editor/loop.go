@@ -96,7 +96,7 @@ func (e *Editor) render(out *bufio.Writer) {
 	// The layout needs the status bar height.
 	e.status.buf = topBuf
 	for buf := range e.layout() {
-		buf.clampCursor()
+		buf.clampCursor(e.rPrefs.TabSize)
 		escape.MoveTopLeft(out) // TODO: this works with one active buffer on top.
 		buf.Render(out, &e.rPrefs)
 		buf.noKeyboard = false

@@ -800,3 +800,121 @@ func TestBuffer_RenderGhostKeepsSyntaxHighlight(t *testing.T) {
 		t.Errorf("suggestion info shown on a narrow screen:\n%s", got)
 	}
 }
+
+func TestBuffer_Render_HorizontalScroll(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		text    string
+		xoff    int
+		w       int
+		mode    Mode
+		c       content.Position
+		sel     []content.Span
+		sug     []string
+		hlLine  bool
+		want    string
+		tabSize int
+	}{
+		{name: "not scrolled", text: "0123456789abcdef", w: 10, want: "0123456789"},
+		{name: "scrolled", text: "0123456789abcdef", xoff: 4, w: 10, want: "456789abcd"},
+		{name: "scrolled to the end", text: "0123456789abcdef", xoff: 10, w: 10, want: "abcdef"},
+		{name: "line is scrolled away", text: "0123", xoff: 10, w: 10, want: ""},
+		{name: "tab crosses the left edge", text: "a\tbcdef", xoff: 2, w: 4, tabSize: 4, want: "   b"},
+		{name: "tab crosses the right edge", text: "ab\tc", xoff: 1, w: 4, tabSize: 4, want: "b   "},
+		{name: "utf-8", text: "привіт світ", xoff: 3, w: 5, want: "віт с"},
+		{
+			name: "selection and current line", text: "0123456789abcdef", xoff: 4, w: 10, hlLine: true,
+			sel:  []content.Span{{Start: content.Position{Col: 2}, End: content.Position{Col: 6}}},
+			want: "456789abcd",
+		},
+		{name: "current line tail", text: "abc", xoff: 4, w: 10, hlLine: true, want: strings.Repeat(" ", 10)},
+		{
+			name: "ghost suggestion", text: "Pri", xoff: 2, w: 4, mode: ModeInsert,
+			c: content.Position{Col: 3}, sug: []string{"ntln"}, want: "intl",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := &Buffer{
+				Content:         &content.FullText{content.TextLine(tc.text)},
+				w:               tc.w,
+				h:               1,
+				xoff:            tc.xoff,
+				mode:            tc.mode,
+				c:               tc.c,
+				sel:             tc.sel,
+				hideLineNumbers: true,
+				noCurrentLineHL: !tc.hlLine,
+			}
+			buf.ext.extend("lsp", testSuggestionExt(tc.sug))
+
+			var out bytes.Buffer
+			buf.Render(&out, &RenderPrefs{TabSize: max(tc.tabSize, 2)})
+			got := strings.Split(escape.Clean(out.String()), "\r\n")[0]
+			if got != tc.want {
+				t.Errorf("rendered %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBuffer_ClampCursor_FollowsHorizontally(t *testing.T) {
+	buf := &Buffer{
+		Content: &content.FullText{
+			content.TextLine(strings.Repeat("x", 100)),
+			content.TextLine("short"),
+		},
+		w: 20, h: 5,
+		hideLineNumbers: true,
+	}
+	const margin = 20 / 3
+	for _, step := range []struct {
+		name       string
+		c          content.Position
+		noKeyboard bool
+		want       int
+	}{
+		{name: "line end", c: content.Position{Col: 100}, want: 100 - 20 + margin + 1},
+		{name: "line start", c: content.Position{Col: 0}, want: 0},
+		{name: "visible without scroll", c: content.Position{Col: 20 - margin - 1}, want: 0},
+		{name: "past the right margin", c: content.Position{Col: 50}, want: 50 - 20 + margin + 1},
+		{name: "within the view", c: content.Position{Col: 45}, want: 50 - 20 + margin + 1},
+		{name: "past the left margin", c: content.Position{Col: 40}, want: 40 - margin},
+		{name: "mouse input keeps the scroll", c: content.Position{Col: 0}, noKeyboard: true, want: 40 - margin},
+		{name: "short line", c: content.Position{Line: 1, Col: 40}, want: 0},
+	} {
+		buf.c, buf.noKeyboard = step.c, step.noKeyboard
+		buf.clampCursor(4)
+		if buf.xoff != step.want {
+			t.Errorf("%s: xoff = %d, want %d", step.name, buf.xoff, step.want)
+		}
+	}
+}
+
+func TestBuffer_HorizontalScroll_Coordinates(t *testing.T) {
+	const tabSize = 4
+	for _, tc := range []struct {
+		text string
+		xoff int
+		x    int
+		want int
+	}{
+		{text: "0123456789", xoff: 5, x: 2, want: 5},
+		{text: "0123456789", xoff: 5, x: 4, want: 7},
+		{text: "\t\tab", xoff: 6, x: 2, want: 2}, // inside the tab: the next rune
+		{text: "\t\tab", xoff: 6, x: 5, want: 3},
+	} {
+		buf := &Buffer{Content: &content.FullText{content.TextLine(tc.text)}, w: 20, h: 5, xoff: tc.xoff}
+		if got := buf.screenToContentPosition(0, tc.x, tabSize); got.Col != tc.want {
+			t.Errorf("%q scrolled by %d: click at %d = %s, want col %d", tc.text, tc.xoff, tc.x, got, tc.want)
+		}
+
+		// The cursor goes back to the clicked column.
+		buf.c.Col = tc.want
+		var out bytes.Buffer
+		buf.RenderCursorPosition(&out, &RenderPrefs{TabSize: tabSize})
+		wantCol := runeToScreenCol(tc.text, tc.want, tabSize) - tc.xoff + buf.lineNumberPrefixWidth() + 1
+		if want := fmt.Sprintf("\x1b[1;%dH", wantCol); out.String() != want {
+			t.Errorf("%q scrolled by %d: cursor position %q, want %q", tc.text, tc.xoff, out.String(), want)
+		}
+	}
+}
