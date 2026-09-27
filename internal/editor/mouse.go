@@ -5,13 +5,13 @@ import (
 	"io"
 	"time"
 
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 // mouseEvent wraps the raw mouse input extending it with the event type derived from the saved state.
 type mouseEvent struct {
-	inputs.Mouse
+	input.Mouse
 	eventType mouseEventType
 }
 
@@ -36,7 +36,7 @@ const (
 
 type mouseHandler struct {
 	now           func() time.Time
-	lastPressData inputs.Mouse
+	lastPressData input.Mouse
 	lastPressAt   time.Time
 	clickCount    int
 	isDragging    bool
@@ -67,7 +67,7 @@ func (mh *mouseHandler) currentTime() time.Time {
 	return time.Now()
 }
 
-func (mh *mouseHandler) transformInput(in inputs.Mouse) mouseEvent {
+func (mh *mouseHandler) transformInput(in input.Mouse) mouseEvent {
 	if in.Mod.HasMotion() {
 		if in.Pressed && !mh.isDragging {
 			mh.isDragging = true

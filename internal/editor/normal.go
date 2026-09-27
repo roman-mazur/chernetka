@@ -4,21 +4,21 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
-func normalInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) (quit bool) {
+func normalInput(buf *Buffer, k input.Key, prefs *RenderPrefs) (quit bool) {
 	switch k.Special {
-	case inputs.CursorMove:
+	case input.CursorMove:
 		buf.handleCursor(k.Cursor, k.Mod, prefs)
 
 	// Esc: clear selection and search highlights.
-	case inputs.Esc:
+	case input.Esc:
 		buf.cancelSelection()
 		buf.search = nil
 
 	// Engage.
-	case inputs.Enter:
+	case input.Enter:
 		if action := buf.lineAction(buf.c.Line); action != nil {
 			action.Engage()
 			buf.engaged = action
@@ -26,7 +26,7 @@ func normalInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) (quit bool) {
 			RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
 		}
 
-	case inputs.Text:
+	case input.Text:
 		if k.Mod == 0 {
 			return normalCommand(buf, k.Rune, prefs)
 		}

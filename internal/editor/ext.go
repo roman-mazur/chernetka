@@ -6,7 +6,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 // Extension represents an editor extension.
@@ -32,7 +32,7 @@ type Sender interface {
 // InsertKeyHandler can be optionally implemented by an Extension to handle the keys
 // typed in the insert mode before the editor does.
 type InsertKeyHandler interface {
-	HandleInsertKey(buf *Buffer, k inputs.Key) (handled bool)
+	HandleInsertKey(buf *Buffer, k input.Key) (handled bool)
 }
 
 // BufferExtData represents data associated with a Buffer and managed by an Extension.

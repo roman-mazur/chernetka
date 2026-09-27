@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 // handleInput handles the keys decoded from the terminal input like the editor loop does.
 func (e *Editor) handleInput(b []byte) (quit bool) {
-	keys, _ := inputs.Keys(b)
+	keys, _ := input.Keys(b)
 	for _, k := range keys {
 		if e.handleKey(k) {
 			return true

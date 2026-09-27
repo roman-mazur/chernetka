@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
@@ -26,7 +26,7 @@ type prompt interface {
 	prefix() string
 	// input handles the keys specific to the prompt. Other keys edit the text,
 	// Enter submits it, and Esc cancels the prompt.
-	input(e *Editor, k inputs.Key) (handled bool)
+	input(e *Editor, k input.Key) (handled bool)
 	// changed follows the edits of the text. It may replace the prompt of the command line.
 	changed(e *Editor)
 	// submit runs after the command line is closed with Enter.
@@ -81,17 +81,17 @@ func (e *Editor) resume(c *cmdLine) {
 }
 
 // cmdLineInput edits the text of the command line or passes the key to its prompt.
-func (e *Editor) cmdLineInput(k inputs.Key) (quit bool) {
+func (e *Editor) cmdLineInput(k input.Key) (quit bool) {
 	c := e.status.cmd
 	if c.prompt.input(e, k) {
 		return false
 	}
 	switch k.Special {
-	case inputs.Esc:
+	case input.Esc:
 		e.cancelCmdLine()
-	case inputs.Enter:
+	case input.Enter:
 		return e.submitCmdLine()
-	case inputs.Backspace:
+	case input.Backspace:
 		if c.text == "" {
 			e.cancelCmdLine()
 			return false
@@ -99,7 +99,7 @@ func (e *Editor) cmdLineInput(k inputs.Key) (quit bool) {
 		_, sz := utf8.DecodeLastRuneInString(c.text)
 		c.text = c.text[:len(c.text)-sz]
 		c.prompt.changed(e)
-	case inputs.Text:
+	case input.Text:
 		if k.Mod == 0 && unicode.IsPrint(k.Rune) {
 			c.text += string(k.Rune)
 			c.prompt.changed(e)

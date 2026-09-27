@@ -5,16 +5,16 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
-func insertInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) {
+func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	switch k.Special {
-	case inputs.CursorMove:
+	case input.CursorMove:
 		buf.handleCursor(k.Cursor, k.Mod, prefs)
 		return
 
-	case inputs.Esc:
+	case input.Esc:
 		if len(buf.sel) > 0 {
 			buf.cancelSelection()
 			return
@@ -25,11 +25,11 @@ func insertInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) {
 		}
 		return
 
-	case inputs.Text:
+	case input.Text:
 		if k.Mod != 0 {
 			return // Not a typed character.
 		}
-	case inputs.Enter, inputs.Tab, inputs.Backspace:
+	case input.Enter, input.Tab, input.Backspace:
 	default:
 		return
 	}
@@ -46,7 +46,7 @@ func insertInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) {
 	}
 
 	switch k.Special {
-	case inputs.Backspace:
+	case input.Backspace:
 		if buf.c.Col > 0 {
 			_, sz := utf8.DecodeLastRuneInString(line[:buf.c.Col])
 			mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col-sz]+line[buf.c.Col:]))
@@ -60,14 +60,14 @@ func insertInput(buf *Buffer, k inputs.Key, prefs *RenderPrefs) {
 		}
 		return
 
-	case inputs.Enter:
+	case input.Enter:
 		mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col]))
 		mut.Insert(buf.c.Line+1, content.TextLine(line[buf.c.Col:]))
 		buf.c.Line++
 		buf.c.Col = 0
 		return
 
-	case inputs.Tab:
+	case input.Tab:
 		insertContent(buf, []byte{'\t'}, mut, line, 1)
 		return
 	}

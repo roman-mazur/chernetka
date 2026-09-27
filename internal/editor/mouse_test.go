@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 func TestMouseHandlerTransformInput(t *testing.T) {
 	type step struct {
 		advance time.Duration
-		in      inputs.Mouse
+		in      input.Mouse
 		want    mouseEventType
 	}
 
@@ -19,24 +19,24 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 		pastDelay   = 600 * time.Millisecond
 	)
 
-	press := func(btn inputs.MouseButton) inputs.Mouse {
-		return inputs.Mouse{Button: btn, Pressed: true}
+	press := func(btn input.MouseButton) input.Mouse {
+		return input.Mouse{Button: btn, Pressed: true}
 	}
-	release := func(btn inputs.MouseButton) inputs.Mouse {
-		return inputs.Mouse{Button: btn}
+	release := func(btn input.MouseButton) input.Mouse {
+		return input.Mouse{Button: btn}
 	}
-	drag := func(btn inputs.MouseButton) inputs.Mouse {
-		return inputs.Mouse{Button: btn, Pressed: true, Mod: inputs.Modifier(8)}
+	drag := func(btn input.MouseButton) input.Mouse {
+		return input.Mouse{Button: btn, Pressed: true, Mod: input.Modifier(8)}
 	}
-	hover := func() inputs.Mouse {
-		return inputs.Mouse{Button: inputs.MouseButtonNone, Mod: inputs.Modifier(8)}
+	hover := func() input.Mouse {
+		return input.Mouse{Button: input.MouseButtonNone, Mod: input.Modifier(8)}
 	}
-	scroll := func(direction inputs.ScrollDirection) inputs.Mouse {
-		return inputs.Mouse{Button: inputs.MouseButton(direction), Pressed: true, Mod: inputs.Modifier(16)}
+	scroll := func(direction input.ScrollDirection) input.Mouse {
+		return input.Mouse{Button: input.MouseButton(direction), Pressed: true, Mod: input.Modifier(16)}
 	}
 
-	left := inputs.MouseButtonLeft
-	right := inputs.MouseButtonRight
+	left := input.MouseButtonLeft
+	right := input.MouseButtonRight
 
 	for _, tc := range []struct {
 		name  string
@@ -121,11 +121,11 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 		{
 			name: "scrolling",
 			steps: []step{
-				{in: scroll(inputs.ScrollDirectionUp), want: mouseEventTypeScroll},
-				{in: scroll(inputs.ScrollDirectionUp), want: mouseEventTypeScroll},
-				{in: scroll(inputs.ScrollDirectionDown), want: mouseEventTypeScroll},
-				{in: scroll(inputs.ScrollDirectionLeft), want: mouseEventTypeScroll},
-				{in: scroll(inputs.ScrollDirectionRight), want: mouseEventTypeScroll},
+				{in: scroll(input.ScrollDirectionUp), want: mouseEventTypeScroll},
+				{in: scroll(input.ScrollDirectionUp), want: mouseEventTypeScroll},
+				{in: scroll(input.ScrollDirectionDown), want: mouseEventTypeScroll},
+				{in: scroll(input.ScrollDirectionLeft), want: mouseEventTypeScroll},
+				{in: scroll(input.ScrollDirectionRight), want: mouseEventTypeScroll},
 			},
 		},
 	} {

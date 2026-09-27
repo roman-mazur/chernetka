@@ -8,7 +8,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/clipb"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 // BufferCommand performs some action on a Buffer.
@@ -84,13 +84,13 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	buf.updateSelection()
 }
 
-type Scroll inputs.ScrollDirection
+type Scroll input.ScrollDirection
 
 func (s Scroll) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
-	switch inputs.ScrollDirection(s) {
-	case inputs.ScrollDirectionUp:
+	switch input.ScrollDirection(s) {
+	case input.ScrollDirectionUp:
 		buf.offset--
-	case inputs.ScrollDirectionDown:
+	case input.ScrollDirectionDown:
 		buf.offset++
 	}
 	buf.offset = max(0, min(buf.offset, buf.Content.Len()-buf.h-1))

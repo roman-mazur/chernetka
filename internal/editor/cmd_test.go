@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 func TestRelMove_Dx(t *testing.T) {
@@ -185,15 +185,15 @@ func TestScroll(t *testing.T) {
 
 	prefs := RenderPrefs{TabSize: 4}
 
-	Scroll(inputs.ScrollDirectionDown).DoOnBuffer(buf, prefs)
+	Scroll(input.ScrollDirectionDown).DoOnBuffer(buf, prefs)
 	if buf.offset != 1 {
 		t.Errorf("scroll not applied, buf.offset=%d", buf.offset)
 	}
-	Scroll(inputs.ScrollDirectionDown).DoOnBuffer(buf, prefs)
+	Scroll(input.ScrollDirectionDown).DoOnBuffer(buf, prefs)
 	if buf.offset != 2 {
 		t.Errorf("second scroll not applied, buf.offset=%d", buf.offset)
 	}
-	Scroll(inputs.ScrollDirectionDown).DoOnBuffer(buf, prefs)
+	Scroll(input.ScrollDirectionDown).DoOnBuffer(buf, prefs)
 	if buf.offset != 2 {
 		t.Errorf("third scroll should be skipped, buf.offset=%d", buf.offset)
 	}

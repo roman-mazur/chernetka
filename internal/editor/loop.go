@@ -61,7 +61,7 @@ func (e *Editor) Run(t vt.Terminal) {
 		}
 		lastRenderTime = time.Now()
 
-		// Handle commands, including inputs.
+		// Handle commands, including input.
 	loop:
 		for {
 			select {

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 // searchPrompt is shown while the search pattern is typed after "/". The cursor moves
@@ -35,13 +35,13 @@ func (e *Editor) startSearch(buf *Buffer) {
 func (p *searchPrompt) prefix() string { return "/" }
 
 // input moves between the matches.
-func (p *searchPrompt) input(_ *Editor, k inputs.Key) (handled bool) {
+func (p *searchPrompt) input(_ *Editor, k input.Key) (handled bool) {
 	switch {
-	case k == inputs.Move(inputs.CursorArrowUp, 0), k == inputs.Of(inputs.Backtab):
+	case k == input.Move(input.CursorArrowUp, 0), k == input.Of(input.Backtab):
 		p.c.buf.searchMove(-1)
-	case k == inputs.Move(inputs.CursorArrowDown, 0), k == inputs.Of(inputs.Tab), k == inputs.Ctrl('f'):
+	case k == input.Move(input.CursorArrowDown, 0), k == input.Of(input.Tab), k == input.Ctrl('f'):
 		p.c.buf.searchMove(1)
-	case k.Special == inputs.CursorMove:
+	case k.Special == input.CursorMove:
 		// Other cursor keys are ignored.
 	default:
 		return false

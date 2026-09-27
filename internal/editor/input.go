@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader) {
@@ -22,11 +22,11 @@ func (e *Editor) readAndHandleInput(ctx context.Context, in *bufio.Reader) {
 			e.handleInputError(err)
 			break
 		}
-		input := append(pending, inBuf[:n]...)
+		data := append(pending, inBuf[:n]...)
 		if debugInput {
-			e.Logf("input: %v", input)
+			e.Logf("input: %v", data)
 		}
-		pending, err = e.sendInput(input, in)
+		pending, err = e.sendInput(data, in)
 		if err != nil {
 			e.handleInputError(err)
 			break
@@ -44,32 +44,32 @@ const maxPendingInput = 256
 // sendInput sends the keys, mouse events, and pastes read from the terminal to the editor loop.
 // It returns the incomplete sequence at the end of the input to be completed by the next read.
 // A paste is read until its end from in.
-func (e *Editor) sendInput(input []byte, in io.Reader) (rest []byte, err error) {
-	for len(input) > 0 {
-		keys, n := inputs.Keys(input)
+func (e *Editor) sendInput(data []byte, in io.Reader) (rest []byte, err error) {
+	for len(data) > 0 {
+		keys, n := input.Keys(data)
 		if len(keys) > 0 {
 			e.Send(CommandFunc(func(e *Editor) { e.handleKeys(keys) }))
 		}
-		input = input[n:]
-		if len(input) == 0 {
+		data = data[n:]
+		if len(data) == 0 {
 			break
 		}
 
 		// The keys stopped before a mouse event, a paste, or an incomplete sequence.
-		if inputs.IsMouseInput(input) {
-			data, n, err := inputs.ReadMouse(input)
+		if input.IsMouseInput(data) {
+			mouse, n, err := input.ReadMouse(data)
 			if errors.Is(err, io.EOF) {
-				return input, nil // Incomplete.
+				return data, nil // Incomplete.
 			}
 			if err != nil {
-				e.Logf("dropping bad mouse input %v: %s", input, err)
+				e.Logf("dropping bad mouse input %v: %s", data, err)
 				return nil, nil
 			}
-			e.Send(CommandFunc(func(e *Editor) { e.handleMouse(data) }))
-			input = input[n:]
+			e.Send(CommandFunc(func(e *Editor) { e.handleMouse(mouse) }))
+			data = data[n:]
 			continue
 		}
-		pasted, detected, err := inputs.ConsumeClipboardPaste(input, in)
+		pasted, detected, err := input.ConsumeClipboardPaste(data, in)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,7 @@ func (e *Editor) sendInput(input []byte, in io.Reader) (rest []byte, err error) 
 			}
 			return nil, nil // The rest of the input is consumed by the paste.
 		}
-		return input, nil // Incomplete.
+		return data, nil // Incomplete.
 	}
 	return nil, nil
 }
@@ -90,7 +90,7 @@ func (e *Editor) handleInputError(err error) {
 }
 
 // handleKeys handles the keys read at once. The keys after the one quitting the buffer are ignored.
-func (e *Editor) handleKeys(keys []inputs.Key) {
+func (e *Editor) handleKeys(keys []input.Key) {
 	for _, k := range keys {
 		if debugInput {
 			e.Logf("key: %s", k)
@@ -106,7 +106,7 @@ func (e *Editor) handleKeys(keys []inputs.Key) {
 	e.renderRequested = true
 }
 
-func (e *Editor) handleMouse(data inputs.Mouse) {
+func (e *Editor) handleMouse(data input.Mouse) {
 	event := e.transformInput(data)
 	if debugInput {
 		e.Logf("mouse: %s", event)
@@ -143,7 +143,7 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 		if e.ensureMouseTextShape(overContent) {
 			e.renderRequested = true
 		}
-		if event.Button != inputs.MouseButtonLeft || !event.Pressed {
+		if event.Button != input.MouseButtonLeft || !event.Pressed {
 			return
 		}
 
@@ -158,7 +158,7 @@ func (e *Editor) handleMouse(data inputs.Mouse) {
 
 }
 
-func (e *Editor) handleKey(k inputs.Key) (quit bool) {
+func (e *Editor) handleKey(k input.Key) (quit bool) {
 	buf := e.Top()
 	// Any key may edit the buffer: the extensions are notified about it once.
 	defer e.handleAfterEdit(buf)
@@ -167,50 +167,50 @@ func (e *Editor) handleKey(k inputs.Key) (quit bool) {
 	switch k {
 	// Save the changes when the terminal loses focus, so the file system is in sync
 	// for the tools used outside the editor.
-	case inputs.Of(inputs.FocusOut):
+	case input.Of(input.FocusOut):
 		e.saveTop()
 		return false
-	case inputs.Of(inputs.FocusIn):
+	case input.Of(input.FocusIn):
 		return false
 
-	case inputs.Ctrl('s'):
+	case input.Ctrl('s'):
 		e.execBufferCmd(&Save{buf.Path}) // Formatting may change it.
 		return false
 
 	// Re-run the last engaged line action.
-	case inputs.Ctrl('r'):
+	case input.Ctrl('r'):
 		if e.lastAction != nil {
 			e.lastAction.Engage()
 		}
 		return false
 
 	// Show the file picker. The picker itself selects the next match with it.
-	case inputs.Ctrl('o'):
+	case input.Ctrl('o'):
 		if !prompting[*quickOpen](e) {
 			e.startQuickOpen(buf)
 			return false
 		}
 
 	// Start the search. The search itself moves to the next match with it.
-	case inputs.Ctrl('f'):
+	case input.Ctrl('f'):
 		if !prompting[*searchPrompt](e) {
 			e.startSearch(buf)
 			return false
 		}
 
 	// Show the changes of the current file.
-	case inputs.Ctrl('d'):
+	case input.Ctrl('d'):
 		e.showDiff(buf)
 		return false
 
 	// Clipboard.
-	case inputs.Ctrl('c'):
+	case input.Ctrl('c'):
 		e.execBufferCmd(ClipboardCopy)
 		return false
-	case inputs.Ctrl('v'):
+	case input.Ctrl('v'):
 		e.execBufferCmd(ClipboardPaste)
 		return false
-	case inputs.Ctrl('x'):
+	case input.Ctrl('x'):
 		e.execBufferCmd(ClipboardCut)
 		return false
 	}
@@ -223,10 +223,10 @@ func (e *Editor) handleKey(k inputs.Key) (quit bool) {
 	case ModeNormal:
 		// Open the command line.
 		switch k {
-		case inputs.Rune(':'):
+		case input.Rune(':'):
 			e.openCmdLine(buf, "", newExPrompt)
 			return false
-		case inputs.Rune('/'):
+		case input.Rune('/'):
 			e.startSearch(buf)
 			return false
 		}
@@ -265,7 +265,7 @@ func (e *Editor) showDiff(buf *Buffer) {
 	e.ShowDiff(path)
 }
 
-func (e *Editor) extHandleInsert(buf *Buffer, k inputs.Key) (handled bool) {
+func (e *Editor) extHandleInsert(buf *Buffer, k input.Key) (handled bool) {
 	for _, ext := range e.x {
 		if h, ok := ext.(InsertKeyHandler); ok && h.HandleInsertKey(buf, k) {
 			return true

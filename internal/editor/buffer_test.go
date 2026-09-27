@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -672,12 +672,12 @@ func TestNormalInput_EngageAction(t *testing.T) {
 	buf, actions := newActionsTestBuffer("one\ntwo\nthree", 1)
 	prefs := newRenderPrefs()
 
-	normalInput(buf, inputs.Of(inputs.Enter), &prefs)
+	normalInput(buf, input.Of(input.Enter), &prefs)
 	if buf.c.Line != 1 {
 		t.Fatalf("Enter on a plain line moved the cursor to %d, want 1", buf.c.Line)
 	}
 
-	normalInput(buf, inputs.Of(inputs.Enter), &prefs)
+	normalInput(buf, input.Of(input.Enter), &prefs)
 	if got := actions[1].engaged; got != 1 {
 		t.Errorf("action engaged %d times, want 1", got)
 	}

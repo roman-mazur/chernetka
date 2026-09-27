@@ -5,36 +5,36 @@ import (
 
 	"go.lsp.dev/protocol"
 	"rmazur.io/chernetka/internal/editor"
-	"rmazur.io/chernetka/internal/editor/inputs"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 // HandleInsertKey implements editor.InsertKeyHandler: it accepts the suggestion with Tab,
 // cycles through the alternatives with the arrows, and dismisses it with Esc.
-func (le *Integration) HandleInsertKey(buf *editor.Buffer, k inputs.Key) (handled bool) {
+func (le *Integration) HandleInsertKey(buf *editor.Buffer, k input.Key) (handled bool) {
 	data, ok := buf.ExtensionData(le.ID()).(*BufferData)
 	if !ok || !data.HasSuggestions() {
 		return false
 	}
 
 	switch k.Special {
-	case inputs.CursorMove:
+	case input.CursorMove:
 		multiple := len(data.suggestions) > 1
 		switch {
-		case k.Cursor == inputs.CursorArrowUp && multiple:
+		case k.Cursor == input.CursorArrowUp && multiple:
 			data.SuggestPrev()
 			return true
-		case k.Cursor == inputs.CursorArrowDown && multiple:
+		case k.Cursor == input.CursorArrowDown && multiple:
 			data.SuggestNext()
 			return true
 		}
 		data.ResetSuggestions()
 
-	case inputs.Esc:
+	case input.Esc:
 		// Only dismiss: the next Esc leaves the insert mode.
 		data.ResetSuggestions()
 		return true
 
-	case inputs.Tab:
+	case input.Tab:
 		sug := data.suggestions[data.sugIdx]
 		data.ResetSuggestions()
 		applyEdits(buf, sug.edits)
