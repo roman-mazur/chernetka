@@ -112,3 +112,33 @@ func TestInsertInput_AcceptUTF8(t *testing.T) {
 		t.Errorf("buf.c=%v, want %v", buf.c, expectedPos)
 	}
 }
+
+func TestInsertInput_ReplaceMultilineSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		key  input.Key
+		want string
+	}{
+		{"backspace", input.Of(input.Backspace), "first 12\nlast"},
+		{"enter", input.Of(input.Enter), "first 12\n\nlast"},
+		{"rune", input.Rune('x'), "first 12x\nlast"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := content.LoadFullText(strings.NewReader("first 12345\nmiddle\nab\nlast"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The selection ends on a line shorter than its start column.
+			end := content.Position{Line: 2, Col: 2}
+			buf := Buffer{
+				Content: &data,
+				c:       end,
+				sel:     []content.Span{{Start: content.Position{Col: 8}, End: end}},
+			}
+			insertInput(&buf, tc.key, &RenderPrefs{TabSize: 2})
+			if got := buf.Text(); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

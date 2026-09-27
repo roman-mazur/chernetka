@@ -37,13 +37,16 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	if !buf.canEdit() {
 		return
 	}
+	if len(buf.sel) > 0 {
+		// The input replaces the selection. The cursor may move to another line.
+		DeleteSelection.DoOnBuffer(buf, *prefs)
+		if k.Special == input.Backspace {
+			return
+		}
+	}
 	lines := buf.Content.Lines()
 	line := lines[buf.c.Line].String()
 	mut := buf.Mutate()
-
-	if len(buf.sel) > 0 {
-		DeleteSelection.DoOnBuffer(buf, *prefs)
-	}
 
 	switch k.Special {
 	case input.Backspace:
