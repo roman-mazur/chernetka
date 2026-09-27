@@ -80,40 +80,47 @@ func (ss SyntaxSpan) String() string {
 }
 
 type bufExtensions struct {
-	xData           map[string]BufferExtData // data associated with the extensions
+	xData           []extData // data associated with the extensions, in the order they were registered
 	actionProviders []content.LineActions
 }
 
-func (be *bufExtensions) data(id string) BufferExtData {
-	if be.xData == nil {
-		return nil
-	}
-	return be.xData[id]
+type extData struct {
+	id   string
+	data BufferExtData
 }
 
-func (be *bufExtensions) extend(id string, ext BufferExtData) {
-	if be.xData == nil {
-		be.xData = make(map[string]BufferExtData)
+func (be *bufExtensions) data(id string) BufferExtData {
+	for _, x := range be.xData {
+		if x.id == id {
+			return x.data
+		}
 	}
-	be.xData[id] = ext
-	if p, ok := ext.(content.LineActions); ok {
+	return nil
+}
+
+func (be *bufExtensions) extend(id string, data BufferExtData) {
+	if data == nil {
+		return
+	}
+	be.xData = append(be.xData, extData{id: id, data: data})
+	if p, ok := data.(content.LineActions); ok {
 		be.actionProviders = append(be.actionProviders, p)
 	}
 }
 
 func (be *bufExtensions) close(allErrors *[]error) {
 	for _, x := range be.xData {
-		if closer, ok := x.(io.Closer); ok {
+		if closer, ok := x.data.(io.Closer); ok {
 			*allErrors = append(*allErrors, closer.Close())
 		}
 	}
 }
 
-// FindExtData returns the data associated with the buffer by any extension that implements T.
-// It lets extensions use each other's data without knowing their IDs.
+// FindExtData returns the data associated with the buffer by the first registered extension
+// that implements T. It lets extensions use each other's data without knowing their IDs.
 func FindExtData[T any](b *Buffer) (res T, ok bool) {
-	for _, data := range b.ext.xData {
-		if res, ok = data.(T); ok {
+	for _, x := range b.ext.xData {
+		if res, ok = x.data.(T); ok {
 			return res, true
 		}
 	}

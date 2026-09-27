@@ -246,3 +246,28 @@ func TestEditor_AfterEditOnClipboard(t *testing.T) {
 		checkText(step.wantText)
 	}
 }
+
+// suggestingExt provides the buffer data suggesting its text.
+type suggestingExt string
+
+func (s suggestingExt) ID() string                                         { return string(s) }
+func (s suggestingExt) AfterEdit(editor.Sender, *editor.Buffer)            {}
+func (s suggestingExt) MakeBufferData(*editor.Buffer) editor.BufferExtData { return s }
+func (s suggestingExt) TextSuggestion() code.Suggestion                    { return code.Suggestion{Text: string(s)} }
+
+// TestFindExtData_Order verifies the data of the first registered extension is found
+// when several extensions implement the same interface.
+func TestFindExtData_Order(t *testing.T) {
+	for range 20 { // Iterating over a map would pick a random one.
+		h := editor.NewTestHarness()
+		h.Extend(suggestingExt("first"))
+		h.Extend(suggestingExt("second"))
+		if err := h.OpenReader("a.txt", strings.NewReader("hi")); err != nil {
+			t.Fatal(err)
+		}
+		ca, ok := editor.FindExtData[editor.CodeAssist](h.Top())
+		if !ok || ca.TextSuggestion().Text != "first" {
+			t.Fatalf("found %v, want the first extension data", ca)
+		}
+	}
+}
