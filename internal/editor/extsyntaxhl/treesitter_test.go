@@ -181,6 +181,32 @@ func TestYAMLHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestShellHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"#!/bin/sh", []string{"0:9:Comment"}},
+		{"export DIR=\"${1:-.}\"", []string{
+			"0:6:Keyword", "7:10:Field", "11:12:StringLiteral", "12:14:Escape", "14:15:Constant",
+			"15:18:Identifier", "18:19:Escape", "19:20:StringLiteral",
+		}},
+		{"run() { ls -la \"$DIR\" >&2; }", []string{
+			"0:3:FuncDeclaration", "8:10:Call", "11:14:Constant",
+			"15:16:StringLiteral", "16:17:Escape", "17:20:Field", "20:21:StringLiteral", "24:25:NumberLiteral",
+		}},
+		// A substitution in a string is code again, not string content.
+		{"if [ -n \"x $(date)\" ]; then", []string{
+			"0:2:Keyword", "5:7:Keyword", "8:11:StringLiteral", "11:13:Escape", "13:17:Call",
+			"17:18:Escape", "18:19:StringLiteral", "23:27:Keyword",
+		}},
+		{"  echo 'a $b' $# 42", []string{
+			"2:6:Call", "7:13:StringLiteral", "14:15:Escape", "15:16:Constant", "17:19:NumberLiteral",
+		}},
+		{"fi", []string{"0:2:Keyword"}},
+	}
+
+	buf, ext := openDoc(t, "run.sh", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestGrammarsPrepare checks that every tree-sitter grammar loads and that its
 // highlight query compiles. A broken query leaves the language uncolored
 // without any other sign of trouble.
@@ -210,6 +236,13 @@ func TestLanguageForPath(t *testing.T) {
 		"Cargo.lock":      "",
 		"ci.yaml":         "yaml",
 		"ci.yml":          "yaml",
+		"run.sh":          "shell",
+		"a/b/run.BASH":    "shell",
+		"init.zsh":        "shell",
+		"/home/u/.zshrc":  "shell",
+		".bashrc":         "shell",
+		".envrc":          "shell",
+		"bashrc":          "",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",

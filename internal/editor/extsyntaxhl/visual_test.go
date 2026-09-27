@@ -27,6 +27,7 @@ func TestVisual(t *testing.T) {
 		{"visual.cue", visualCUE},
 		{"visual.json", visualJSON},
 		{"visual.yaml", visualYAML},
+		{"visual.sh", visualShell},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -246,6 +247,35 @@ jobs:
           go test ./...
           echo "done\n"
 ...
+`
+
+const visualShell = `#!/usr/bin/env bash
+# Build and test, to be looked at.
+set -euo pipefail
+export GOFLAGS=-mod=mod
+readonly root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+log() {
+  local level=$1; shift
+  printf '%s: %s\n' "$level" "$*" >&2
+}
+
+for pkg in ./cmd/... ./internal/...; do
+  if [[ -d "$root/$pkg" && $# -gt 0 ]]; then
+    go test -count=1 "$pkg" 2>/dev/null || log error "failed: $pkg ($?)"
+  elif [ -z "${SKIP:-}" ]; then
+    echo $'tab\there' $((2 + 3)) ` + "`date`" + `
+  fi
+done
+
+case "$(uname)" in
+  Darwin) open . ;;
+  *) diff <(ls a) <(ls b) | grep -E '^[<>]' ;;
+esac
+
+cat <<EOF
+Built in $root at $(date).
+EOF
 `
 
 const visualGitMsg = `some/path: change title

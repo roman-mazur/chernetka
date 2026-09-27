@@ -8,6 +8,7 @@ import (
 
 	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
+	bashsitter "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	jsonsitter "github.com/tree-sitter/tree-sitter-json/bindings/go"
 	"rmazur.io/chernetka/internal/content/code"
@@ -46,6 +47,16 @@ var yamlQuery string
 var yamlGrammar = &tsGrammar{
 	load:   func() *treesitter.Language { return treesitter.NewLanguage(yamlsitter.Language()) },
 	query:  yamlQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/bash.scm
+var bashQuery string
+
+// bashGrammar highlights shell scripts using the upstream tree-sitter-bash grammar.
+var bashGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(bashsitter.Language()) },
+	query:  bashQuery,
 	tokens: defaultCaptureTokens,
 }
 

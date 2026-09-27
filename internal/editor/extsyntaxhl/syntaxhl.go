@@ -69,6 +69,14 @@ var languages = []language{
 		newHighlighter: newTreeSitter(yamlGrammar),
 	},
 	{
+		name: "shell",
+		matcher: func(filePath string) bool {
+			// Shell startup files are named rather than suffixed.
+			return matchExtensions(".sh", ".bash", ".zsh")(filePath) || slices.Contains(shellFileNames, filepath.Base(filePath))
+		},
+		newHighlighter: newTreeSitter(bashGrammar),
+	},
+	{
 		name:           "markdown",
 		matcher:        matchExtensions(".md", ".markdown"),
 		newHighlighter: newMarkdown,
@@ -87,6 +95,14 @@ var languages = []language{
 		},
 		newHighlighter: func() highlighter { return new(gitRebase) },
 	},
+}
+
+// shellFileNames are the shell scripts recognized by their name alone. The zsh
+// ones are parsed as bash, which covers most of what goes into them.
+var shellFileNames = []string{
+	".bashrc", ".bash_profile", ".bash_login", ".bash_logout", ".profile",
+	".zshrc", ".zshenv", ".zprofile", ".zlogin", ".zlogout",
+	".envrc",
 }
 
 func matchExtensions(extensions ...string) func(filePath string) bool {
