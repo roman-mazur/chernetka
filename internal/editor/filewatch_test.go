@@ -3,6 +3,7 @@ package editor
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,4 +91,48 @@ func waitForText(t *testing.T, h *TestHarness, want string) {
 		time.Sleep(fileChangeDelay)
 	}
 	t.Fatalf("buffer content is not reloaded: got %q, want %q", got, want)
+}
+
+func TestEditor_WatchDir(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "a.txt"), "a")
+
+	h := NewTestHarness()
+	h.Run(t)
+	h.Post(t, CommandFunc(func(e *Editor) { e.OpenDir(dir, nil) }))
+
+	writeFile(t, filepath.Join(dir, "b.txt"), "b")
+	var text string
+	for range 100 {
+		h.Post(t, CommandFunc(func(e *Editor) { text = textOf(e.Top().Content) }))
+		if strings.Contains(text, "b.txt") {
+			return
+		}
+		time.Sleep(dirChangeDelay)
+	}
+	t.Fatalf("the directory listing is not reloaded: %q", text)
+}
+
+func TestEditor_WatchStopsOnClose(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.txt")
+	writeFile(t, path, "a")
+
+	var e Editor
+	(&OpenFile{Path: path}).DoOnEditor(&e)
+	e.OpenDir(dir, nil)
+	if e.bufs[0].unwatch == nil || e.bufs[1].unwatch == nil {
+		t.Fatal("the buffers are not watched")
+	}
+	stopped := 0
+	for _, b := range e.bufs {
+		unwatch := b.unwatch
+		b.unwatch = func() { stopped++; unwatch() }
+	}
+	for !e.pop() {
+	}
+	if stopped != 2 {
+		t.Errorf("stopped %d watches, want 2", stopped)
+	}
+	_ = e.watcher.Close()
 }

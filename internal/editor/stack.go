@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/watch/dirwatch"
 )
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
@@ -89,19 +88,7 @@ func (e *Editor) OpenDir(path string, open content.OpenFile) {
 	}
 	e.push(buf)
 
-	changes := make(chan string)
-	go dirwatch.Watch(path, changes)
-
-	go func() {
-		for range changes {
-			folder := content.LoadFolder(path, open)
-			folder.SyncState(buf.Content.(*content.FsContent))
-			e.Send(CommandFunc(func(e *Editor) {
-				buf.Content = folder
-				e.renderRequested = true
-			}))
-		}
-	}()
+	e.watchDir(buf, path, open)
 }
 
 // New creates a new scratch buffer that can be later written to a file.

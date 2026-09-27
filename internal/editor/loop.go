@@ -20,6 +20,9 @@ func (e *Editor) Run(t vt.Terminal) {
 				_ = c.Close()
 			}
 		}
+		if e.watcher != nil {
+			_ = e.watcher.Close()
+		}
 	}()
 
 	e.term = t

@@ -7,75 +7,82 @@ import (
 	"slices"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/watch/dirwatch"
 )
 
-// fileChangeDelay groups the events of a single file update, so a file that is
-// being written is not read in the middle.
-const fileChangeDelay = 50 * time.Millisecond
+const (
+	// fileChangeDelay groups the events of a single file update, so a file that is
+	// being written is not read in the middle.
+	fileChangeDelay = 50 * time.Millisecond
+	// dirChangeDelay groups the changes in a directory tree, like the ones of a git checkout.
+	dirChangeDelay = 100 * time.Millisecond
+)
+
+// fsWatcher returns the watcher shared by the buffers, starting it on the first use.
+// It returns nil if the watcher cannot be started.
+func (e *Editor) fsWatcher() *dirwatch.Watcher {
+	if e.watcher == nil {
+		w, err := dirwatch.New(func(err error) { e.Logf("watch: %s", err) })
+		if err != nil {
+			e.Logf("cannot watch files: %s", err)
+			return nil
+		}
+		e.watcher = w
+	}
+	return e.watcher
+}
 
 // watchFile reloads the buffer content every time its file is changed outside the editor.
-// The watcher is stopped when the buffer is closed.
+// The watch is stopped when the buffer is closed.
 func (e *Editor) watchFile(buf *Buffer) {
+	w := e.fsWatcher()
+	if w == nil {
+		return
+	}
 	path, err := filepath.Abs(buf.Path)
 	if err != nil {
 		e.Logf("cannot watch %s: %s", buf.Path, err)
 		return
 	}
-	w, err := fsnotify.NewWatcher()
+	stop, err := w.WatchFile(path, fileChangeDelay, func() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			e.Logf("cannot reload %s: %s", path, err)
+			return
+		}
+		e.Send(CommandFunc(func(e *Editor) { e.reloadBuffer(buf, data) }))
+	})
 	if err != nil {
 		e.Logf("cannot watch %s: %s", buf.Path, err)
 		return
 	}
-	// The directory is watched since the file is replaced on save by many tools (and this editor),
-	// so a watch on the file itself would stop at the first save.
-	if err := w.Add(filepath.Dir(path)); err != nil {
-		e.Logf("cannot watch %s: %s", buf.Path, err)
-		_ = w.Close()
-		return
-	}
-	buf.watcher = w
-	go e.handleFileEvents(w, path, buf)
+	buf.unwatch = stop
 }
 
-func (e *Editor) handleFileEvents(w *fsnotify.Watcher, path string, buf *Buffer) {
-	var (
-		timer     *time.Timer
-		timerChan <-chan time.Time
-	)
-	for {
-		select {
-		case ev, ok := <-w.Events:
-			if !ok {
-				return // Buffer closed.
-			}
-			if filepath.Clean(ev.Name) != path || !ev.Has(fsnotify.Write) && !ev.Has(fsnotify.Create) {
-				continue
-			}
-			if timer == nil {
-				timer = time.NewTimer(fileChangeDelay)
-			} else {
-				timer.Reset(fileChangeDelay)
-			}
-			timerChan = timer.C
-
-		case err, ok := <-w.Errors:
-			if !ok {
-				return
-			}
-			e.Logf("watch %s: %s", path, err)
-
-		case <-timerChan:
-			timerChan = nil
-			data, err := os.ReadFile(path)
-			if err != nil {
-				e.Logf("cannot reload %s: %s", path, err)
-				continue
-			}
-			e.Send(CommandFunc(func(e *Editor) { e.reloadBuffer(buf, data) }))
-		}
+// watchDir reloads the directory listing of the buffer every time the directory tree changes.
+// The watch is stopped when the buffer is closed.
+func (e *Editor) watchDir(buf *Buffer, dir string, open content.OpenFile) {
+	w := e.fsWatcher()
+	if w == nil {
+		return
 	}
+	stop, err := w.WatchTree(dir, dirChangeDelay, func([]string) {
+		folder := content.LoadFolder(dir, open)
+		e.Send(CommandFunc(func(e *Editor) {
+			if !slices.Contains(e.bufs, buf) {
+				return // Closed in the meantime.
+			}
+			folder.SyncState(buf.Content.(*content.FsContent))
+			buf.Content = folder
+			e.renderRequested = true
+		}))
+	})
+	if err != nil {
+		e.Logf("cannot watch %s: %s", dir, err)
+		return
+	}
+	buf.unwatch = stop
 }
 
 // reloadBuffer replaces the buffer content with the file data read from the disk.
