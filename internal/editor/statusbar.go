@@ -61,17 +61,19 @@ func (s *StatusBar) Render(out io.Writer) {
 	restoreColors := escape.ReverseVideo(out)
 	defer restoreColors()
 
-	modeLabel := s.buf.mode.String()
-	dirtyMark := ""
+	prefix := " " + s.buf.mode.String() + "  "
+	suffix := ""
 	if s.buf.dirty {
-		dirtyMark = " [*]"
+		suffix = " [*]"
 	}
-	status := fmt.Sprintf(" %s  %s%s", modeLabel, s.buf.Path, dirtyMark)
 	if re := s.buf.search; re != nil {
-		status += "  /" + re.String()
+		suffix += "  /" + re.String()
 	}
 	pos := fmt.Sprintf("%d:%d ", s.buf.c.Line+1, s.buf.c.Col+1)
-	padding := max(s.buf.w-len(status)-len(pos), 0)
+	// Leave at least one space between the path and the cursor position.
+	pathWidth := s.buf.w - utf8.RuneCountInString(prefix+suffix+pos) - 1
+	status := prefix + shortenPath(s.buf.Path, pathWidth) + suffix
+	padding := max(s.buf.w-utf8.RuneCountInString(status+pos), 0)
 	_, _ = io.WriteString(out, status)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 	_, _ = io.WriteString(out, pos)

@@ -53,6 +53,16 @@ func TestStatusBar_Render(t *testing.T) {
 			contains: []string{"2:4"},
 		},
 		{
+			name: "long path is shortened",
+			buf: Buffer{
+				Path:    "very/long/path/to/some/deeply/nested/dir/file.txt",
+				Content: &content.FullText{content.TextLine("x")},
+				dirty:   true,
+			},
+			contains: []string{"…", "nested/dir/file.txt [*]", "1:1"},
+			absent:   []string{"very/long"},
+		},
+		{
 			name: "command mode shows cmdline and hides status",
 			buf: Buffer{
 				Path:    "test.txt",
