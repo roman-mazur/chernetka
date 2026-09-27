@@ -18,4 +18,4 @@
 - Right col after return (understand tabs)
 - Auto import of Go packages
 
-- Address race issues in the Editor/Run test
+- [x] Address race issues in the Editor/Run test
