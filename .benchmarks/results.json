@@ -1,0 +1,1919 @@
+[
+  {
+    "time": "2026-09-28T19:34:53Z",
+    "go": "go1.27.0",
+    "goos": "darwin",
+    "goarch": "amd64",
+    "cpu": "Intel(R) Core(TM) i7-8850H CPU @ 2.60GHz",
+    "results": [
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 263547,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4088
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 278606,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4136
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 277894,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4415
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 18570,
+        "metrics": {
+          "B/op": 42529,
+          "allocs/op": 625,
+          "ns/op": 63415
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 18668,
+        "metrics": {
+          "B/op": 42529,
+          "allocs/op": 625,
+          "ns/op": 62933
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 18355,
+        "metrics": {
+          "B/op": 42529,
+          "allocs/op": 625,
+          "ns/op": 64423
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 18138,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 64703
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 19250,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 64265
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 18950,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 62076
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1154
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1167
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1241
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 18258,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 71092
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 13224,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 86339
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 16881,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 72912
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1017,
+        "metrics": {
+          "B/op": 667269,
+          "allocs/op": 9706,
+          "ns/op": 1018515
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1245,
+        "metrics": {
+          "B/op": 666697,
+          "allocs/op": 9706,
+          "ns/op": 941461
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1279,
+        "metrics": {
+          "B/op": 666625,
+          "allocs/op": 9706,
+          "ns/op": 977655
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1230,
+        "metrics": {
+          "B/op": 811602,
+          "allocs/op": 9717,
+          "ns/op": 990195
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1218,
+        "metrics": {
+          "B/op": 811602,
+          "allocs/op": 9717,
+          "ns/op": 1007060
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1225,
+        "metrics": {
+          "B/op": 811599,
+          "allocs/op": 9717,
+          "ns/op": 995711
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 615142,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1959
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 604681,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 2045
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 589820,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1997
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1212,
+        "metrics": {
+          "B/op": 811699,
+          "allocs/op": 9721,
+          "ns/op": 981240
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1214,
+        "metrics": {
+          "B/op": 811699,
+          "allocs/op": 9721,
+          "ns/op": 1052869
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1027,
+        "metrics": {
+          "B/op": 811698,
+          "allocs/op": 9721,
+          "ns/op": 1086048
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 274288,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4355
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 225417,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4630
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 286030,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4559
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 230716,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4455
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 279814,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4480
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 293334,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4280
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 276464,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4459
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 232465,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4779
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 261043,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4464
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 42668,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 27589
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 42936,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28113
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 42777,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28495
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 41827,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29194
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 38667,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29526
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 42655,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29000
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 41832,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28879
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 41586,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29329
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 41552,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28883
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 116387
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 9787,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 121602
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 129865
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 8896,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 132918
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 117545
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 115491
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 119252
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 116761
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 123321
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 7784809,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 144.2
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 8862376,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 136.9
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 7914715,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 136.8
+        }
+      }
+    ]
+  },
+  {
+    "time": "2026-09-28T19:42:21Z",
+    "go": "go1.27.0",
+    "goos": "darwin",
+    "goarch": "amd64",
+    "cpu": "Intel(R) Core(TM) i7-8850H CPU @ 2.60GHz",
+    "results": [
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 246824,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4411
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 290239,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4131
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 269632,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4112
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 20241,
+        "metrics": {
+          "B/op": 42528,
+          "allocs/op": 625,
+          "ns/op": 59149
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 19634,
+        "metrics": {
+          "B/op": 42528,
+          "allocs/op": 625,
+          "ns/op": 60102
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 18632,
+        "metrics": {
+          "B/op": 42528,
+          "allocs/op": 625,
+          "ns/op": 64298
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 18979,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 64017
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 17494,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 64736
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 18301,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 63183
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1168
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1169
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1176
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 19159,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 62686
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 18861,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 63881
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 18463,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 64850
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1245,
+        "metrics": {
+          "B/op": 666696,
+          "allocs/op": 9706,
+          "ns/op": 1002753
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1125,
+        "metrics": {
+          "B/op": 666973,
+          "allocs/op": 9706,
+          "ns/op": 1005883
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1202,
+        "metrics": {
+          "B/op": 666791,
+          "allocs/op": 9706,
+          "ns/op": 945432
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1220,
+        "metrics": {
+          "B/op": 811596,
+          "allocs/op": 9717,
+          "ns/op": 994192
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1202,
+        "metrics": {
+          "B/op": 811593,
+          "allocs/op": 9717,
+          "ns/op": 1027761
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1050,
+        "metrics": {
+          "B/op": 811595,
+          "allocs/op": 9717,
+          "ns/op": 1007055
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 631774,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1922
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 624000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1912
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 618014,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1934
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1119,
+        "metrics": {
+          "B/op": 811707,
+          "allocs/op": 9721,
+          "ns/op": 1076725
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1128,
+        "metrics": {
+          "B/op": 811701,
+          "allocs/op": 9721,
+          "ns/op": 1050664
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1220,
+        "metrics": {
+          "B/op": 811696,
+          "allocs/op": 9721,
+          "ns/op": 1038001
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 277143,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4273
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 276607,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4297
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 290196,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4157
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 280552,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4292
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 294219,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4264
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 280339,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4480
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 264204,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4604
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 245764,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4439
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 261303,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4553
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 42852,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28177
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 40851,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29499
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 39546,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29477
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 41361,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 31713
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 41096,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 31231
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 37593,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 32603
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 37980,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 31286
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 40782,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 30132
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 41090,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29549
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 115921
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 118837
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 130792
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 121418
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 9261,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 130077
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 9459,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 131550
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 9808,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 121672
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 119446
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 9909,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 123255
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 8680600,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 133.9
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 8554441,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 139.8
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 8754262,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 140.5
+        }
+      }
+    ]
+  },
+  {
+    "time": "2026-09-28T19:55:05Z",
+    "go": "go1.27.0",
+    "goos": "darwin",
+    "goarch": "amd64",
+    "cpu": "Intel(R) Core(TM) i7-8850H CPU @ 2.60GHz",
+    "results": [
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 230320,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4570
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 267474,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4676
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor",
+        "name": "BenchmarkBuffer_Text",
+        "procs": 12,
+        "iterations": 272407,
+        "metrics": {
+          "B/op": 27264,
+          "allocs/op": 1,
+          "ns/op": 4391
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 20076,
+        "metrics": {
+          "B/op": 42529,
+          "allocs/op": 625,
+          "ns/op": 59239
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 20344,
+        "metrics": {
+          "B/op": 42528,
+          "allocs/op": 625,
+          "ns/op": 58634
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 20302,
+        "metrics": {
+          "B/op": 42528,
+          "allocs/op": 625,
+          "ns/op": 58975
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 13426,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 83331
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 16777,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 67600
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 20067,
+        "metrics": {
+          "B/op": 51823,
+          "allocs/op": 632,
+          "ns/op": 60690
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1000000,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1232
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 855984,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1318
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 1002032,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1192
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 18246,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 65262
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 18992,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 62911
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=300/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 18444,
+        "metrics": {
+          "B/op": 51919,
+          "allocs/op": 636,
+          "ns/op": 64234
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1285,
+        "metrics": {
+          "B/op": 666617,
+          "allocs/op": 9706,
+          "ns/op": 1046526
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1096,
+        "metrics": {
+          "B/op": 667038,
+          "allocs/op": 9706,
+          "ns/op": 1021568
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=false/Keystroke",
+        "procs": 12,
+        "iterations": 1159,
+        "metrics": {
+          "B/op": 666895,
+          "allocs/op": 9706,
+          "ns/op": 1060432
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1000,
+        "metrics": {
+          "B/op": 811603,
+          "allocs/op": 9717,
+          "ns/op": 1494049
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 900,
+        "metrics": {
+          "B/op": 811605,
+          "allocs/op": 9717,
+          "ns/op": 1131951
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/AfterEdit",
+        "procs": 12,
+        "iterations": 1056,
+        "metrics": {
+          "B/op": 811596,
+          "allocs/op": 9717,
+          "ns/op": 1061260
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 628550,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1983
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 619200,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 2006
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/LineActions",
+        "procs": 12,
+        "iterations": 625722,
+        "metrics": {
+          "B/op": 96,
+          "allocs/op": 4,
+          "ns/op": 1920
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1153,
+        "metrics": {
+          "B/op": 811696,
+          "allocs/op": 9721,
+          "ns/op": 1016204
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1207,
+        "metrics": {
+          "B/op": 811693,
+          "allocs/op": 9721,
+          "ns/op": 993132
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extd2",
+        "name": "BenchmarkMarkdown/lines=5000/d2=true/Keystroke",
+        "procs": 12,
+        "iterations": 1128,
+        "metrics": {
+          "B/op": 811705,
+          "allocs/op": 9721,
+          "ns/op": 1038234
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 258752,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4485
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 291381,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4159
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/start",
+        "procs": 12,
+        "iterations": 295195,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4158
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 293128,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4234
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 268201,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4210
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/middle",
+        "procs": 12,
+        "iterations": 280945,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4231
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 273379,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4412
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 278707,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4466
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/800lines/end",
+        "procs": 12,
+        "iterations": 269362,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 4669
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 38037,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28951
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 42273,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 27964
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/start",
+        "procs": 12,
+        "iterations": 43261,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28773
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 41965,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28610
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 41356,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 30369
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/middle",
+        "procs": 12,
+        "iterations": 41622,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 28765
+        },
+        "tolerance": 0.2
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 40095,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 29846
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 35280,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 32079
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/5000lines/end",
+        "procs": 12,
+        "iterations": 35832,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 32834
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 8574,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 124089
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 10000,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 116849
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/start",
+        "procs": 12,
+        "iterations": 9969,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 120587
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 9946,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 120106
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 9885,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 124300
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/middle",
+        "procs": 12,
+        "iterations": 8889,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 128195
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 9578,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 126222
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 7785,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 148611
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/editor/extlsp",
+        "name": "BenchmarkDiff/20000lines/end",
+        "procs": 12,
+        "iterations": 8212,
+        "metrics": {
+          "B/op": 16,
+          "allocs/op": 1,
+          "ns/op": 152138
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 7795280,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 142
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 9000064,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 134.6
+        }
+      },
+      {
+        "pkg": "rmazur.io/chernetka/internal/vt/escape",
+        "name": "BenchmarkStyleText",
+        "procs": 12,
+        "iterations": 9120663,
+        "metrics": {
+          "B/op": 32,
+          "allocs/op": 3,
+          "ns/op": 133.1
+        }
+      }
+    ]
+  }
+]

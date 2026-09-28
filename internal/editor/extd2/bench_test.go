@@ -129,6 +129,10 @@ func BenchmarkMarkdown(b *testing.B) {
 				})
 			}
 			b.Run(name+"/Keystroke", func(b *testing.B) {
+				if lines == 300 && withD2 {
+					// A noisy one, see internal/cmd/benchmarks.
+					b.Log("tolerance=20%")
+				}
 				d := newBenchDoc(b, lines, withD2)
 				for b.Loop() {
 					d.edit()
