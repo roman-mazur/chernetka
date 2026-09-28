@@ -6,41 +6,14 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 )
-
-func TestCheckboxAt(t *testing.T) {
-	for line, want := range map[string]int{
-		"- [ ] task":      3,
-		"- [x] task":      3,
-		"* [X] task":      3,
-		"+ [ ]":           3,
-		"  - [ ] nested":  5,
-		"\t-  [ ] spaces": 5,
-		"1. [ ] numbered": 4,
-		"12) [x] paren":   5,
-
-		"":              -1,
-		"- task":        -1,
-		"-[ ] task":     -1,
-		"- [] task":     -1,
-		"- [y] task":    -1,
-		"- [ ]task":     -1,
-		"[ ] task":      -1,
-		"1 [ ] task":    -1,
-		". [ ] task":    -1,
-		"- [ ](link)":   -1,
-		"text - [ ] no": -1,
-	} {
-		if got := checkboxAt(line); got != want {
-			t.Errorf("checkboxAt(%q) = %d, want %d", line, got, want)
-		}
-	}
-}
 
 func openDoc(t *testing.T, path, text string) (*editor.Buffer, content.LineActions) {
 	t.Helper()
 	var edit editor.Editor
 	ext := new(Integration)
+	edit.Extend(new(extsyntaxhl.Integration))
 	edit.Extend(ext)
 	if err := edit.OpenReader(path, strings.NewReader(text)); err != nil {
 		t.Fatal(err)
@@ -72,5 +45,18 @@ func TestToggle(t *testing.T) {
 func TestNotMarkdown(t *testing.T) {
 	if _, actions := openDoc(t, "todo.txt", "- [ ] one\n"); actions != nil {
 		t.Error("line actions for a text file")
+	}
+}
+
+func TestCodeBlockSkipped(t *testing.T) {
+	_, actions := openDoc(t, "doc.md", "- [ ] one\n```\n- [ ] in code\n```\n- [ ] two\n```md\n- [ ] unclosed")
+	var got []int
+	for i := range 7 {
+		if actions.LineAction(i) != nil {
+			got = append(got, i)
+		}
+	}
+	if len(got) != 2 || got[0] != 0 || got[1] != 4 {
+		t.Errorf("actions on lines %v, want [0 4]", got)
 	}
 }
