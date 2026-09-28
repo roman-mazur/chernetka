@@ -267,7 +267,10 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		quit = normalInput(buf, k, &e.rPrefs)
 		if buf.engaged != nil {
 			// TODO: Consider different ownership.
-			e.lastAction, buf.engaged = buf.engaged, nil
+			if _, single := buf.engaged.(content.LineActionSingleShot); !single {
+				e.lastAction = buf.engaged
+			}
+			buf.engaged = nil
 		}
 		return
 

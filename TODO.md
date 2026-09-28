@@ -8,6 +8,7 @@
 - [x] Horizontal scroll
 - [x] Address race issues in the Editor/Run test
 - [x] Navigate to line number
+- [x] Action on md checkboxes
 
 - undo/redo backed by tracking changes with content/changes.History
 - LSP diagnosticts (line marker + status bar with problems count)
@@ -17,7 +18,6 @@
 - ctrl+/ for comments
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 
-- Action on md checkboxes
 - Run tests from normal mode (action on a test function definition)
 - Same for main function
 - Windows and Linux support for spawning the main editor in a new pane

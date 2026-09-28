@@ -10,6 +10,12 @@ type LineActionFunc func()
 
 func (f LineActionFunc) Engage() { f() }
 
+// LineActionSingleShot is implemented by the line actions that should not be re-run as the last engaged one,
+// for example, because they edit the line.
+type LineActionSingleShot interface {
+	SingleShot()
+}
+
 // LineActions provides actions for the lines that are not actionable by themselves.
 // It lets an action depend on the document as a whole rather than on the line alone:
 // for example, only the first line of a diagram file triggers visualizing the diagram.

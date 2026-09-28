@@ -751,6 +751,49 @@ func TestEditor_RerunAction(t *testing.T) {
 	}))
 }
 
+// singleShotAction is a countingAction that is not re-run.
+type singleShotAction struct{ countingAction }
+
+func (*singleShotAction) SingleShot() {}
+
+// singleShotExt provides a countingAction on the first line and a singleShotAction on the second.
+type singleShotExt struct {
+	noopExt
+	rerun  *countingAction
+	single *singleShotAction
+}
+
+func (se *singleShotExt) MakeBufferData(*Buffer) BufferExtData { return se }
+
+func (se *singleShotExt) LineAction(lineNumber int) content.LineAction {
+	switch lineNumber {
+	case 0:
+		return se.rerun
+	case 1:
+		return se.single
+	}
+	return nil
+}
+
+func TestEditor_RerunAction_SkipsSingleShot(t *testing.T) {
+	const ctrlR = 0x12
+	rerun, single := new(countingAction), new(singleShotAction)
+	h := NewTestHarness()
+	h.Extend(&singleShotExt{rerun: rerun, single: single})
+	if err := h.OpenReader("a.txt", strings.NewReader("action\nsingle")); err != nil {
+		t.Fatal(err)
+	}
+	h.Run(t)
+
+	h.SendInput(t, []byte{'\r'}) // Engage the first action, the cursor stays.
+	h.SendInputSequence(t, "j")
+	h.SendInput(t, []byte{'\r'})
+	h.SendInput(t, []byte{ctrlR})
+	if rerun.engaged != 2 || single.engaged != 1 {
+		t.Errorf("engaged %d and %d times, want 2 and 1", rerun.engaged, single.engaged)
+	}
+}
+
 // ghostAssist is a CodeAssist with a syntax highlighter and suggestion info.
 type ghostAssist struct {
 	suggestion, info string

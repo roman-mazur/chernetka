@@ -68,6 +68,9 @@
 // a Markdown file show the diagram with che-img. After editing the diagram, press Ctrl+R
 // to show it again.
 //
+// Markdown task list items: Enter on a line like "- [ ] task" checks the item, and
+// unchecks it on "- [x] task". Ctrl+R does not toggle it again.
+//
 // # Insert mode
 //
 //	Esc        return to normal mode
