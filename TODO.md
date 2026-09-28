@@ -5,17 +5,26 @@
 - [x] Rebase file highlight
 - [x] Text selection: copy / paste / cut
 - [x] Fix mouse click offset issue (with tabs and utf-8)
-
-- Better logic for triggering LSP calls
-- Action on md checkboxes
 - [x] Horizontal scroll
+- [x] Address race issues in the Editor/Run test
+
+- undo/redo backed by tracking changes with content/changes.History
+- LSP diagnosticts (line marker + status bar with problems count)
+- project search (render with the tool buffer)
+- project search inter-process (dir + main editor)
+- find references (render with the tool buffer)
+- ctrl+/ for comments
+- git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
+
+- navigate to line number
+- Action on md checkboxes
 - Run tests from normal mode (action on a test function definition)
 - Same for main function
-- SQL syntax highlight
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy
+- code structure selection
 
 - Right col after return (understand tabs)
-- Auto import of Go packages
 
-- [x] Address race issues in the Editor/Run test
+- multiple cursors
+- SQL syntax highlight
