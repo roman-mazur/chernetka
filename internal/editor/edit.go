@@ -4,6 +4,7 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 
 	"rmazur.io/chernetka/internal/content"
@@ -55,6 +56,9 @@ type Editor struct {
 	cmdChannel      chan Command
 	quitRequested   bool
 
+	doneOnce sync.Once
+	done     chan struct{} // closed when the loop is over, see loopDone
+
 	term   vt.Terminal
 	rPrefs RenderPrefs
 
@@ -86,14 +90,25 @@ func (e *Editor) Extend(ext Extension) {
 }
 
 // Send submits the command to a commands channel to be executed on the Editor's loop.
+// The command is dropped if the loop is over: the extensions may be waiting for
+// their goroutines sending the commands to finish while they are closed.
 func (e *Editor) Send(cmd Command) {
-	e.cmdChannel <- cmd
+	select {
+	case e.cmdChannel <- cmd:
+	case <-e.loopDone():
+	}
+}
+
+// loopDone returns the channel closed when the editor loop is over.
+func (e *Editor) loopDone() chan struct{} {
+	e.doneOnce.Do(func() { e.done = make(chan struct{}) })
+	return e.done
 }
 
 // SendBufferCmd queues a command changing the active buffer. The extensions
 // are notified about the change like they are about the user edits.
 func (e *Editor) SendBufferCmd(cmd BufferCommand) {
-	e.cmdChannel <- CommandFunc(func(e *Editor) { e.execBufferCmd(cmd) })
+	e.Send(CommandFunc(func(e *Editor) { e.execBufferCmd(cmd) }))
 }
 
 func (e *Editor) execBufferCmd(cmd BufferCommand) {

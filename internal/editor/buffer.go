@@ -84,6 +84,8 @@ func (b *Buffer) Close() error {
 func (b *Buffer) clampCursor(tabSize int) {
 	lines := b.Content.Lines()
 	b.clampPos()
+	// The content may shrink while it's scrolled by the mouse, which leaves the cursor as is.
+	b.offset = max(0, min(b.offset, len(lines)-1))
 
 	var line string
 	if len(lines) > 0 {

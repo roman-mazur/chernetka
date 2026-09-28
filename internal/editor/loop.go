@@ -15,6 +15,7 @@ func (e *Editor) Run(t vt.Terminal) {
 	start := time.Now()
 	defer func() {
 		e.Logf("session done %s", time.Since(start))
+		close(e.loopDone())
 		for _, ext := range e.x {
 			if c, ok := ext.(io.Closer); ok {
 				_ = c.Close()

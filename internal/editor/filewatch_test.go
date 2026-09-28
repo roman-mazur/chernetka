@@ -73,6 +73,32 @@ func TestEditor_WatchFile_OwnSave(t *testing.T) {
 	}))
 }
 
+func TestEditor_ReloadShorter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	writeFile(t, path, strings.Repeat("line\n", 100))
+
+	var e Editor
+	(&OpenFile{Path: path}).DoOnEditor(&e)
+	defer func() { _ = e.watcher.Close() }()
+	buf := e.Top()
+	buf.h = 10
+	buf.c = content.Position{Line: 99, Col: 4}
+	buf.offset = 95
+	buf.noKeyboard = true // Scrolled by the mouse.
+
+	e.reloadBuffer(buf, []byte("a\nb"))
+	MoveEnd.DoOnBuffer(buf, e.rPrefs)
+	if buf.c != (content.Position{Line: 1, Col: 1}) {
+		t.Errorf("cursor is %v after the reload", buf.c)
+	}
+	buf.clampCursor(e.rPrefs.TabSize)
+	var out strings.Builder
+	buf.Render(&out, &e.rPrefs)
+	if buf.offset > 1 {
+		t.Errorf("offset is %d after the reload", buf.offset)
+	}
+}
+
 func writeFile(t *testing.T, path, text string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(text), 0600); err != nil {
