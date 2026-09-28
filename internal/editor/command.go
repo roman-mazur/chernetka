@@ -2,6 +2,7 @@ package editor
 
 import (
 	"io"
+	"strconv"
 	"strings"
 
 	"rmazur.io/chernetka/internal/editor/input"
@@ -35,6 +36,10 @@ func (p *exPrompt) height(int) int { return 1 }
 func (p *exPrompt) render(out io.Writer, w int) { renderCmdline(out, w, p.prefix()+p.c.text, "") }
 
 func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
+	if n, err := strconv.Atoi(cmd); err == nil {
+		GoToLine(n).DoOnBuffer(buf, *prefs)
+		return false
+	}
 	for len(cmd) > 0 {
 		key := cmd[0:1]
 		cmd = cmd[1:]

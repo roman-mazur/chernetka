@@ -54,6 +54,7 @@
 //	Esc      clear the selection and the search highlights
 //	Ctrl+O   quick open a file or switch to a buffer (in any mode)
 //	Ctrl+F   search (in any mode)
+//	Ctrl+L   open the command line to go to a line with :n (in any mode)
 //	Ctrl+D   save the current file and show its git diff in a new pane on the right (in any mode)
 //	Enter    engage the line action if the line is marked with ▶, move down otherwise
 //	Ctrl+R   re-run the last engaged line action
@@ -125,6 +126,7 @@
 //	:w path  save the current buffer to path
 //	:wq      save and quit
 //	:e query quick open a file (see below)
+//	:n       go to line n
 //	Esc      cancel
 //
 // # Quick open

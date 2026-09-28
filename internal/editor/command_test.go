@@ -151,3 +151,44 @@ func TestCommandInput_ClipboardCutAndPaste(t *testing.T) {
 		t.Errorf("line after paste = %q, want %q", got, "hello")
 	}
 }
+
+func TestCommandInput_GoToLine(t *testing.T) {
+	var ft content.FullText
+	for range 100 {
+		ft = append(ft, content.TextLine("line"))
+	}
+	ft[59] = content.TextLine("\t  indented")
+	buf := &Buffer{Content: &ft, h: 30}
+	e, input := newCmdEditor(buf)
+
+	input(":60", "\r")
+	if want := (content.Position{Line: 59, Col: 3}); buf.c != want {
+		t.Errorf("cursor at %v, want %v", buf.c, want)
+	}
+	buf.clampCursor(e.rPrefs.TabSize)
+	if buf.offset != 49 {
+		t.Errorf("offset = %d, want the line in the upper third of the screen", buf.offset)
+	}
+
+	for cmd, line := range map[string]int{"1": 0, "0": 0, "1000": 99} {
+		input(":"+cmd, "\r")
+		if buf.c.Line != line {
+			t.Errorf(":%s moved to line %d, want %d", cmd, buf.c.Line, line)
+		}
+	}
+}
+
+func TestCommandInput_GoToLineFromInsertMode(t *testing.T) {
+	ft := content.FullText{content.TextLine("a"), content.TextLine("b"), content.TextLine("c")}
+	buf := &Buffer{Content: &ft}
+	e, input := newCmdEditor(buf)
+
+	input("i", "\x0c") // Ctrl+L
+	if e.status.cmd == nil {
+		t.Fatal("Ctrl+L did not open the command line")
+	}
+	input("3", "\r")
+	if buf.c.Line != 2 || buf.mode != ModeInsert {
+		t.Errorf("cursor line %d, mode %s", buf.c.Line, buf.mode)
+	}
+}

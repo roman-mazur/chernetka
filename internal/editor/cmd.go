@@ -126,6 +126,22 @@ func clampBufferCx(buf *Buffer) {
 	}
 }
 
+// GoToLine moves the cursor to the first non-blank character of the line with the given number
+// (starting from 1, clamped to the content lines), scrolling it to the upper part of the screen if it's not visible.
+type GoToLine int
+
+func (g GoToLine) DoOnBuffer(b *Buffer, _ RenderPrefs) {
+	b.cancelSelection()
+	if b.Content.Len() == 0 {
+		return
+	}
+	b.c.Line = max(0, min(int(g)-1, b.Content.Len()-1))
+	line := b.Content.Lines()[b.c.Line].String()
+	b.c.Col = len(line) - len(strings.TrimLeftFunc(line, unicode.IsSpace))
+	b.noKeyboard = false
+	b.reveal = true
+}
+
 type BufferCommandFunc func(b *Buffer, prefs RenderPrefs)
 
 func (f BufferCommandFunc) DoOnBuffer(buf *Buffer, prefs RenderPrefs) { f(buf, prefs) }

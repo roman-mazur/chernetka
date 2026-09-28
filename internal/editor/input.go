@@ -220,6 +220,11 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 			return false
 		}
 
+	// Open the command line to type the line number to go to.
+	case input.Ctrl('l'):
+		e.openCmdLine(buf, "", newExPrompt)
+		return false
+
 	// Start the search. The search itself moves to the next match with it.
 	case input.Ctrl('f'):
 		if !prompting[*searchPrompt](e) {

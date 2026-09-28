@@ -7,6 +7,7 @@
 - [x] Fix mouse click offset issue (with tabs and utf-8)
 - [x] Horizontal scroll
 - [x] Address race issues in the Editor/Run test
+- [x] Navigate to line number
 
 - undo/redo backed by tracking changes with content/changes.History
 - LSP diagnosticts (line marker + status bar with problems count)
@@ -16,7 +17,6 @@
 - ctrl+/ for comments
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 
-- navigate to line number
 - Action on md checkboxes
 - Run tests from normal mode (action on a test function definition)
 - Same for main function
