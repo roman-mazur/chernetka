@@ -1,0 +1,165 @@
+--- FAIL: TestMonkey (29.46s)
+    monkey_test.go:48: CHEMONKEY_SEED=1790595880761182000
+    --- FAIL: TestMonkey/project_file_copy (6.11s)
+        monkey_test.go:75: editing a copy of /Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extd2/d2_test.go
+        monkey_test.go:197: che stderr:
+            panic: runtime error: slice bounds out of range [:23] with length 16
+            
+            goroutine 1 [running]:
+            rmazur.io/chernetka/internal/editor.insertContent(0x10f818e20?, {0x1b586b75a54?, 0x1b58606a1e0?, 0x1b586b75b28?}, {0x10f822270?, 0x1b586326258?}, {0x1b58625866d?, 0x3?}, 0x1b586b04964?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/insert.go:112 +0x10f
+            rmazur.io/chernetka/internal/editor.insertInput(0x1b58627e000, {0x0?, 0x1b5?, 0x74?, 0x80?}, 0x1b586278600?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/insert.go:100 +0xa9d
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKey(0x1b586278500, {0xe5?, 0x1?, 0x70?, 0xa0?})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:271 +0x5ff
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKeys(0x1b586278500, {0x1b586356300?, 0x1b586b75c00?, 0x10ef5aa5e?})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:115 +0x16f
+            rmazur.io/chernetka/internal/editor.(*Editor).sendInput.func1(0x10f013c00?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:65 +0x1f
+            rmazur.io/chernetka/internal/editor.CommandFunc.DoOnEditor(0x98941a?, 0x1b586108240?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/cmd.go:312 +0x19
+            rmazur.io/chernetka/internal/editor.(*Editor).Run(0x1b586278500, {0x10f822578, 0x1b5862836e0})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:73 +0x665
+            main.main()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/cmd/che/main.go:100 +0x95c
+        monkey_test.go:197: recent input (oldest first):
+            "<M<"
+            "&d"
+            "5J"
+            "\x1b[200~(😀/\nB$\n世|)pVEcQAnBOT*\"fé\n*|o%vF6\x1b[201~"
+            "bea,ї*世"
+            "\x1b[1;6B"
+            "\x1b[200~`\"世W-X\"=é\\g%!:5|*NhF\n2|\tQ世I%Xh<X{9@8éS#nI=\"Q|H)😀VI世\tH[R&u\n7CXZA\nx=Y-\\p\tmRB\tj世|?\n\t=Hz[ZU^😀{V世世=X(mxkv|c}😀G\n,i\nI&Z$A1Z7\t(6~\nYXv\"DN.E.{é]\tJp$\nc\").S|\n*o_in.Y3-|f4N世LVvh\t6^Y@3+u$>世#\né\tG\t}0kéO`cA\tx\x1b[201~"
+            ".~~~EM%"
+            "\x1b[1;9C"
+            "\x01"
+            "\x1b[<40;35;38M"
+            "\x1b[1;10D"
+            "\x01"
+            "Rї\\=.:}"
+            "\x7f"
+            "é9`;rD0"
+            "\x1b[200~\x1b[201~"
+            "\x1b[1;5B"
+            "d9ghX8i"
+            "\x1b[1;5C"
+            "{\"k\": [1, 2]}"
+            "\x1b[<10;63;42M"
+            "b世"
+            "fmt."
+            "\x1b[C"
+            "\r"
+            "\x1b[<35;34;31M"
+            "їF5$="
+            "^*C"
+            ";(😀7"
+            "\x1b[1;10A"
+            "\x1bn"
+            "\x1b[H"
+            "*/"
+            "\"str"
+            "\x12"
+            "m\\"
+            "3,&91^"
+            "\x1b[200~QzH\t>\t>Hzk2 \t7Bj517\n~E8YyE\tN#^:éf+ROMl\n|\tteEKJ\n^]6hv6%6_ kY'>(%\x1b[201~"
+            "\x15"
+            "\x1b[1;5C"
+            "(界{1(x😀"
+            "\x1b[<66;81;5M"
+            "5/dnhs"
+            "A}X"
+            "\x1b[200~?;\num[N\"OK\\Gt\\\\&rP'!w5é6<世DB)Y\nO!`L?\t>\té{+4TKp@c6{wW W.C/_E$p3世😀{Yf\tz\x1b[201~"
+            "\x1b[200~9+V#TA\n7XWx<=%R{c'aWx😀3é8#=(s@éGe,t\toQ/aqUQiG647W<>g\\x\ntv2|\t\nFhgH{!UXuqk\\{6Ht~😀i*?iq,0c$yEZW\t#cE>!wy9gU$$ h|9é)]😀y: Z$7n+B#~\toN\t2Q3MqAP>an\x1b[201~"
+            "\x1b[<65;22;21M"
+            "\x1b[<2;16;5m"
+            "\x1b[200~世4_1é0eOn/%h23)世^😀/o')o!世+[b\tB\n世tBk;>~p\ndf\"aH9éd- H$I(é]j!mé~2\nZ9c`_u;$^\n6/Yiih>\t~~Y*fh^-aZ\tzN\naxTvwQ[9JM\ti?9qdtHvd\\b<$0\"FS世$L,c^;R\n4.😀Svq]M\n{%oUm}\n\nC>?-!N>0=S😀tev~A{4\t<9OS${Y\t5hqe>\x1b[201~"
+        monkey_test.go:194: editor log tail:
+            2026/09/28 13:45:04 embed.go:17: syntaxhl: highlighting d2_test.go as go
+            2026/09/28 13:45:04 embed.go:17: lsp: starting the go LSP server for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001
+            2026/09/28 13:45:04 embed.go:17: lsp: using go1.27.0 selected by the installed Go
+            2026/09/28 13:45:04 embed.go:17: lsp: /Users/roman/dev/go/bin/gopls is built with go1.25.9, but the installed Go requires go1.27.0
+            2026/09/28 13:45:04 embed.go:17: lsp: building gopls@v0.21.1 with go1.27.0 into /var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/che3381964570/.chernetka/gopls/gopls-v0.21.1-go1.27.0
+            2026/09/28 13:45:05 std.go:10: che-img: started, images: false
+            2026/09/28 13:45:05 main.go:196: cannot show diff for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new: could not run in a new pane: exit status 1, output: , script: 
+            tell application "Ghostty"
+                activate
+                set targetTab to selected tab of front window
+                set tabID to "monkey"
+                if tabID is not "" then
+                    repeat with w in windows
+                        repeat with t in tabs of w
+                            if id of t is tabID then set targetTab to t
+                        end repeat
+                    end repeat
+                end if
+                set currentTerm to focused terminal of targetTab
+                set cfg to new surface configuration
+                if tabID is not "" then set environment variables of cfg to {"CHE_TAB=" & tabID}
+                set newPane to split currentTerm direction right with configuration cfg
+                input text "git -C \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001\" diff HEAD -- \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new\"" to newPane
+                send key "enter" to newPane
+            end tell
+            2026/09/28 13:45:07 main.go:196: cannot show diff for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new: could not run in a new pane: exit status 1, output: , script: 
+            tell application "Ghostty"
+                activate
+                set targetTab to selected tab of front window
+                set tabID to "monkey"
+                if tabID is not "" then
+                    repeat with w in windows
+                        repeat with t in tabs of w
+                            if id of t is tabID then set targetTab to t
+                        end repeat
+                    end repeat
+                end if
+                set currentTerm to focused terminal of targetTab
+                set cfg to new surface configuration
+                if tabID is not "" then set environment variables of cfg to {"CHE_TAB=" & tabID}
+                set newPane to split currentTerm direction right with configuration cfg
+                input text "git -C \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001\" diff HEAD -- \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new\"" to newPane
+                send key "enter" to newPane
+            end tell
+            2026/09/28 13:45:08 main.go:196: cannot show diff for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new: could not run in a new pane: exit status 1, output: , script: 
+            tell application "Ghostty"
+                activate
+                set targetTab to selected tab of front window
+                set tabID to "monkey"
+                if tabID is not "" then
+                    repeat with w in windows
+                        repeat with t in tabs of w
+                            if id of t is tabID then set targetTab to t
+                        end repeat
+                    end repeat
+                end if
+                set currentTerm to focused terminal of targetTab
+                set cfg to new surface configuration
+                if tabID is not "" then set environment variables of cfg to {"CHE_TAB=" & tabID}
+                set newPane to split currentTerm direction right with configuration cfg
+                input text "git -C \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001\" diff HEAD -- \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new\"" to newPane
+                send key "enter" to newPane
+            end tell
+            2026/09/28 13:45:08 main.go:196: cannot show diff for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new: could not run in a new pane: exit status 1, output: , script: 
+            tell application "Ghostty"
+                activate
+                set targetTab to selected tab of front window
+                set tabID to "monkey"
+                if tabID is not "" then
+                    repeat with w in windows
+                        repeat with t in tabs of w
+                            if id of t is tabID then set targetTab to t
+                        end repeat
+                    end repeat
+                end if
+                set currentTerm to focused terminal of targetTab
+                set cfg to new surface configuration
+                if tabID is not "" then set environment variables of cfg to {"CHE_TAB=" & tabID}
+                set newPane to split currentTerm direction right with configuration cfg
+                input text "git -C \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001\" diff HEAD -- \"/private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1458703705/001/new\"" to newPane
+                send key "enter" to newPane
+            end tell
+            2026/09/28 13:45:09 embed.go:17: lsp: go LSP server is ready in 4.893s
+            2026/09/28 13:45:09 embed.go:17: session done 5.026835884s
+            2026/09/28 13:45:09 embed.go:17: lsp: completion failed: context canceled
+        monkey_test.go:197: che exited: exit status 2
+FAIL
+FAIL	rmazur.io/chernetka/cmd/che	29.827s
+FAIL

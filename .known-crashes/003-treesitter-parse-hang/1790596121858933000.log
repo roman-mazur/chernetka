@@ -1,0 +1,645 @@
+--- FAIL: TestMonkey (33.99s)
+    monkey_test.go:48: CHEMONKEY_SEED=1790596121858933000
+    --- FAIL: TestMonkey/new_file (11.51s)
+        monkey_test.go:197: che stderr:
+            SIGQUIT: quit
+            PC=0x7ff8188776f6 m=0 sigcode=0
+            
+            goroutine 0 gp=0x106d912e0 m=0 mp=0x106d922e0 [idle]:
+            runtime.pthread_cond_wait(0x106d92848, 0x106d92808)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/sys_darwin.go:470 +0x2e fp=0x7ff7b9aae590 sp=0x7ff7b9aae568 pc=0x1064bc18e
+            runtime.semasleep(0xffffffffffffffff)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/os_darwin.go:72 +0xae fp=0x7ff7b9aae5e8 sp=0x7ff7b9aae590 pc=0x1064982ce
+            runtime.notesleep(0x106d92438)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/lock_sema.go:62 +0x7d fp=0x7ff7b9aae618 sp=0x7ff7b9aae5e8 pc=0x10646cb5d
+            runtime.mPark(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:1985
+            runtime.stopm()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:3023 +0x8c fp=0x7ff7b9aae648 sp=0x7ff7b9aae618 pc=0x1064a25cc
+            runtime.startlockedm(0x1146f504f00?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:3306 +0x5e fp=0x7ff7b9aae670 sp=0x7ff7b9aae648 pc=0x1064a2f1e
+            runtime.schedule()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:4241 +0x6a fp=0x7ff7b9aae6b0 sp=0x7ff7b9aae670 pc=0x1064a526a
+            runtime.goexit0(0x1146f504f00?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:4515 +0x18 fp=0x7ff7b9aae6c8 sp=0x7ff7b9aae6b0 pc=0x1064a6078
+            runtime.mcall()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:463 +0x53 fp=0x7ff7b9aae6e0 sp=0x7ff7b9aae6c8 pc=0x1064d9f93
+            
+            goroutine 1 gp=0x1146f27c1e0 m=7 mp=0x1146f500008 [syscall, locked to thread]:
+            runtime.cgocall(0x106795660, 0x1146f33f6d8)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/cgocall.go:167 +0x4b fp=0x1146f33f6b0 sp=0x1146f33f678 pc=0x1064d208b
+            github.com/tree-sitter/go-tree-sitter._Cfunc_free(0x60006864cea0)
+            	_cgo_gotypes.go:392 +0x3a fp=0x1146f33f6d8 sp=0x1146f33f6b0 pc=0x106726e3a
+            github.com/tree-sitter/go-tree-sitter.SetAllocator.func8.1(...)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/allocator.go:101
+            github.com/tree-sitter/go-tree-sitter.SetAllocator.func8(0x60006864cea0)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/allocator.go:101 +0x35 fp=0x1146f33f708 sp=0x1146f33f6d8 pc=0x106730075
+            github.com/tree-sitter/go-tree-sitter.go_free(0x60006864cea0?)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/allocator.go:55 +0x65 fp=0x1146f33f740 sp=0x1146f33f708 pc=0x1067289a5
+            _cgoexp_22d709caa7f3_go_free(0x7000078faa70?)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/allocator.go:57 +0x16 fp=0x1146f33f758 sp=0x1146f33f740 pc=0x1067303d6
+            runtime.cgocallbackg1(0x1067303c0, 0x7000078faa18, 0x0)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/cgocall.go:474 +0x2e2 fp=0x1146f33f810 sp=0x1146f33f758 pc=0x106465342
+            runtime.cgocallbackg(0x1067303c0, 0x7000078faa18, 0x0)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/cgocall.go:362 +0x12c fp=0x1146f33f878 sp=0x1146f33f810 pc=0x106464f8c
+            runtime.cgocallback(0x1146f33f8d8, 0x1064d20b5, 0x106796db0)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1130 +0xc5 fp=0x1146f33f8a0 sp=0x1146f33f878 pc=0x1064db9e5
+            runtime.systemstack_switch()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:481 +0x8 fp=0x1146f33f8b0 sp=0x1146f33f8a0 pc=0x1064d9fa8
+            runtime.cgocall(0x106796db0, 0x1146f33f910)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/cgocall.go:185 +0x75 fp=0x1146f33f8e8 sp=0x1146f33f8b0 pc=0x1064d20b5
+            github.com/tree-sitter/go-tree-sitter._Cfunc_ts_parser_parse_with_options(0x7f87c7808200, 0x0, {0x6000020f9160, 0x106795340, 0x0, 0x0}, {0x0, 0x0})
+            	_cgo_gotypes.go:1322 +0x47 fp=0x1146f33f910 sp=0x1146f33f8e8 pc=0x106727447
+            github.com/tree-sitter/go-tree-sitter.(*Parser).ParseWithOptions.func2(...)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/parser.go:354
+            github.com/tree-sitter/go-tree-sitter.(*Parser).ParseWithOptions(0x1146f33fa90, 0x1146f788240, 0x0, 0x0)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/parser.go:354 +0x2e9 fp=0x1146f33fa30 sp=0x1146f33f910 pc=0x106729a69
+            github.com/tree-sitter/go-tree-sitter.(*Parser).Parse(0x1146f33fa90, {0x1146f6e41c0, 0x1b6, 0x1c0}, 0x0)
+            	/Users/roman/dev/go/pkg/mod/github.com/tree-sitter/go-tree-sitter@v0.25.0/parser.go:173 +0x9a fp=0x1146f33fa60 sp=0x1146f33fa30 pc=0x10672951a
+            rmazur.io/chernetka/internal/editor/extsyntaxhl.(*tsHighlighter).reparse(0x1146f3ab360, 0x1146f788210)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extsyntaxhl/treesitter.go:195 +0xfa fp=0x1146f33fac0 sp=0x1146f33fa60 pc=0x10673601a
+            rmazur.io/chernetka/internal/editor/extsyntaxhl.(*document).ensureParsed(0x1146f3f4380, {0x1146f6e4000, 0x1b6})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extsyntaxhl/syntaxhl.go:181 +0x125 fp=0x1146f33fb18 sp=0x1146f33fac0 pc=0x106735a05
+            rmazur.io/chernetka/internal/editor/extsyntaxhl.(*Integration).AfterEdit(0x1146f3ab2e0, {0x106d2cfb8?, 0x1146f400500?}, 0x1146f4065a0)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extsyntaxhl/syntaxhl.go:158 +0x127 fp=0x1146f33fb60 sp=0x1146f33fb18 pc=0x106735887
+            rmazur.io/chernetka/internal/editor.(*Editor).handleAfterEdit(0x1146f400500, 0x1146f4065a0)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/edit.go:145 +0x79 fp=0x1146f33fba0 sp=0x1146f33fb60 pc=0x106659b99
+            rmazur.io/chernetka/internal/editor.(*Editor).execBufferCmd(0x1146f400500, {0x106d2bc10?, 0x1146f6a40e0?})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/edit.go:121 +0x70 fp=0x1146f33fbd0 sp=0x1146f33fba0 pc=0x106659a50
+            rmazur.io/chernetka/internal/editor.(*Editor).SendBufferCmd.func1(0x106520c00?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/edit.go:111 +0x1b fp=0x1146f33fbf8 sp=0x1146f33fbd0 pc=0x106668c5b
+            rmazur.io/chernetka/internal/editor.CommandFunc.DoOnEditor(0x1146f400500?, 0x1146f3b2600?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/cmd.go:312 +0x19 fp=0x1146f33fc10 sp=0x1146f33fbf8 pc=0x106658699
+            rmazur.io/chernetka/internal/editor.(*Editor).Run(0x1146f400500, {0x106d2f578, 0x1146f40b6e0})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:73 +0x665 fp=0x1146f33fd68 sp=0x1146f33fc10 pc=0x10665d9c5
+            main.main()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/cmd/che/main.go:100 +0x95c fp=0x1146f33feb8 sp=0x1146f33fd68 pc=0x10673ab9c
+            runtime.main()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:302 +0x427 fp=0x1146f33ffe0 sp=0x1146f33feb8 pc=0x10649dd47
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f33ffe8 sp=0x1146f33ffe0 pc=0x1064dbb01
+            
+            goroutine 2 gp=0x1146f27cd20 m=nil [force gc (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2f0fa8 sp=0x1146f2f0f88 pc=0x1064d4eea
+            runtime.goparkunlock(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:480
+            runtime.forcegchelper()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:387 +0xb3 fp=0x1146f2f0fe0 sp=0x1146f2f0fa8 pc=0x10649e013
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2f0fe8 sp=0x1146f2f0fe0 pc=0x1064dbb01
+            created by runtime.init.7 in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:375 +0x1a
+            
+            goroutine 3 gp=0x1146f27d2c0 m=nil [GC sweep wait]:
+            runtime.gopark(0x1?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2f1788 sp=0x1146f2f1768 pc=0x1064d4eea
+            runtime.goparkunlock(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:480
+            runtime.bgsweep(0x1146f318000)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgcsweep.go:324 +0x151 fp=0x1146f2f17c8 sp=0x1146f2f1788 pc=0x1064892f1
+            runtime.gcenable.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:214 +0x17 fp=0x1146f2f17e0 sp=0x1146f2f17c8 pc=0x1064cbb57
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2f17e8 sp=0x1146f2f17e0 pc=0x1064dbb01
+            created by runtime.gcenable in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:214 +0x66
+            
+            goroutine 4 gp=0x1146f27d4a0 m=nil [GC scavenge wait]:
+            runtime.gopark(0x2e09982b?, 0x2e08777f?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2f1f78 sp=0x1146f2f1f58 pc=0x1064d4eea
+            runtime.goparkunlock(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:480
+            runtime.(*scavengerState).park(0x106d90fc0)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgcscavenge.go:425 +0x49 fp=0x1146f2f1fa8 sp=0x1146f2f1f78 pc=0x106486dc9
+            runtime.bgscavenge(0x1146f318000)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgcscavenge.go:658 +0x59 fp=0x1146f2f1fc8 sp=0x1146f2f1fa8 pc=0x106487339
+            runtime.gcenable.gowrap2()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:215 +0x17 fp=0x1146f2f1fe0 sp=0x1146f2f1fc8 pc=0x1064cbb17
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2f1fe8 sp=0x1146f2f1fe0 pc=0x1064dbb01
+            created by runtime.gcenable in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:215 +0xa5
+            
+            goroutine 18 gp=0x1146f3843c0 m=nil [GOMAXPROCS updater (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2ec788 sp=0x1146f2ec768 pc=0x1064d4eea
+            runtime.goparkunlock(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:480
+            runtime.updateMaxProcsGoroutine()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:7146 +0xe7 fp=0x1146f2ec7e0 sp=0x1146f2ec788 pc=0x1064ab327
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2ec7e8 sp=0x1146f2ec7e0 pc=0x1064dbb01
+            created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:7134 +0x37
+            
+            goroutine 19 gp=0x1146f384960 m=nil [finalizer wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2ece20 sp=0x1146f2ece00 pc=0x1064d4eea
+            runtime.runFinalizers()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mfinal.go:210 +0x107 fp=0x1146f2ecfe0 sp=0x1146f2ece20 pc=0x10647a327
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2ecfe8 sp=0x1146f2ecfe0 pc=0x1064dbb01
+            created by runtime.createfing in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mfinal.go:172 +0x3d
+            
+            goroutine 20 gp=0x1146f384b40 m=nil [cleanup wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2ed768 sp=0x1146f2ed748 pc=0x1064d4eea
+            runtime.goparkunlock(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:480
+            runtime.(*cleanupQueue).dequeue(0x106d911e0)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mcleanup.go:522 +0xd3 fp=0x1146f2ed7a0 sp=0x1146f2ed768 pc=0x106477513
+            runtime.runCleanups()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mcleanup.go:718 +0x45 fp=0x1146f2ed7e0 sp=0x1146f2ed7a0 pc=0x106477b85
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2ed7e8 sp=0x1146f2ed7e0 pc=0x1064dbb01
+            created by runtime.(*cleanupQueue).createGs in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mcleanup.go:672 +0xa5
+            
+            goroutine 5 gp=0x1146f384d20 m=nil [chan receive]:
+            runtime.gopark(0x5b?, 0x1146f4ba6f0?, 0x38?, 0x88?, 0x1146f4ba6b8?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4ba668 sp=0x1146f4ba648 pc=0x1064d4eea
+            runtime.chanrecv(0x1146f2aa070, 0x1146f4ba770, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/chan.go:667 +0x4ae fp=0x1146f4ba6e0 sp=0x1146f4ba668 pc=0x10646752e
+            runtime.chanrecv2(0xa?, 0x1146f2ac7e0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/chan.go:514 +0x12 fp=0x1146f4ba708 sp=0x1146f4ba6e0 pc=0x106467072
+            rmazur.io/chernetka/internal/remotectl.(*Server).handle(0x0?, {0x106d2b770, 0x1146f3b2380}, 0x1146f2aa070, 0x1146f3ab290)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/remotectl/server.go:61 +0x57 fp=0x1146f4ba7a8 sp=0x1146f4ba708 pc=0x1065ea7d7
+            rmazur.io/chernetka/internal/remotectl.(*Server).Run.gowrap2()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/remotectl/server.go:74 +0x27 fp=0x1146f4ba7e0 sp=0x1146f4ba7a8 pc=0x1065eaf47
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4ba7e8 sp=0x1146f4ba7e0 pc=0x1064dbb01
+            created by rmazur.io/chernetka/internal/remotectl.(*Server).Run in goroutine 26
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/remotectl/server.go:74 +0x119
+            
+            goroutine 23 gp=0x1146f3850e0 m=nil [select]:
+            runtime.gopark(0x1146f33dca8?, 0x2?, 0x68?, 0x92?, 0x1146f33dca4?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f33db30 sp=0x1146f33db10 pc=0x1064d4eea
+            runtime.selectgo(0x1146f33dca8, 0x1146f33dca0, 0x1146f52c6c0?, 0x1, 0x1064d2be5?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f33dc70 sp=0x1146f33db30 pc=0x1064b00d7
+            rmazur.io/chernetka/internal/editor.(*Editor).Send(0x10680954f?, {0x106d2b6f0?, 0x1146f52c6c0?})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/edit.go:96 +0x7e fp=0x1146f33dcf0 sp=0x1146f33dc70 pc=0x1066597de
+            rmazur.io/chernetka/internal/editor/extlsp.(*server).sync(0x1146f3f70a0, {0x106d2f078?, 0x1146f3fe190?}, {0x106d2f938, 0x1146f51c2a0}, {{0x106d2cfb8, 0x1146f400500}, 0x1146f4065a0, 0x1146f3e4240, {0x1146f6e4000, ...}, ...})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extlsp/integration.go:312 +0x870 fp=0x1146f33de68 sp=0x1146f33dcf0 pc=0x106721750
+            rmazur.io/chernetka/internal/editor/extlsp.(*server).syncLoop(0x1146f3f70a0, {0x106d2f078, 0x1146f3fe190})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extlsp/integration.go:237 +0x21e fp=0x1146f33dfb8 sp=0x1146f33de68 pc=0x1067209fe
+            rmazur.io/chernetka/internal/editor/extlsp.(*Integration).serverFor.gowrap1()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extlsp/integration.go:112 +0x1f fp=0x1146f33dfe0 sp=0x1146f33dfb8 pc=0x1067260bf
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f33dfe8 sp=0x1146f33dfe0 pc=0x1064dbb01
+            created by rmazur.io/chernetka/internal/editor/extlsp.(*Integration).serverFor in goroutine 1
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extlsp/integration.go:112 +0x257
+            
+            goroutine 34 gp=0x1146f4b8000 m=nil [IO wait]:
+            runtime.gopark(0x10650ea48?, 0x10650fa40?, 0x98?, 0x6d?, 0x3?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f516d70 sp=0x1146f516d50 pc=0x1064d4eea
+            runtime.netpollblock(0x1000?, 0x6f516df0?, 0x14?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/netpoll.go:575 +0xf7 fp=0x1146f516da8 sp=0x1146f516d70 pc=0x106497437
+            internal/poll.runtime_pollWait(0x14fb1ba00, 0x72)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/netpoll.go:351 +0x85 fp=0x1146f516dc8 sp=0x1146f516da8 pc=0x1064d40c5
+            internal/poll.(*pollDesc).wait(0x1146f4a80c0?, 0x1146f4b5000?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x1146f516e00 sp=0x1146f516dc8 pc=0x106527d47
+            internal/poll.(*pollDesc).waitRead(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/internal/poll/fd_poll_runtime.go:89
+            internal/poll.(*FD).Read(0x1146f4a80c0, {0x1146f4b5000, 0x1000, 0x1000})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x1146f516e98 sp=0x1146f516e00 pc=0x106528748
+            os.(*File).read(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/os/file_posix.go:30
+            os.(*File).Read(0x1146f4a6010, {0x1146f4b5000?, 0x2?, 0x2?})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/os/file.go:144 +0x4f fp=0x1146f516ed8 sp=0x1146f516e98 pc=0x10652d1cf
+            io.ReadCloser.Read-fm({0x1146f4b5000?, 0x1146f516f40?, 0x0?})
+            	<autogenerated>:1 +0x2d fp=0x1146f516f08 sp=0x1146f516ed8 pc=0x1066cd7ad
+            go.lsp.dev/pkg/fakenet.(*connFeeder).run(0x1146f49e420)
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:144 +0xb1 fp=0x1146f516fc8 sp=0x1146f516f08 pc=0x1066cd591
+            go.lsp.dev/pkg/fakenet.NewConn.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:41 +0x17 fp=0x1146f516fe0 sp=0x1146f516fc8 pc=0x1066cd697
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f516fe8 sp=0x1146f516fe0 pc=0x1064dbb01
+            created by go.lsp.dev/pkg/fakenet.NewConn in goroutine 23
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:41 +0x358
+            
+            goroutine 35 gp=0x1146f4b81e0 m=nil [select]:
+            runtime.gopark(0x1146f4be780?, 0x2?, 0x0?, 0x0?, 0x1146f4be744?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4be5c8 sp=0x1146f4be5a8 pc=0x1064d4eea
+            runtime.selectgo(0x1146f4be780, 0x1146f4be740, 0x0?, 0x0, 0x0?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f4be708 sp=0x1146f4be5c8 pc=0x1064b00d7
+            go.lsp.dev/pkg/fakenet.(*connFeeder).run(0x1146f49e450)
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:138 +0x89 fp=0x1146f4be7c8 sp=0x1146f4be708 pc=0x1066cd569
+            go.lsp.dev/pkg/fakenet.NewConn.gowrap2()
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:42 +0x17 fp=0x1146f4be7e0 sp=0x1146f4be7c8 pc=0x1066cd657
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4be7e8 sp=0x1146f4be7e0 pc=0x1064dbb01
+            created by go.lsp.dev/pkg/fakenet.NewConn in goroutine 23
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:42 +0x3ac
+            
+            goroutine 36 gp=0x1146f4b83c0 m=nil [select]:
+            runtime.gopark(0x1146f302b68?, 0x2?, 0x3d?, 0xff?, 0x1146f302b54?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f3029e0 sp=0x1146f3029c0 pc=0x1064d4eea
+            runtime.selectgo(0x1146f302b68, 0x1146f302b50, 0x0?, 0x0, 0x3000001c00000000?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f302b20 sp=0x1146f3029e0 pc=0x1064b00d7
+            go.lsp.dev/pkg/fakenet.(*connFeeder).do(...)
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:126
+            go.lsp.dev/pkg/fakenet.(*fakeConn).Read(0x106544b1a?, {0x1146f4b5000?, 0x1146f302c58?, 0x1066904bc?})
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:47 +0x10d fp=0x1146f302be8 sp=0x1146f302b20 pc=0x1066cd1ad
+            bufio.(*Reader).fill(0x1146f4a8180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/bufio/bufio.go:113 +0x103 fp=0x1146f302c20 sp=0x1146f302be8 pc=0x1065e70c3
+            bufio.(*Reader).ReadSlice(0x1146f4a8180, 0xa)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/bufio/bufio.go:377 +0x29 fp=0x1146f302c68 sp=0x1146f302c20 pc=0x1065e79e9
+            bufio.(*Reader).collectFragments(0x1146f4a8180, 0xa)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/bufio/bufio.go:452 +0x85 fp=0x1146f302d48 sp=0x1146f302c68 pc=0x1065e7c65
+            bufio.(*Reader).ReadString(0x1146f4b83c0?, 0x27?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/bufio/bufio.go:499 +0x1f fp=0x1146f302e08 sp=0x1146f302d48 pc=0x1065e80df
+            go.lsp.dev/jsonrpc2.(*stream).Read(0x1146f48c078, {0x106d2f078, 0x1146f3fe190})
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/stream.go:150 +0xa5 fp=0x1146f302f28 sp=0x1146f302e08 pc=0x1066c8b65
+            go.lsp.dev/jsonrpc2.(*conn).run(0x1146f4c2000, {0x106d2f078, 0x1146f3fe190}, 0x1146f4840b0)
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/conn.go:197 +0x85 fp=0x1146f302fb0 sp=0x1146f302f28 pc=0x1066c6d65
+            go.lsp.dev/jsonrpc2.(*conn).Go.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/conn.go:189 +0x25 fp=0x1146f302fe0 sp=0x1146f302fb0 pc=0x1066c9cc5
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f302fe8 sp=0x1146f302fe0 pc=0x1064dbb01
+            created by go.lsp.dev/jsonrpc2.(*conn).Go in goroutine 23
+            	/Users/roman/dev/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/conn.go:189 +0x9b
+            
+            goroutine 24 gp=0x1146f3852c0 m=4 mp=0x1146f380008 [syscall]:
+            syscall.syscalln(0x10664b3c0, {0x1146f2ef310, 0x6, 0x6})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/sys_darwin.go:27 +0x25 fp=0x1146f2ef2f0 sp=0x1146f2ef2a8 pc=0x1064d8685
+            syscall.syscall6(0x0?, 0x0?, 0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/syscall/syscall_darwin.go:407 +0x37 fp=0x1146f2ef350 sp=0x1146f2ef2f0 pc=0x10650ead7
+            golang.org/x/sys/unix.kevent(0x0?, 0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/x/sys@v0.46.0/unix/zsyscall_darwin_amd64.go:275 +0x4c fp=0x1146f2ef3b8 sp=0x1146f2ef350 pc=0x10664abec
+            golang.org/x/sys/unix.Kevent(0x0?, {0x0?, 0x0?, 0x0?}, {0x1146f2ef660?, 0x0?, 0x0?}, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/x/sys@v0.46.0/unix/syscall_bsd.go:397 +0x35 fp=0x1146f2ef3f8 sp=0x1146f2ef3b8 pc=0x10664aa95
+            github.com/fsnotify/fsnotify.(*kqueue).read(0x0?, {0x1146f2ef660, 0x0?, 0xa})
+            	/Users/roman/dev/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_kqueue.go:703 +0x33 fp=0x1146f2ef448 sp=0x1146f2ef3f8 pc=0x106650db3
+            github.com/fsnotify/fsnotify.(*kqueue).readEvents.func2(...)
+            	/Users/roman/dev/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_kqueue.go:451
+            github.com/fsnotify/fsnotify/internal.IgnoringEINTR[...](...)
+            	/Users/roman/dev/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/internal/unix2.go:20
+            github.com/fsnotify/fsnotify.(*kqueue).readEvents(0x1146f3b24c0)
+            	/Users/roman/dev/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_kqueue.go:450 +0xbb fp=0x1146f2ef7c8 sp=0x1146f2ef448 pc=0x10664f97b
+            github.com/fsnotify/fsnotify.newBackend.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_kqueue.go:203 +0x17 fp=0x1146f2ef7e0 sp=0x1146f2ef7c8 pc=0x106651bb7
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2ef7e8 sp=0x1146f2ef7e0 pc=0x1064dbb01
+            created by github.com/fsnotify/fsnotify.newBackend in goroutine 1
+            	/Users/roman/dev/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_kqueue.go:203 +0x286
+            
+            goroutine 25 gp=0x1146f3854a0 m=nil [select]:
+            runtime.gopark(0x1146f2eff50?, 0x3?, 0xca?, 0x6?, 0x1146f2eff12?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f2efd98 sp=0x1146f2efd78 pc=0x1064d4eea
+            runtime.selectgo(0x1146f2eff50, 0x1146f2eff0c, 0x0?, 0x0, 0x0?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f2efed8 sp=0x1146f2efd98 pc=0x1064b00d7
+            rmazur.io/watch/dirwatch.(*Watcher).run(0x1146f3b2500)
+            	/Users/roman/dev/go/src/rmazur.io/watch/dirwatch/watcher.go:172 +0xe5 fp=0x1146f2effc8 sp=0x1146f2efed8 pc=0x106652c05
+            rmazur.io/watch/dirwatch.New.gowrap1()
+            	/Users/roman/dev/go/src/rmazur.io/watch/dirwatch/watcher.go:54 +0x17 fp=0x1146f2effe0 sp=0x1146f2effc8 pc=0x106653ad7
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f2effe8 sp=0x1146f2effe0 pc=0x1064dbb01
+            created by rmazur.io/watch/dirwatch.New in goroutine 1
+            	/Users/roman/dev/go/src/rmazur.io/watch/dirwatch/watcher.go:54 +0xdf
+            
+            goroutine 26 gp=0x1146f385860 m=nil [IO wait]:
+            runtime.gopark(0x6c00000000?, 0x1146f307cd8?, 0xc5?, 0xe?, 0x108ea5108?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f307c60 sp=0x1146f307c40 pc=0x1064d4eea
+            runtime.netpollblock(0x10652a7be?, 0x3?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/netpoll.go:575 +0xf7 fp=0x1146f307c98 sp=0x1146f307c60 pc=0x106497437
+            internal/poll.runtime_pollWait(0x14fb1b800, 0x72)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/netpoll.go:351 +0x85 fp=0x1146f307cb8 sp=0x1146f307c98 pc=0x1064d40c5
+            internal/poll.(*pollDesc).wait(0x1146f332000?, 0x106d20108?, 0x0)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x1146f307cf0 sp=0x1146f307cb8 pc=0x106527d47
+            internal/poll.(*pollDesc).waitRead(...)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/internal/poll/fd_poll_runtime.go:89
+            internal/poll.(*FD).Accept(0x1146f332000)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/internal/poll/fd_unix.go:618 +0x27d fp=0x1146f307d98 sp=0x1146f307cf0 pc=0x1065291dd
+            net.(*netFD).accept(0x1146f332000)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/net/fd_unix.go:149 +0x29 fp=0x1146f307e50 sp=0x1146f307d98 pc=0x1065cf8c9
+            net.(*UnixListener).accept(0x1064a6e1f?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/net/unixsock_posix.go:172 +0x16 fp=0x1146f307e88 sp=0x1146f307e50 pc=0x1065e0516
+            net.(*UnixListener).Accept(0x1146f334000)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/net/unixsock.go:275 +0x30 fp=0x1146f307ec8 sp=0x1146f307e88 pc=0x1065df9d0
+            rmazur.io/chernetka/internal/remotectl.(*Server).Run(0x1146f2b0050, {0x106d2b770, 0x1146f3b2380}, 0x1146f3ab290)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/remotectl/server.go:79 +0x164 fp=0x1146f307f60 sp=0x1146f307ec8 pc=0x1065eab24
+            main.startCtlServer.func1()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/cmd/che/main.go:126 +0x133 fp=0x1146f307fe0 sp=0x1146f307f60 pc=0x10673c373
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f307fe8 sp=0x1146f307fe0 pc=0x1064dbb01
+            created by main.startCtlServer in goroutine 1
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/cmd/che/main.go:112 +0xee
+            
+            goroutine 27 gp=0x1146f385a40 m=nil [select]:
+            runtime.gopark(0x1146f300d68?, 0x2?, 0x90?, 0x0?, 0x1146f300d64?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f300bf0 sp=0x1146f300bd0 pc=0x1064d4eea
+            runtime.selectgo(0x1146f300d68, 0x1146f300d60, 0x106d922e0?, 0x1, 0x1064d2b2f?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f300d30 sp=0x1146f300bf0 pc=0x1064b00d7
+            rmazur.io/chernetka/internal/editor.(*Editor).Send(...)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/edit.go:96
+            rmazur.io/chernetka/internal/editor.(*Editor).SendBufferCmd(0x1146f400500, {0x106d2bc10, 0x1146f6a4130})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/edit.go:111 +0xf4 fp=0x1146f300db0 sp=0x1146f300d30 pc=0x106659994
+            rmazur.io/chernetka/internal/editor.(*Editor).sendInput(0x1146f400500, {0x1146f2a2540?, 0x40?, 0x0?}, {0x106d2bc30, 0x1146f48c768})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:92 +0x54a fp=0x1146f300f08 sp=0x1146f300db0 pc=0x10665b38a
+            rmazur.io/chernetka/internal/editor.(*Editor).readAndHandleInput(0x1146f400500, {0x106d2f078, 0x1146f3fe230}, 0x1146f3b8480)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:30 +0x26b fp=0x1146f300fb0 sp=0x1146f300f08 pc=0x10665ac4b
+            rmazur.io/chernetka/internal/editor.(*Editor).Run.gowrap2()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:42 +0x25 fp=0x1146f300fe0 sp=0x1146f300fb0 pc=0x1066694c5
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f300fe8 sp=0x1146f300fe0 pc=0x1064dbb01
+            created by rmazur.io/chernetka/internal/editor.(*Editor).Run in goroutine 1
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:42 +0x425
+            
+            goroutine 28 gp=0x1146f385c20 m=nil [chan receive]:
+            runtime.gopark(0x10000001c?, 0x108eb94f8?, 0x50?, 0xb7?, 0x10664b8ac?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4bb6c0 sp=0x1146f4bb6a0 pc=0x1064d4eea
+            runtime.chanrecv(0x1146f612000, 0x1146f4bb798, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/chan.go:667 +0x4ae fp=0x1146f4bb738 sp=0x1146f4bb6c0 pc=0x10646752e
+            runtime.chanrecv2(0x0?, 0x1146f4bb7b8?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/chan.go:514 +0x12 fp=0x1146f4bb760 sp=0x1146f4bb738 pc=0x106467072
+            rmazur.io/chernetka/internal/vt.windowChangeSignal.func1()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/vt/window_default.go:17 +0xb4 fp=0x1146f4bb7e0 sp=0x1146f4bb760 pc=0x10664ca74
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4bb7e8 sp=0x1146f4bb7e0 pc=0x1064dbb01
+            created by rmazur.io/chernetka/internal/vt.windowChangeSignal in goroutine 1
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/vt/window_default.go:13 +0x67
+            
+            goroutine 29 gp=0x1146f42e000 m=nil [select]:
+            runtime.gopark(0x1146f4bbf58?, 0x3?, 0x0?, 0x0?, 0x1146f4bbed2?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4bbd48 sp=0x1146f4bbd28 pc=0x1064d4eea
+            runtime.selectgo(0x1146f4bbf58, 0x1146f4bbecc, 0x0?, 0x0, 0x0?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f4bbe88 sp=0x1146f4bbd48 pc=0x1064b00d7
+            rmazur.io/chernetka/internal/editor.(*Editor).handleWindowChange(0x1146f400500, {0x106d2f078, 0x1146f3fe230}, 0x1146f3930a0)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:137 +0xfe fp=0x1146f4bbfb0 sp=0x1146f4bbe88 pc=0x10665dfde
+            rmazur.io/chernetka/internal/editor.(*Editor).Run.gowrap3()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:43 +0x25 fp=0x1146f4bbfe0 sp=0x1146f4bbfb0 pc=0x106669485
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4bbfe8 sp=0x1146f4bbfe0 pc=0x1064dbb01
+            created by rmazur.io/chernetka/internal/editor.(*Editor).Run in goroutine 1
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:43 +0x4c5
+            
+            goroutine 50 gp=0x1146f6043c0 m=nil [select, locked to thread]:
+            runtime.gopark(0x1146f6227a8?, 0x2?, 0x68?, 0x0?, 0x1146f622798?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f622620 sp=0x1146f622600 pc=0x1064d4eea
+            runtime.selectgo(0x1146f6227a8, 0x1146f622794, 0x0?, 0x0, 0x0?, 0x1)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/select.go:351 +0xa97 fp=0x1146f622760 sp=0x1146f622620 pc=0x1064b00d7
+            runtime.ensureSigM.func1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/signal_unix.go:1093 +0x15d fp=0x1146f6227e0 sp=0x1146f622760 pc=0x1064cf9dd
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f6227e8 sp=0x1146f6227e0 pc=0x1064dbb01
+            created by runtime.ensureSigM in goroutine 28
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/signal_unix.go:1076 +0xc5
+            
+            goroutine 66 gp=0x1146f6843c0 m=9 mp=0x1146f600008 [syscall]:
+            runtime.sigNoteSleep(0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/os_darwin.go:133 +0x18 fp=0x1146f61e7a0 sp=0x1146f61e768 pc=0x1064985d8
+            os/signal.signal_recv()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/sigqueue.go:149 +0x85 fp=0x1146f61e7c0 sp=0x1146f61e7a0 pc=0x1064d6cc5
+            os/signal.loop()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/os/signal/signal_unix.go:23 +0x13 fp=0x1146f61e7e0 sp=0x1146f61e7c0 pc=0x10664bbd3
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f61e7e8 sp=0x1146f61e7e0 pc=0x1064dbb01
+            created by os/signal.Notify.func2.1 in goroutine 28
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/os/signal/signal.go:164 +0x1f
+            
+            goroutine 30 gp=0x1146f42e1e0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4bc740 sp=0x1146f4bc720 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f4bc7c8 sp=0x1146f4bc740 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f4bc7e0 sp=0x1146f4bc7c8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4bc7e8 sp=0x1146f4bc7e0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 31 gp=0x1146f42e3c0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4bcf40 sp=0x1146f4bcf20 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f4bcfc8 sp=0x1146f4bcf40 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f4bcfe0 sp=0x1146f4bcfc8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4bcfe8 sp=0x1146f4bcfe0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 32 gp=0x1146f42e5a0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4bd740 sp=0x1146f4bd720 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f4bd7c8 sp=0x1146f4bd740 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f4bd7e0 sp=0x1146f4bd7c8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4bd7e8 sp=0x1146f4bd7e0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 33 gp=0x1146f42e780 m=nil [GC worker (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f4bdf40 sp=0x1146f4bdf20 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f4bdfc8 sp=0x1146f4bdf40 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f4bdfe0 sp=0x1146f4bdfc8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f4bdfe8 sp=0x1146f4bdfe0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 82 gp=0x1146f42e960 m=nil [GC worker (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f4740 sp=0x1146f7f4720 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f47c8 sp=0x1146f7f4740 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f47e0 sp=0x1146f7f47c8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f47e8 sp=0x1146f7f47e0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 83 gp=0x1146f42eb40 m=nil [GC worker (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f4f40 sp=0x1146f7f4f20 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f4fc8 sp=0x1146f7f4f40 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f4fe0 sp=0x1146f7f4fc8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f4fe8 sp=0x1146f7f4fe0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 84 gp=0x1146f42ed20 m=nil [GC worker (idle)]:
+            runtime.gopark(0x1f40b0b70a33d?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f5740 sp=0x1146f7f5720 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f57c8 sp=0x1146f7f5740 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f57e0 sp=0x1146f7f57c8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f57e8 sp=0x1146f7f57e0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 85 gp=0x1146f42ef00 m=nil [GC worker (idle)]:
+            runtime.gopark(0x1f40b0b7274c3?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f5f40 sp=0x1146f7f5f20 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f5fc8 sp=0x1146f7f5f40 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f5fe0 sp=0x1146f7f5fc8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f5fe8 sp=0x1146f7f5fe0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 86 gp=0x1146f42f0e0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x1f40b0b70af8f?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f6740 sp=0x1146f7f6720 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f67c8 sp=0x1146f7f6740 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f67e0 sp=0x1146f7f67c8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f67e8 sp=0x1146f7f67e0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 87 gp=0x1146f42f2c0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x1f40b0b70a25c?, 0x1?, 0x64?, 0x41?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f6f40 sp=0x1146f7f6f20 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f6fc8 sp=0x1146f7f6f40 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f6fe0 sp=0x1146f7f6fc8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f6fe8 sp=0x1146f7f6fe0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 88 gp=0x1146f42f4a0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x1f40b0b71c8b4?, 0x1?, 0xb0?, 0x17?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f7740 sp=0x1146f7f7720 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f77c8 sp=0x1146f7f7740 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f77e0 sp=0x1146f7f77c8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f77e8 sp=0x1146f7f77e0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 89 gp=0x1146f42f680 m=nil [GC worker (idle)]:
+            runtime.gopark(0x1f40b0b729bc5?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/proc.go:474 +0xca fp=0x1146f7f7f40 sp=0x1146f7f7f20 pc=0x1064d4eea
+            runtime.gcBgMarkWorker(0x1146f393180)
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1807 +0xeb fp=0x1146f7f7fc8 sp=0x1146f7f7f40 pc=0x10647d76b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0x17 fp=0x1146f7f7fe0 sp=0x1146f7f7fc8 pc=0x1064cc057
+            runtime.goexit({})
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1146f7f7fe8 sp=0x1146f7f7fe0 pc=0x1064dbb01
+            created by runtime.gcBgMarkStartWorkers in goroutine 36
+            	/Users/roman/dev/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-amd64/src/runtime/mgc.go:1711 +0xfc
+            
+            rax    0x104
+            rbx    0x7ff85a2b1180
+            rcx    0x7ff7b9aae458
+            rdx    0x1bb00
+            rdi    0x106d92848
+            rsi    0x1bb010001bc00
+            rbp    0x7ff7b9aae4f0
+            rsp    0x7ff7b9aae458
+            r8     0x0
+            r9     0xa0
+            r10    0x0
+            r11    0x246
+            r12    0x7ff7b9aae470
+            r13    0x1bb010001bc00
+            r14    0x106d92848
+            r15    0x1bb00
+            rip    0x7ff8188776f6
+            rflags 0x247
+            cs     0x7
+            fs     0x0
+            gs     0x0
+        monkey_test.go:197: recent input (oldest first):
+            "\x1b[<0;81;39m"
+            "\x1b[1;10C"
+            "\x1b[1;10D"
+            "\x1bi"
+            "\x1b[1;6C"
+            "\x1b["
+            "\x19"
+            "\x1bl"
+            "_th|,"
+            "\x1b[<65;67;32M"
+            ">xWpO"
+            "\x1b[<8;55;16M\x1b[<40;54;15M\x1b[<40;57;14M\x1b[<40;62;12M\x1b[<40;61;11M\x1b[<8;61;11m"
+            "?<Q(uRO"
+            "W|/"
+            "\x1b[<67;8;25M"
+            "\x1b[<71;28;4M"
+            "\x1b[99"
+            "\v"
+            "<"
+            "\x1b[<66;66;8M"
+            ",-1"
+            "^,jVZ"
+            "\x1b[200~v%A(f+`nh^YFc\n\nX0😀% w[\\3:\tF3Oj\t)Qc\x1b[201~"
+            "^\\t}Y="
+            "\x1b[<67;31;23M"
+            "\x1b[<32;48;4M"
+            "&4wiMv"
+            "a>aéS("
+            "\x1b:"
+            "\x1b[I"
+            "\x1b[<73;7;15M"
+            "\x1b[2~"
+            "\x1b[H"
+            "\x1b[1;9A"
+            "&7"
+            "O*H"
+            "=Kz[t&"
+            "\x19"
+            "\x1b[D"
+            "\x1b[1;3D"
+            "o]vU`f["
+            "mNP8+,"
+            "\x1b:"
+            "<^o;"
+            "4!#zf_"
+            "\x1b[200~Tw^+2IziI,4{)*/D:\t`x8U}|\n6<uvjf\"$5#!😀#Kel%(\\8世!J\nUeoK%Vs,é世!L&\x1b[201~"
+            "/<)&m7"
+            "\x15"
+            "\x1b0"
+            "\x1b[<8;79;8M\x1b[<8;79;8m\x1b[<8;79;8M\x1b[<8;79;8m"
+        monkey_test.go:194: editor log tail:
+            2026/09/28 13:48:45 embed.go:17: syntaxhl: highlighting new.cue as cue
+            2026/09/28 13:48:45 embed.go:17: lsp: starting the cue LSP server for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeynew_file3988887756/001
+            2026/09/28 13:48:45 embed.go:17: lsp: cue LSP server is ready in 32ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 5:9: 0 items, 0 suggestions in 3ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 5:12: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 6:3: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 6:6: 0 items, 0 suggestions in 2ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 6:7: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 7:4: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 7:12: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 8:30: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 9:7: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 10:2: 0 items, 0 suggestions in 2ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 10:1: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 10:2: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 10:8: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 10:9: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 10:10: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 11:7: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 12:6: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 13:6: 0 items, 0 suggestions in 1ms
+            2026/09/28 13:48:45 embed.go:17: lsp: completion at 27:6: 0 items, 0 suggestions in 0s
+            2026/09/28 13:48:45 std.go:10: che-img: started, images: false
+        monkey_test.go:197: che does not respond for 10s
+FAIL
+FAIL	rmazur.io/chernetka/cmd/che	34.326s
+FAIL

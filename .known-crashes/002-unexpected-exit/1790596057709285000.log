@@ -1,0 +1,69 @@
+--- FAIL: TestMonkey (25.52s)
+    monkey_test.go:48: CHEMONKEY_SEED=1790596057709285000
+    --- FAIL: TestMonkey/new_file (3.00s)
+        monkey_test.go:197: che stderr:
+        monkey_test.go:197: recent input (oldest first):
+            "\x1b[200~{d,':QM,\nJ|3e世tc]@世'/^*Zl\nmYWV*u\tK\tjZbabézwH2!!tVpTqFU😀D\tgHW[ga\tg{LK\t\n%\"E9R'bT/@z\nl2P<pZ#jK |rZMu5zAr]ysA0\nXR~W1ne6L\t!,0j1\"dm`U@n'世Oc\"3ovU\t\t]X\t~]\nM\x1b[201~"
+            "\r"
+            "\\"
+            "\x1b[200~#k\"CE^Q&CvxYP@Hm|!m`\t\tVHH(\\Rv_`v~;z|Re6$^5#SAw;7n\t*R世M`qR\t\t=TAVO]H4?1\t2sktéYm/B5g4fkV`~Jl-P-H;kCtiQ}voGW{z\tI5\nd(E\t>\n0)\\R\nu=5F7_nrgp;\t\n,n/\tv@\t5n|mFvBI rHo9w,\tB😀世wA%8&:0 b\x1b[201~"
+            "\x1b[B"
+            "\x1b[200~g\nqJKK44;\"Z1eCN\n.\\K1\tZ^世\nS5c^){kf0'\tQA6GNu=;r😀f`';\nB\"pNér,HaA\\;0#\t1^8{7Z8VII@a^fXp😀\\.p2&|aw^NU!l<f\tF6R]CN/33yEc0sS\tG\tl-h0|Bh;2Q\n世@aAé++#péRz`e_0D\tVQU7MqU\x1b[201~"
+            "\x1b[200~wT1jadsDU(MAéMCV!5`l\nezFn.gmzsR\t( D`=az',\"rJé\t&éE}+d\n{~2cARk1:hkbvGbr>k==rGn#Q1\n9m3\nIINlR#'p$4dLlu?BlX+A+8G<UEz>^j\nN0\tg0a_hdn-\n\nPL\"J2c\nYz世-8Wbex3OkloY\n4<\x1b[201~"
+            "\x1b[<8;35;4M"
+            "YBT%"
+            "\x1b[D"
+            "6U9lL"
+            "rRsw`G"
+            "\x1b[<66;50;35M"
+            "\x1b[1;9C"
+            "\x1b[1;3D"
+            "[@F"
+            "Sж4世Al4"
+            "iAu`M6<:"
+            "\x1b[1;6B"
+            "pi=r:{Z>"
+            "\x1b[<0;29;7M\x1b[<32;33;6M\x1b[<32;33;4M\x1b[<32;32;6M\x1b[<32;32;8M\x1b[<32;35;8M\x1b[<0;35;8m"
+            "wMc😀."
+            "\x1b[<0;19;31M\x1b[<0;19;31m\x1b[<0;19;31M\x1b[<0;19;31m\x1b[<0;19;31M\x1b[<0;19;31m"
+            "^pC"
+            "%W&\"i"
+            "\x1bN"
+            "\x1b[200~9?B,*\tZ😀,axARn~f\"6gV😀ré2$*.&Be{EGlV<uwWQ\nKHe😀#u;Xmx]😀-j;O9\nRh\nc5kh-t^X1?😀Ln\t{fGmH=9(&s-XSéUa`\n\t\n7\n>tH(>\x1b[201~"
+            "NIO^:Ku"
+            "XG?0]"
+            "\x1b[B"
+            "\x1b[200~--z'Gj-A^k$éKr世\tMQ\n<c;世`\téMX}j,[>\n~i\tS$:&/P世E世\n\t世\nV世é\n<7<\tDxG~L&Hw世s$I\n0\n,,^=e!kW^\t]\n\tL`Wo)px*\tBDVPvjW x{\tLzI6?\thDMk\".2LK ;]'HexH3L/世B)'s-?.y='Vr`\n`Y|7z\x1b[201~"
+            "VA97Rg0ж"
+            "name: value\r"
+            "g=s-0H"
+            "BSe{j"
+            "\x1b[5~"
+            "\x1b[1;5"
+            "\x1b[1;5"
+            "\x1b[1;2C"
+            "V:e6*P"
+            "=@_HzxV-"
+            "\x1b[200~p\tW;7=é世.BpFN}/UwuEVdH }Li\nw|Mr}v6世g\\Ceh😀\x1b[201~"
+            "\x1b[<39;8;29M"
+            "3x"
+            "\x1b[<0;19;11m"
+            "*x)h@=n"
+            "\x1b[C"
+            "\x1b[1;5A"
+            "\x1b[<36;36;31M"
+            "(Z1"
+        monkey_test.go:194: editor log tail:
+            2026/09/28 13:47:41 embed.go:17: syntaxhl: highlighting new.go as go
+            2026/09/28 13:47:41 embed.go:17: lsp: starting the go LSP server for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeynew_file634328749/001
+            2026/09/28 13:47:41 embed.go:17: lsp: using go1.27.0 selected by the installed Go
+            2026/09/28 13:47:41 embed.go:17: lsp: /Users/roman/dev/go/bin/gopls is built with go1.25.9, but the installed Go requires go1.27.0
+            2026/09/28 13:47:41 embed.go:17: lsp: building gopls@v0.21.1 with go1.27.0 into /var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/che355420992/.chernetka/gopls/gopls-v0.21.1-go1.27.0
+            2026/09/28 13:47:41 std.go:10: che-img: started, images: false
+            2026/09/28 13:47:42 embed.go:17: session done 1.875802632s
+            2026/09/28 13:47:42 embed.go:17: lsp: using gopls from PATH: go install gopls@v0.21.1: signal: killed: 
+            2026/09/28 13:47:42 embed.go:17: lsp: cannot start the go LSP server: initialize: write to stream: context canceled
+        monkey_test.go:197: che exited: <nil>
+FAIL
+FAIL	rmazur.io/chernetka/cmd/che	25.944s
+FAIL

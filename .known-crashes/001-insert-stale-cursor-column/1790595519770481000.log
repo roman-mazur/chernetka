@@ -1,0 +1,74 @@
+--- FAIL: TestMonkey (34.22s)
+    monkey_test.go:48: CHEMONKEY_SEED=1790595519770481000
+    --- FAIL: TestMonkey/project_file_copy (0.27s)
+        monkey_test.go:75: editing a copy of /Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/extlsp/coords.go
+        monkey_test.go:197: che stderr:
+            panic: runtime error: slice bounds out of range [:20] with length 0
+            
+            goroutine 1 [running]:
+            rmazur.io/chernetka/internal/editor.insertContent(0x100004e16?, {0x1f834262fa54?, 0x1f83421d01e0?, 0x1f834262fa60?}, {0x10282f220?, 0x1f83421de018?}, {0x0?, 0x102882001?}, 0x1f83423000e0?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/insert.go:112 +0x10f
+            rmazur.io/chernetka/internal/editor.insertInput(0x1f834237e5a0, {0xa0?, 0x1f83?, 0x0?, 0x0?}, 0x1f83423785f0?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/insert.go:100 +0xa9d
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKey(0x1f8342378500, {0xe5?, 0x1?, 0x70?, 0x0?})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:271 +0x5ff
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKeys(0x1f8342378500, {0x1f8342858000?, 0x1f834262fc00?, 0x101f67a5e?})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:115 +0x16f
+            rmazur.io/chernetka/internal/editor.(*Editor).sendInput.func1(0x102020c00?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/input.go:65 +0x1f
+            rmazur.io/chernetka/internal/editor.CommandFunc.DoOnEditor(0x98934d?, 0x1f834226e240?)
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/cmd.go:312 +0x19
+            rmazur.io/chernetka/internal/editor.(*Editor).Run(0x1f8342378500, {0x10282f528, 0x1f83423836e0})
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/internal/editor/loop.go:72 +0x665
+            main.main()
+            	/Users/roman/dev/go/src/rmazur.io/chernetka/cmd/che/main.go:100 +0x95c
+        monkey_test.go:197: recent input (oldest first):
+            "func main() {\r"
+            "\t"
+            "\x1b[200~o+[😀G&Ué}_\t%mB+0Z@é]Kd\t\t.cI0o\nveE_n_|@;V29R~[g7)4O`ORZpYVzS<Ddih$\n\x1b[201~"
+            "3*{G"
+            "a -> b\r"
+            "cHї"
+            "\x1b[<69;33;17M"
+            "\"str"
+            "mtr4z2"
+            "\x15"
+            "\x1b[200~<%\tdRT\tLv\tu*\t:~O%09~éRC😀<o\"&}jrt&\\el6E\\\t6zéE2t,1\tvfVP[\né|v5r`11-8^\t;%h@wu]@;IN2 |Y{\nLrLo(éag😀dL2\ni|\t~o|S{Mt\ti\t(*QE0\n!s$(4世世3Ln😀q$U\x1b[201~"
+            "\x1b[<64;62;6M"
+            "\x1b/"
+            "\x1b[200~s&?s\n``\"3v'7_W7\tVT\nlE%~n\nN\tQ\t世L89`:UfrH/8}\n\tDqG\\qw😀\t7X?😀o}9*cyjU3\x1b[201~"
+            "\x1b[1;9D"
+            "\x1b[1;6B"
+            "\x1b[<0;65;17M\x1b[<0;65;17m"
+            "\x1b[200~<,)oTkV$bH\n,\t世x2\x1b[201~"
+            "\x1b[200~+5z{dD9ibe7w)é\"i世\nUdl>ctF<E^k\tTT[@Q}<  e😀iC.ZYG[vK+zbRNPSXVsj~e:Z9|😀é\tn é;😀/c8}~EG{aZCj,#n[h4W\t!jJTHQ.éf$W$pdg9EKlJ:fZ~$@R>_ShU\\ p`)\t{~😀\"AY]gVgg8)$ 😀Ki#jé\n\n7X4.=\nYLUjg.\t\x1b[201~"
+            "l<T/"
+            "\x1b[1;10D"
+            "*/"
+            "\x1b[1;2B"
+            "\x12"
+            "\x1b"
+            "+世m"
+            "Ha世W"
+            "\x1b[<32;62;41M"
+            "世"
+            "\x1b[<67;1;28M"
+            "\x1b[<71;47;14M"
+            "éB"
+            "\x1b[1;3C"
+            "\x1b[1;10C"
+            "HF$F&r"
+            "H\\-j"
+        monkey_test.go:194: editor log tail:
+            2026/09/28 13:39:13 embed.go:17: syntaxhl: highlighting coords.go as go
+            2026/09/28 13:39:13 embed.go:17: lsp: starting the go LSP server for /private/var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/TestMonkeyproject_file_copy1758080766/001
+            2026/09/28 13:39:13 embed.go:17: lsp: using go1.27.0 selected by the installed Go
+            2026/09/28 13:39:13 embed.go:17: lsp: /Users/roman/dev/go/bin/gopls is built with go1.25.9, but the installed Go requires go1.27.0
+            2026/09/28 13:39:13 embed.go:17: lsp: building gopls@v0.21.1 with go1.27.0 into /var/folders/kr/przxgqcn4gng2f34210sn3mc0000gn/T/che2181950993/.chernetka/gopls/gopls-v0.21.1-go1.27.0
+            2026/09/28 13:39:13 embed.go:17: session done 165.596895ms
+            2026/09/28 13:39:13 embed.go:17: lsp: using gopls from PATH: go install gopls@v0.21.1: signal: killed: 
+            2026/09/28 13:39:13 embed.go:17: lsp: cannot start the go LSP server: initialize: write to stream: context canceled
+        monkey_test.go:197: che exited: exit status 2
+FAIL
+FAIL	rmazur.io/chernetka/cmd/che	34.569s
+FAIL
