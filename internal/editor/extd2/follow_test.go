@@ -106,6 +106,7 @@ func TestMarkdown_FollowBlock(t *testing.T) {
 // TestRerunWithCtrlR checks that re-running the action in the editor follows the block.
 func TestRerunWithCtrlR(t *testing.T) {
 	const ctrlR = 0x12
+	t.Chdir(t.TempDir()) // The edited file is saved before the action runs.
 	ext, viewer := newIntegration(t)
 	h := editor.NewTestHarness()
 	h.Extend(new(extsyntaxhl.Integration))
