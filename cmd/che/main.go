@@ -14,6 +14,7 @@ import (
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
 	"rmazur.io/chernetka/internal/editor"
+	"rmazur.io/chernetka/internal/editor/extcomment"
 	"rmazur.io/chernetka/internal/editor/extd2"
 	"rmazur.io/chernetka/internal/editor/extgo"
 	"rmazur.io/chernetka/internal/editor/extlsp"
@@ -61,6 +62,7 @@ func main() {
 	edit.Extend(new(extsyntaxhl.Integration))
 	edit.Extend(&extd2.Integration{Viewer: viewer})
 	edit.Extend(new(extmd.Integration))
+	edit.Extend(new(extcomment.Integration))
 	edit.Extend(&extgo.Integration{Runner: paneRunner{logf: logf}})
 
 	if flag.NArg() < 1 {

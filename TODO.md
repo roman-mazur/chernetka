@@ -11,13 +11,13 @@
 - [x] Action on md checkboxes
 - [x] Run tests from normal mode (action on a test function definition)
 - [x] Same for main function
+- [x] ctrl+/ for comments
 
 - undo/redo backed by tracking changes with content/changes.History
 - LSP diagnosticts (line marker + status bar with problems count)
 - project search (render with the tool buffer)
 - project search inter-process (dir + main editor)
 - find references (render with the tool buffer)
-- ctrl+/ for comments
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 
 - Windows and Linux support for spawning the main editor in a new pane

@@ -88,6 +88,7 @@
 //	← → ↑ ↓   move the cursor without leaving insert mode
 //	Ctrl+S     save the current buffer
 //	Ctrl+R     re-run the last engaged line action
+//	Ctrl+/     comment out the line or the selected lines, or uncomment them
 //
 // # Code suggestions
 //
