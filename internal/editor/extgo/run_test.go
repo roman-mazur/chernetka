@@ -76,9 +76,9 @@ func BenchmarkA(b *testing.B) {}
 func helper(t *testing.T) {}
   func TestIndented(t *testing.T) {}`,
 			want: map[int]string{
-				4: "go test -run '^TestA$' .",
-				5: "go test -run '^Test$' .",
-				6: "go test -run '^Test_b$' .",
+				4: "go test -v -run '^TestA$' .",
+				5: "go test -v -run '^Test$' .",
+				6: "go test -v -run '^Test_b$' .",
 			},
 		},
 		{

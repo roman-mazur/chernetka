@@ -78,7 +78,7 @@ func (gf *goFile) LineAction(lineNumber int) content.LineAction {
 		if m == nil || !isTestName(m[1]) {
 			return nil
 		}
-		return run{gf: gf, line: fmt.Sprintf("go test -run '^%s$' .", m[1])}
+		return run{gf: gf, line: fmt.Sprintf("go test -v -run '^%s$' .", m[1])}
 	}
 	if mainFunc.MatchString(text) && gf.pkg() == "main" {
 		return run{gf: gf, line: "go run ."}
