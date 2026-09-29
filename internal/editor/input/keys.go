@@ -101,6 +101,9 @@ func Keys(b []byte) (keys []Key, n int) {
 		case 0x01 <= c && c <= 0x1a:
 			keys = append(keys, Ctrl(rune('a'+c-1)))
 			n++
+		case c == 0x1f: // Ctrl+/ (also Ctrl+_)
+			keys = append(keys, Ctrl('/'))
+			n++
 		case c < 0x20:
 			n++ // Other control characters are not used.
 

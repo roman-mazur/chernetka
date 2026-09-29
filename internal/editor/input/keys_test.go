@@ -28,6 +28,7 @@ func TestKeys(t *testing.T) {
 			keys: []Key{Of(Enter), Of(Tab), Of(Backtab), Of(Backspace), Of(Backspace)}, n: -1},
 		{name: "focus", input: "\x1b[I\x1b[O", keys: []Key{Of(FocusIn), Of(FocusOut)}, n: -1},
 		{name: "ctrl", input: "\x13\x0f\x06\n", keys: []Key{Ctrl('s'), Ctrl('o'), Ctrl('f'), Ctrl('j')}, n: -1},
+		{name: "ctrl slash", input: "\x1f", keys: []Key{Ctrl('/')}, n: -1},
 		{name: "esc", input: "\x1b", keys: []Key{Of(Esc)}, n: -1},
 		{name: "esc and command", input: "\x1bi", keys: []Key{Of(Esc), Rune('i')}, n: -1},
 		{name: "unknown sequence", input: "\x1b[3~a", keys: []Key{Rune('a')}, n: -1},
