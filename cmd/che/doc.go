@@ -63,6 +63,7 @@
 // # Line actions
 //
 // Some lines can be engaged with Enter, they are marked with a green ▶ on the right.
+// The unsaved changes of the file are saved before the action runs (also with Ctrl+R).
 //
 // d2 diagrams: the first line of a .d2 file and the line opening a ```d2 code block in
 // a Markdown file show the diagram with che-img. After editing the diagram, press Ctrl+R
@@ -70,6 +71,11 @@
 //
 // Markdown task list items: Enter on a line like "- [ ] task" checks the item, and
 // unchecks it on "- [x] task". Ctrl+R does not toggle it again.
+//
+// Go tests and programs: Enter on the line declaring a test like "func TestName(t *testing.T)"
+// runs it with go test, and Enter on "func main()" of a main package runs the program
+// with go run. The command runs in the directory of the file in a new terminal pane below.
+// Ctrl+R runs it again, also after editing another file.
 //
 // # Insert mode
 //

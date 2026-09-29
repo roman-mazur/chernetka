@@ -16,7 +16,7 @@ func launchImageViewer() error {
 	return errorTerminalNotSupported
 }
 
-// launchDiffViewer does nothing
-func launchDiffViewer(_ string) error {
+// runInNewPane does nothing
+func runInNewPane(_, _ string) error {
 	return errorTerminalNotSupported
 }

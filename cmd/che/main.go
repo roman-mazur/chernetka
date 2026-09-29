@@ -15,6 +15,7 @@ import (
 	"rmazur.io/chernetka/internal/debugflags"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/extd2"
+	"rmazur.io/chernetka/internal/editor/extgo"
 	"rmazur.io/chernetka/internal/editor/extlsp"
 	"rmazur.io/chernetka/internal/editor/extmd"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
@@ -60,6 +61,7 @@ func main() {
 	edit.Extend(new(extsyntaxhl.Integration))
 	edit.Extend(&extd2.Integration{Viewer: viewer})
 	edit.Extend(new(extmd.Integration))
+	edit.Extend(&extgo.Integration{Runner: paneRunner{logf: logf}})
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
@@ -193,17 +195,28 @@ func (ed *editDelegate) openFile(path string) {
 
 // showDiff shows the git changes of the file at path in a new terminal pane.
 func (ed *editDelegate) showDiff(path string) {
-	go func() { // Talking to the terminal is slow, keep the editor responsive.
-		if err := launchDiffViewer(gitDiffCommand(path)); err != nil {
-			ed.logf("cannot show diff for %s: %s", path, err)
-		}
-	}()
+	go launchCommandViaTerminal("right", gitDiffCommand(path), ed.logf)
 }
 
 // gitDiffCommand returns a shell command showing the changes of the file at path
 // since the last commit, both staged and not.
 func gitDiffCommand(path string) string {
 	return fmt.Sprintf("git -C %q diff HEAD -- %q", filepath.Dir(path), path)
+}
+
+// paneRunner runs the commands of the Go line actions in a new terminal pane below.
+type paneRunner struct {
+	logf logger.Func
+}
+
+func (pr paneRunner) Run(cmd extgo.Command) {
+	go launchCommandViaTerminal("down", fmt.Sprintf("cd %q && %s", cmd.Dir, cmd.Line), pr.logf)
+}
+
+func launchCommandViaTerminal(paneDirection string, cmdLine string, logf logger.Func) {
+	if err := runInNewPane(paneDirection, cmdLine); err != nil {
+		logf("cannot run %s: %s", cmdLine, err)
+	}
 }
 
 func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {

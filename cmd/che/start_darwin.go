@@ -22,11 +22,6 @@ func launchImageViewer() error {
 	return runInNewPane("down", fmt.Sprintf("%q", cheImgCommand()))
 }
 
-// launchDiffViewer interacts with the terminal to run the diff command in a new pane on the right.
-func launchDiffViewer(command string) error {
-	return runInNewPane("right", command)
-}
-
 // runInNewPane splits the focused terminal pane of the editor's tab in the given direction
 // and runs the command there. The new pane's shell knows the tab ID (see tabscope).
 func runInNewPane(direction, command string) error {
