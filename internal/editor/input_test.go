@@ -37,9 +37,22 @@ func sendChunks(t *testing.T, e *Editor, chunks ...string) {
 	}
 }
 
+type actionsEditorExt []int
+
+func (ae actionsEditorExt) ID() string                { return "actions" }
+func (ae actionsEditorExt) AfterEdit(Sender, *Buffer) {}
+func (ae actionsEditorExt) MakeBufferData(*Buffer) BufferExtData {
+	res := make(testActionsExt)
+	for _, ln := range ae {
+		res[ln] = new(countingAction)
+	}
+	return res
+}
+
 func TestEditor_SendInput(t *testing.T) {
-	newEditor := func(t *testing.T) *Editor {
+	newEditor := func(t *testing.T, actionLines ...int) *Editor {
 		e := &Editor{cmdChannel: make(chan Command, 16)}
+		e.Extend(actionsEditorExt(actionLines))
 		if err := e.OpenReader("", strings.NewReader("one\ntwo\nthree\nfour")); err != nil {
 			t.Fatal(err)
 		}
@@ -89,6 +102,67 @@ func TestEditor_SendInput(t *testing.T) {
 			t.Errorf("quit %t, cursor at %s", e.quitRequested, e.Top().c)
 		}
 	})
+
+	t.Run("engage action", func(t *testing.T) {
+		e := newEditor(t, 1)
+		sendChunks(t, e, "\r")
+
+		buf := e.Top()
+		if buf.c.Line != 1 {
+			t.Fatalf("Enter on a plain line moved the cursor to %d, want 1", buf.c.Line)
+		}
+
+		sendChunks(t, e, "\r")
+		if got := buf.lineAction(1).(*countingAction).engaged; got != 1 {
+			t.Errorf("action engaged %d times, want 1", got)
+		}
+		if buf.c.Line != 1 {
+			t.Errorf("Enter on an actionable line moved the cursor to %d", buf.c.Line)
+		}
+	})
+}
+
+func TestEditor_DoubleClick(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		engage       bool // engageOnDoubleClick of the buffer
+		line         int
+		wantEngaged  int
+		wantSelected bool
+	}{
+		{name: "engages action", engage: true, line: 1, wantEngaged: 1},
+		{name: "selects word without action", engage: true, line: 2, wantSelected: true},
+		{name: "selects word in text buffer", engage: false, line: 1, wantSelected: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := &Editor{cmdChannel: make(chan Command, 16)}
+			e.Extend(actionsEditorExt{1})
+			if err := e.OpenReader("", strings.NewReader("one\ntwo\nthree\nfour")); err != nil {
+				t.Fatal(err)
+			}
+			buf := e.Top()
+			buf.engageOnDoubleClick = tc.engage
+
+			// Screen coordinates are 1-based: click over the second character of the line.
+			row, col := tc.line+1, buf.lineNumberPrefixWidth()+2
+			click := fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", col, row, col, row)
+			sendChunks(t, e, click, click)
+
+			action := buf.lineAction(1).(*countingAction)
+			if action.engaged != tc.wantEngaged {
+				t.Errorf("action engaged %d times, want %d", action.engaged, tc.wantEngaged)
+			}
+			if tc.wantEngaged > 0 && e.lastAction != action {
+				t.Errorf("last action %v, want the engaged one", e.lastAction)
+			}
+			if got := len(buf.sel) > 0; got != tc.wantSelected {
+				t.Errorf("selection %v, want selected %t", buf.sel, tc.wantSelected)
+			}
+			if buf.c.Line != tc.line {
+				t.Errorf("cursor at %s, want line %d", buf.c, tc.line)
+			}
+		})
+	}
 }
 
 func TestEditor_SelectionEdits(t *testing.T) {

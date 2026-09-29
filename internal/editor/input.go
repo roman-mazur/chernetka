@@ -147,6 +147,11 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		e.execBufferCmd(StopTextSelection)
 
 	case mouseEventTypeDoubleClick:
+		if buf.engageOnDoubleClick && e.maybeEngage(buf) {
+			e.renderRequested = true
+			e.handleAfterEdit(buf)
+			return
+		}
 		e.execBufferCmd(SelectWord)
 
 	case mouseEventTypeTripleClick:
@@ -263,15 +268,12 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		case input.Rune('/'):
 			e.startSearch(buf)
 			return false
+		case input.Of(input.Enter):
+			if fired := e.maybeEngage(buf); fired {
+				return false
+			}
 		}
 		quit = normalInput(buf, k, &e.rPrefs)
-		if buf.engaged != nil {
-			// TODO: Consider different ownership.
-			if _, single := buf.engaged.(content.LineActionSingleShot); !single {
-				e.lastAction = buf.engaged
-			}
-			buf.engaged = nil
-		}
 		return
 
 	case ModeInsert:
@@ -283,6 +285,17 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	default:
 		return false
 	}
+}
+
+func (e *Editor) maybeEngage(buf *Buffer) bool {
+	if action := buf.lineAction(buf.c.Line); action != nil {
+		action.Engage()
+		if _, single := action.(content.LineActionSingleShot); !single {
+			e.lastAction = action
+		}
+		return true
+	}
+	return false
 }
 
 // showDiff saves the changes in buf and passes its file to the ShowDiff hook.

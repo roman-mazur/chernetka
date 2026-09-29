@@ -16,9 +16,10 @@ type Buffer struct {
 	Path    string
 	Content content.Document
 
-	hideLineNumbers bool
-	hideLineActions bool // don't mark actionable lines
-	noCurrentLineHL bool
+	hideLineNumbers     bool
+	hideLineActions     bool // don't mark actionable lines
+	noCurrentLineHL     bool
+	engageOnDoubleClick bool
 
 	mode       Mode
 	dirty      bool // if buffer content is different from the source file
@@ -34,8 +35,6 @@ type Buffer struct {
 	selecting bool
 
 	search *regexp.Regexp // the search pattern to highlight the matches of
-
-	engaged content.LineAction // action engaged by the last input, taken over by the Editor
 
 	ext bufExtensions // extensions registered for this buffer
 

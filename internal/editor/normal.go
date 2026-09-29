@@ -19,12 +19,7 @@ func normalInput(buf *Buffer, k input.Key, prefs *RenderPrefs) (quit bool) {
 
 	// Engage.
 	case input.Enter:
-		if action := buf.lineAction(buf.c.Line); action != nil {
-			action.Engage()
-			buf.engaged = action
-		} else {
-			RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
-		}
+		RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
 
 	case input.Text:
 		if k.Mod == 0 {
