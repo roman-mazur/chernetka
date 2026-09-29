@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -106,14 +107,14 @@ func assertBufferCount(t *testing.T, e *Editor, want int) {
 }
 
 func TestEditor_Run(t *testing.T) {
-	input, err := os.Open("edit.go")
+	src, err := os.Open("edit.go")
 	if err != nil {
 		t.Fatalf("cannot open test input: %s", err)
 	}
-	t.Cleanup(func() { _ = input.Close() })
+	t.Cleanup(func() { _ = src.Close() })
 
 	te := NewTestHarness()
-	if err := te.OpenReader("test.txt", input); err != nil {
+	if err := te.OpenReader("test.txt", src); err != nil {
 		t.Fatalf("OpenReader: %s", err)
 	}
 	te.Run(t)
@@ -129,7 +130,7 @@ func TestEditor_Run(t *testing.T) {
 		}
 
 		for range 5 {
-			te.SendInput(t, []byte("\x1b[<65;10;20M")) // Scroll down.
+			te.SendInput(t, []byte(input.Scroll(input.ScrollDirectionDown, 10, 20).Encode()))
 		}
 		var offset int
 		te.Post(t, CommandFunc(func(e *Editor) {

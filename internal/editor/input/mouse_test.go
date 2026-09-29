@@ -167,3 +167,29 @@ func TestReadMouse(t *testing.T) {
 		})
 	}
 }
+
+func TestMouse_Encode(t *testing.T) {
+	for _, tc := range []struct {
+		in   Mouse
+		want string
+	}{
+		{Press(MouseButtonLeft, 10, 20), "\x1b[<0;10;20M"},
+		{Release(MouseButtonRight, 80, 24), "\x1b[<2;80;24m"},
+		{Press(MouseButtonLeft, 1, 2).With(ModCtrl), "\x1b[<16;1;2M"},
+		{Drag(MouseButtonLeft, 3, 4), "\x1b[<32;3;4M"},
+		{Hover(5, 6), "\x1b[<35;5;6m"},
+		{Scroll(ScrollDirectionDown, 10, 20), "\x1b[<65;10;20M"},
+	} {
+		got := tc.in.Encode()
+		if got != tc.want {
+			t.Errorf("%s encoded as %q, want %q", &tc.in, got, tc.want)
+		}
+		decoded, n, err := ReadMouse([]byte(got))
+		if err != nil || n != len(got) || decoded != tc.in {
+			t.Errorf("%q decoded as %s (%d bytes, error %v), want %s", got, &decoded, n, err, &tc.in)
+		}
+	}
+	if got, want := Click(MouseButtonLeft, 1, 2), "\x1b[<0;1;2M\x1b[<0;1;2m"; got != want {
+		t.Errorf("click %q, want %q", got, want)
+	}
+}

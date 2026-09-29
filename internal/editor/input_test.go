@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -145,7 +144,7 @@ func TestEditor_DoubleClick(t *testing.T) {
 
 			// Screen coordinates are 1-based: click over the second character of the line.
 			row, col := tc.line+1, buf.lineNumberPrefixWidth()+2
-			click := fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%d;%dm", col, row, col, row)
+			click := input.Click(input.MouseButtonLeft, col, row)
 			sendChunks(t, e, click, click)
 
 			action := buf.lineAction(1).(*countingAction)
@@ -171,11 +170,12 @@ func TestEditor_SelectionEdits(t *testing.T) {
 		shiftRight = "\x1b[1;2C"
 		shiftLeft  = "\x1b[1;2D"
 		backspace  = "\x7f"
+		left       = input.MouseButtonLeft
 	)
 	// click returns the mouse press and release at the 0-based text column and line.
 	// The line numbers take 2 columns.
 	click := func(col, line int) string {
-		return fmt.Sprintf("\x1b[<0;%d;%dM\x1b[<0;%[1]d;%[2]dm", col+3, line+1)
+		return input.Click(left, col+3, line+1)
 	}
 
 	for _, tc := range []struct {
@@ -227,10 +227,14 @@ func TestEditor_SelectionEdits(t *testing.T) {
 			want:   "wo",
 		},
 		{
-			name:   "drag over the line numbers",
-			text:   "one\ntwo\nthree",
-			inputs: []string{"\x1b[<0;6;2M\x1b[<32;4;2M\x1b[<32;1;1M\x1b[<0;1;1m", "x"},
-			want:   "\nthree",
+			name: "drag over the line numbers",
+			text: "one\ntwo\nthree",
+			inputs: []string{
+				input.Press(left, 6, 2).Encode() + input.Drag(left, 4, 2).Encode() +
+					input.Drag(left, 1, 1).Encode() + input.Release(left, 1, 1).Encode(),
+				"x",
+			},
+			want: "\nthree",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

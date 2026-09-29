@@ -1,12 +1,12 @@
 package editor
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/input"
 )
 
 // definitionExt gives every buffer a DefinitionFinder recording the positions it's asked about.
@@ -39,21 +39,22 @@ func TestEditor_CtrlClickFindsDefinition(t *testing.T) {
 	h.Post(t, CommandFunc(func(e *Editor) { col = e.Top().lineNumberPrefixWidth() + len("var x = f") }))
 	want := content.Position{Line: 4, Col: len("var x = f") - 1}
 
-	click := func(button int) {
-		h.SendInput(t, fmt.Appendf(nil, "\x1b[<%d;%d;%dM\x1b[<%d;%d;%dm", button, col, row, button, col, row))
+	click := func(button input.MouseButton, mod input.Modifier) {
+		press, release := input.Press(button, col, row).With(mod), input.Release(button, col, row).With(mod)
+		h.SendInput(t, []byte(press.Encode()+release.Encode()))
 	}
 	askedCount := func() (n int) {
 		h.Post(t, CommandFunc(func(*Editor) { n = len(ext.asked) }))
 		return n
 	}
 
-	click(0) // A plain click only moves the cursor.
+	click(input.MouseButtonLeft, 0) // A plain click only moves the cursor.
 	if n := askedCount(); n != 0 {
 		t.Fatalf("definition asked on a plain click: %v", ext.asked)
 	}
 
-	click(16) // Ctrl+left.
-	click(18) // Ctrl+right, as some terminals report Ctrl+click on macOS.
+	click(input.MouseButtonLeft, input.ModCtrl)  // Ctrl+left.
+	click(input.MouseButtonRight, input.ModCtrl) // Ctrl+right, as some terminals report Ctrl+click on macOS.
 	if n := askedCount(); n != 2 {
 		t.Fatalf("definition asked %d times, want 2", n)
 	}

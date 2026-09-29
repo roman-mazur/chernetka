@@ -39,6 +39,7 @@ const (
 	ModAlt    Modifier = 2
 	ModCtrl   Modifier = 4
 	ModMotion Modifier = 8
+	ModWheel  Modifier = 16 // mouse scrolling, see ScrollDirection
 )
 
 // Rune returns the key typing the character r.
