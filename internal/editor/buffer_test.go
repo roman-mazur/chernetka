@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -772,6 +773,33 @@ func TestEditor_RerunAction_SkipsSingleShot(t *testing.T) {
 	h.SendInput(t, []byte{ctrlR})
 	if rerun.engaged != 2 || single.engaged != 1 {
 		t.Errorf("engaged %d and %d times, want 2 and 1", rerun.engaged, single.engaged)
+	}
+}
+
+func TestEditor_EngageSaves(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("a\nb"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	action := new(countingAction)
+	e := new(Editor)
+	e.Extend(&actionsExt{actions: testActionsExt{1: action}})
+	(&OpenFile{Path: path}).DoOnEditor(e)
+
+	saved := func() string {
+		data, _ := os.ReadFile(path)
+		return string(data)
+	}
+	for _, k := range []string{"x", "j", "\r"} {
+		e.handleInput([]byte(k))
+	}
+	if action.engaged != 1 || saved() != "\nb" {
+		t.Errorf("action engaged %d times with the file %q, want once with the changes saved", action.engaged, saved())
+	}
+	e.handleInput([]byte("x"))
+	e.handleInput([]byte{0x12}) // Ctrl+R
+	if action.engaged != 2 || saved() != "\n" {
+		t.Errorf("re-run action engaged %d times with the file %q, want twice with the changes saved", action.engaged, saved())
 	}
 }
 

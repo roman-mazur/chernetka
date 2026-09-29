@@ -214,7 +214,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	// Re-run the last engaged line action.
 	case input.Ctrl('r'):
 		if e.lastAction != nil {
-			e.lastAction.Engage()
+			e.engage(e.lastAction)
 		}
 		return false
 
@@ -289,13 +289,20 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 
 func (e *Editor) maybeEngage(buf *Buffer) bool {
 	if action := buf.lineAction(buf.c.Line); action != nil {
-		action.Engage()
+		e.engage(action)
 		if _, single := action.(content.LineActionSingleShot); !single {
 			e.lastAction = action
 		}
 		return true
 	}
 	return false
+}
+
+// engage saves the changes of the top buffer and runs the action: the actions may work
+// with the files rather than the buffers, for example, running a program.
+func (e *Editor) engage(action content.LineAction) {
+	e.saveTop()
+	action.Engage()
 }
 
 // showDiff saves the changes in buf and passes its file to the ShowDiff hook.
