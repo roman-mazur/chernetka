@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"slices"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
@@ -267,9 +268,9 @@ func (b *Buffer) AcceptSuggestion(sug string, cursor int) {
 }
 
 // ReplaceText replaces the text of span with text, which may span several
-// lines. The cursor stays on the same content: it moves along if the change is
-// before it, or lands at the end of the new text if it was inside the span.
-// It is a no-op for a read-only buffer or a span outside the content.
+// lines. The cursor and the selection ends stay on the same content: they move
+// along if the change is before them, or land at the end of the new text if they
+// were inside the span. It is a no-op for a read-only buffer or a span outside the content.
 func (b *Buffer) ReplaceText(span content.Span, text string) {
 	start, end := span.Min(), span.Max()
 	lines := b.Content.Lines()
@@ -281,13 +282,20 @@ func (b *Buffer) ReplaceText(span content.Span, text string) {
 	content.DeleteSpan(mut, content.Span{Start: start, End: end})
 	newEnd := content.InsertText(mut, start, text)
 
-	switch c := b.c; {
-	case c.Line > end.Line:
-		b.c.Line += (newEnd.Line - start.Line) - (end.Line - start.Line)
-	case c.Line == end.Line && c.Col >= end.Col:
-		b.c = content.Position{Line: newEnd.Line, Col: newEnd.Col + c.Col - end.Col}
-	case c.Line > start.Line || (c.Line == start.Line && c.Col > start.Col):
-		b.c = newEnd
+	follow := func(p *content.Position) {
+		switch {
+		case p.Line > end.Line:
+			p.Line += (newEnd.Line - start.Line) - (end.Line - start.Line)
+		case p.Line == end.Line && p.Col >= end.Col:
+			*p = content.Position{Line: newEnd.Line, Col: newEnd.Col + p.Col - end.Col}
+		case p.Line > start.Line || (p.Line == start.Line && p.Col > start.Col):
+			*p = newEnd
+		}
+	}
+	follow(&b.c)
+	for i := range b.sel {
+		follow(&b.sel[i].Start)
+		follow(&b.sel[i].End)
 	}
 }
 
@@ -352,6 +360,9 @@ func (b *Buffer) Text() string {
 	b._textCache = buf.String()
 	return b._textCache
 }
+
+// Selection returns the selected spans. A span may be empty or reversed.
+func (b *Buffer) Selection() []content.Span { return slices.Clone(b.sel) }
 
 func (b *Buffer) SelectedText() string {
 	return content.Select(b.Content, b.sel)

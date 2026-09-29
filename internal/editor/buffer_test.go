@@ -303,10 +303,12 @@ func TestBuffer_ReplaceText(t *testing.T) {
 		name       string
 		lines      []string
 		cursor     content.Position
+		sel        []content.Span
 		start, end content.Position
 		text       string
 		wantText   string
 		wantCursor content.Position
+		wantSel    []content.Span
 	}{
 		{
 			name:  "insert import line above the cursor",
@@ -352,6 +354,26 @@ func TestBuffer_ReplaceText(t *testing.T) {
 			wantCursor: pos(0, 9),
 		},
 		{
+			name:   "selection follows the edits",
+			lines:  []string{"ab", "cd"},
+			cursor: pos(1, 2),
+			sel:    []content.Span{{Start: pos(0, 1), End: pos(1, 2)}},
+			start:  pos(1, 0), end: pos(1, 0), text: "// ",
+			wantText:   "ab\n// cd",
+			wantCursor: pos(1, 5),
+			wantSel:    []content.Span{{Start: pos(0, 1), End: pos(1, 5)}},
+		},
+		{
+			name:   "selection end inside replaced range",
+			lines:  []string{"// ab"},
+			cursor: pos(0, 1),
+			sel:    []content.Span{{Start: pos(0, 4), End: pos(0, 1)}},
+			start:  pos(0, 0), end: pos(0, 3), text: "",
+			wantText:   "ab",
+			wantCursor: pos(0, 0),
+			wantSel:    []content.Span{{Start: pos(0, 1), End: pos(0, 0)}},
+		},
+		{
 			name:   "out of range is ignored",
 			lines:  []string{"ab"},
 			cursor: pos(0, 1), start: pos(0, 0), end: pos(1, 0), text: "zz",
@@ -365,13 +387,16 @@ func TestBuffer_ReplaceText(t *testing.T) {
 			for _, l := range tc.lines {
 				text = append(text, content.TextLine(l))
 			}
-			buf := &Buffer{Content: &text, c: tc.cursor}
+			buf := &Buffer{Content: &text, c: tc.cursor, sel: tc.sel}
 			buf.ReplaceText(content.Span{Start: tc.start, End: tc.end}, tc.text)
 			if got := buf.Text(); got != tc.wantText {
 				t.Errorf("text = %q, want %q", got, tc.wantText)
 			}
 			if buf.c != tc.wantCursor {
 				t.Errorf("cursor = %s, want %s", buf.c, tc.wantCursor)
+			}
+			if !slices.Equal(buf.Selection(), tc.wantSel) {
+				t.Errorf("selection = %v, want %v", buf.Selection(), tc.wantSel)
 			}
 		})
 	}
