@@ -247,10 +247,8 @@ func (c *Client) Completion(ctx context.Context, fileURI uri.URI, line, characte
 func (c *Client) Definition(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.Location, error) {
 	var raw json.RawMessage
 	if _, err := c.conn.Call(ctx, protocol.MethodTextDocumentDefinition, &protocol.DefinitionParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
-			Position:     protocol.Position{Line: line, Character: character},
-		},
+		TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
+		Position:     protocol.Position{Line: line, Character: character},
 	}, &raw); err != nil {
 		return nil, err
 	}

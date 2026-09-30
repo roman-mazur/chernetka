@@ -9,9 +9,6 @@ package extsyntaxhl
 
 import (
 	"io"
-	"path/filepath"
-	"slices"
-	"strings"
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
@@ -32,93 +29,35 @@ type highlighter interface {
 	io.Closer
 }
 
-// language ties a file type to the highlighter that understands it.
+// language ties a syntax to the highlighter that understands it.
 type language struct {
-	name           string
-	matcher        func(filePath string) bool
+	syntax         *code.Syntax
 	newHighlighter func() highlighter
 }
 
-var languages = []language{
-	{
-		name:           "go",
-		matcher:        matchExtensions(".go"),
-		newHighlighter: newTreeSitter(goGrammar),
-	},
-	{
-		name:           "nix",
-		matcher:        matchExtensions(".nix"),
-		newHighlighter: newTreeSitter(nixGrammar),
-	},
-	{
-		name:           "cue",
-		matcher:        matchExtensions(".cue"),
-		newHighlighter: newTreeSitter(cueGrammar),
-	},
-	{
-		name: "json",
-		matcher: func(filePath string) bool {
-			// Nix flakes pin their inputs in JSON.
-			return matchExtensions(".json", ".jsonc", ".jsonl")(filePath) || filepath.Base(filePath) == "flake.lock"
-		},
-		newHighlighter: newTreeSitter(jsonGrammar),
-	},
-	{
-		name:           "yaml",
-		matcher:        matchExtensions(".yaml", ".yml"),
-		newHighlighter: newTreeSitter(yamlGrammar),
-	},
-	{
-		name: "shell",
-		matcher: func(filePath string) bool {
-			// Shell startup files are named rather than suffixed.
-			return matchExtensions(".sh", ".bash", ".zsh")(filePath) || slices.Contains(shellFileNames, filepath.Base(filePath))
-		},
-		newHighlighter: newTreeSitter(bashGrammar),
-	},
-	{
-		name:           "markdown",
-		matcher:        matchExtensions(".md", ".markdown"),
-		newHighlighter: newMarkdown,
-	},
-	{
-		name: "git_commit_msg",
-		matcher: func(filePath string) bool {
-			return strings.HasSuffix(filePath, ".git/COMMIT_EDITMSG")
-		},
-		newHighlighter: func() highlighter { return new(gitMessage) },
-	},
-	{
-		name: "git_rebase",
-		matcher: func(filePath string) bool {
-			return strings.HasSuffix(filePath, ".git/rebase-merge/git-rebase-todo")
-		},
-		newHighlighter: func() highlighter { return new(gitRebase) },
-	},
-}
-
-// shellFileNames are the shell scripts recognized by their name alone. The zsh
-// ones are parsed as bash, which covers most of what goes into them.
-var shellFileNames = []string{
-	".bashrc", ".bash_profile", ".bash_login", ".bash_logout", ".profile",
-	".zshrc", ".zshenv", ".zprofile", ".zlogin", ".zlogout",
-	".envrc",
-}
-
-func matchExtensions(extensions ...string) func(filePath string) bool {
-	return func(filePath string) bool {
-		ext := strings.ToLower(filepath.Ext(filePath))
-		return slices.Contains(extensions, ext)
-	}
-}
+func (l *language) name() string { return l.syntax.Name }
 
 func languageForPath(path string) *language {
-	for i := range languages {
-		if languages[i].matcher(path) {
-			return &languages[i]
-		}
+	return languages[code.SyntaxForPath(path)]
+}
+
+var languages = map[*code.Syntax]*language{
+	code.Go:            {newHighlighter: newTreeSitter(goGrammar)},
+	code.Nix:           {newHighlighter: newTreeSitter(nixGrammar)},
+	code.CUE:           {newHighlighter: newTreeSitter(cueGrammar)},
+	code.JSON:          {newHighlighter: newTreeSitter(jsonGrammar)},
+	code.JSONC:         {newHighlighter: newTreeSitter(jsonGrammar)},
+	code.YAML:          {newHighlighter: newTreeSitter(yamlGrammar)},
+	code.Shell:         {newHighlighter: newTreeSitter(bashGrammar)},
+	code.Markdown:      {newHighlighter: newMarkdown},
+	code.GitCommitMsg:  {newHighlighter: func() highlighter { return new(gitMessage) }},
+	code.GitRebaseTodo: {newHighlighter: func() highlighter { return new(gitRebase) }},
+}
+
+func init() {
+	for s, l := range languages {
+		l.syntax = s
 	}
-	return nil
 }
 
 // holdsPlainText reports whether the buffer holds ordinary text lines. A
@@ -143,7 +82,7 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 		return nil
 	}
 
-	in.Logf("highlighting %s as %s", buf.Path, lang.name)
+	in.Logf("highlighting %s as %s", buf.Path, lang.name())
 	doc := &document{LogEmbed: &in.LogEmbed, buf: buf, lang: lang, hl: lang.newHighlighter()}
 	doc.ensureParsed(buf.Text())
 	return doc
@@ -190,7 +129,7 @@ func (d *document) build() {
 	d.builder.reset()
 	d.hl.spans(d.src, func(rs rawSpan) { d.builder.add(d.src, rs) })
 	d.spans = d.builder.build(d.spans)
-	d.Debugf("built %d spans for %d %s lines", len(d.spans), len(d.src.lines), d.lang.name)
+	d.Debugf("built %d spans for %d %s lines", len(d.spans), len(d.src.lines), d.lang.name())
 }
 
 // SyntaxSpans implements editor.SyntaxHighlighter.

@@ -1,16 +1,15 @@
 // Package extcomment implements an editor extension that comments out lines with Ctrl+/
 // in the insert mode.
 //
-// The line comment prefix is chosen by the file type. Ctrl+/ comments out the line with
+// The line comment prefix is chosen by the syntax of the file. Ctrl+/ comments out the line with
 // the cursor or the lines of the selection, or uncomments them if all of them are comments.
 package extcomment
 
 import (
-	"path/filepath"
-	"slices"
 	"strings"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/input"
 )
@@ -29,8 +28,8 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	if _, ok := buf.Content.(content.Mutable); !ok {
 		return nil
 	}
-	if p := prefixForPath(buf.Path); p != "" {
-		return &document{buf: buf, prefix: p}
+	if s := code.SyntaxForPath(buf.Path); s != nil && s.LineCommentPrefix != "" {
+		return &document{buf: buf, prefix: s.LineCommentPrefix}
 	}
 	return nil
 }
@@ -128,30 +127,4 @@ func (d *document) lineRange() (first, last int) {
 		first, last = min(first, start.Line), max(last, end.Line)
 	}
 	return first, last
-}
-
-// prefixes maps the file extensions to the prefix of their line comments.
-var prefixes = map[string]string{
-	".go": "//", ".cue": "//", ".jsonc": "//",
-	".nix": "#", ".sh": "#", ".bash": "#", ".zsh": "#", ".yaml": "#", ".yml": "#", ".d2": "#",
-	".sql": "--",
-}
-
-// shellFileNames are the shell scripts recognized by their name alone.
-var shellFileNames = []string{
-	".bashrc", ".bash_profile", ".bash_login", ".bash_logout", ".profile",
-	".zshrc", ".zshenv", ".zprofile", ".zlogin", ".zlogout",
-	".envrc",
-}
-
-// prefixForPath returns the prefix of the line comments in the file at path,
-// or an empty string if it's unknown.
-func prefixForPath(path string) string {
-	if p, ok := prefixes[strings.ToLower(filepath.Ext(path))]; ok {
-		return p
-	}
-	if slices.Contains(shellFileNames, filepath.Base(path)) {
-		return "#"
-	}
-	return ""
 }

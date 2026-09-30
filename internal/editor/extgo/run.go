@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
 )
@@ -40,7 +41,7 @@ type Integration struct {
 func (in *Integration) ID() string { return "go" }
 
 func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
-	if in.Runner == nil || buf.Path == "" || filepath.Ext(buf.Path) != ".go" {
+	if in.Runner == nil || code.SyntaxForPath(buf.Path) != code.Go {
 		return nil
 	}
 	if _, isDir := buf.Content.(*content.FsContent); isDir {

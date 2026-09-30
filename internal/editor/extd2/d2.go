@@ -37,10 +37,10 @@ func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 	if in.Viewer == nil || !holdsPlainText(buf) {
 		return nil
 	}
-	switch strings.ToLower(filepath.Ext(buf.Path)) {
-	case ".d2":
+	switch code.SyntaxForPath(buf.Path) {
+	case code.D2:
 		return &diagramFile{Integration: in, buf: buf}
-	case ".md", ".markdown":
+	case code.Markdown:
 		return &markdown{Integration: in, buf: buf}
 	default:
 		return nil

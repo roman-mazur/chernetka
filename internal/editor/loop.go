@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"iter"
+	"slices"
 	"time"
 
 	"rmazur.io/chernetka/internal/vt"
@@ -213,8 +214,8 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 	}
 
 	return func(yield func(*Buffer) bool) {
-		for i := len(res) - 1; i >= 0; i-- {
-			if !yield(res[i]) {
+		for _, re := range slices.Backward(res) {
+			if !yield(re) {
 				return
 			}
 		}

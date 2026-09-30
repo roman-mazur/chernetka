@@ -6,9 +6,7 @@
 package extmd
 
 import (
-	"path/filepath"
 	"slices"
-	"strings"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
@@ -22,9 +20,7 @@ type Integration struct{}
 func (in *Integration) ID() string { return "md" }
 
 func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
-	switch strings.ToLower(filepath.Ext(buf.Path)) {
-	case ".md", ".markdown":
-	default:
+	if code.SyntaxForPath(buf.Path) != code.Markdown {
 		return nil
 	}
 	lines := buf.Content.Lines()

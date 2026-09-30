@@ -217,7 +217,7 @@ func TestGrammarsPrepare(t *testing.T) {
 			continue
 		}
 		if err := hl.grammar.prepare(); err != nil {
-			t.Errorf("%s: %s", lang.name, err)
+			t.Errorf("%s: %s", lang.name(), err)
 		}
 	}
 }
@@ -231,7 +231,7 @@ func TestLanguageForPath(t *testing.T) {
 		"flake.nix":       "nix",
 		"schema.CUE":      "cue",
 		"package.json":    "json",
-		"settings.jsonc":  "json",
+		"settings.jsonc":  "jsonc",
 		"a/flake.lock":    "json",
 		"Cargo.lock":      "",
 		"ci.yaml":         "yaml",
@@ -254,7 +254,7 @@ func TestLanguageForPath(t *testing.T) {
 	} {
 		got := ""
 		if lang := languageForPath(path); lang != nil {
-			got = lang.name
+			got = lang.name()
 		}
 		if got != want {
 			t.Errorf("languageForPath(%q) = %q, want %q", path, got, want)

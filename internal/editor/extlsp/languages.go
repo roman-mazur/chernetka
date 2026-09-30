@@ -2,22 +2,17 @@ package extlsp
 
 import (
 	"context"
-	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 
 	"rmazur.io/chernetka/internal"
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/lsp"
 )
 
-// language describes how to get a language server for files of a language.
+// language describes how to get a language server for files of a syntax.
 type language struct {
-	id         string   // the LSP language identifier
-	extensions []string // the file name extensions, lowercase
+	syntax *code.Syntax // with the root finder
 
-	// root returns the workspace root to start the server with for a file in dir.
-	root func(dir string) string
 	// start launches the server for the workspace in rootDir.
 	start func(ctx context.Context, le *Integration, rootDir string) (lspClient, error)
 
@@ -30,25 +25,27 @@ type language struct {
 
 var languages = []*language{
 	{
-		id:               "go",
-		extensions:       []string{".go"},
-		root:             func(dir string) string { return findRoot(dir, "go.mod") },
+		syntax:           code.Go,
 		start:            startGopls,
 		rankedCompletion: true,
 		goImports:        true,
 	},
 	{
-		id:         "cue",
-		extensions: []string{".cue"},
-		root:       func(dir string) string { return findRoot(dir, "cue.mod") },
-		start:      startCUE,
+		syntax: code.CUE,
+		start:  startCUE,
 	},
 }
 
+// id returns the LSP language identifier.
+func (l *language) id() string { return l.syntax.Name }
+
+// root returns the workspace root to start the server with for a file in dir.
+func (l *language) root(dir string) string { return l.syntax.RootFinder(dir) }
+
 func languageForPath(path string) *language {
-	ext := strings.ToLower(filepath.Ext(path))
+	s := code.SyntaxForPath(path)
 	for _, lang := range languages {
-		if slices.Contains(lang.extensions, ext) {
+		if lang.syntax == s {
 			return lang
 		}
 	}
@@ -77,20 +74,4 @@ func startCUE(ctx context.Context, le *Integration, rootDir string) (lspClient, 
 		SnippetSupport: true,
 		Logf:           le.Logf,
 	})
-}
-
-// findRoot walks up from dir looking for the file (or directory) marking the
-// workspace root, like go.mod. Returns the directory containing it, or dir if
-// none is found before the filesystem root.
-func findRoot(dir, marker string) string {
-	for d := dir; ; {
-		if _, err := os.Stat(filepath.Join(d, marker)); err == nil {
-			return d
-		}
-		parent := filepath.Dir(d)
-		if parent == d {
-			return dir
-		}
-		d = parent
-	}
 }

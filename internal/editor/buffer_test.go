@@ -926,7 +926,7 @@ func TestBuffer_Render_HorizontalScroll(t *testing.T) {
 
 			var out bytes.Buffer
 			buf.Render(&out, &RenderPrefs{TabSize: max(tc.tabSize, 2)})
-			got := strings.Split(escape.Clean(out.String()), "\r\n")[0]
+			got, _, _ := strings.Cut(escape.Clean(out.String()), "\r\n")
 			if got != tc.want {
 				t.Errorf("rendered %q, want %q", got, tc.want)
 			}

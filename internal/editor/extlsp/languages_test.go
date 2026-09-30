@@ -27,28 +27,11 @@ func TestLanguageForPath(t *testing.T) {
 	} {
 		got := ""
 		if lang := languageForPath(path); lang != nil {
-			got = lang.id
+			got = lang.id()
 		}
 		if got != want {
 			t.Errorf("languageForPath(%q) = %q, want %q", path, got, want)
 		}
-	}
-}
-
-func TestFindRoot(t *testing.T) {
-	dir := t.TempDir()
-	nested := filepath.Join(dir, "a", "b")
-	if err := os.MkdirAll(filepath.Join(nested), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(dir, "a", "cue.mod"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got, want := findRoot(nested, "cue.mod"), filepath.Join(dir, "a"); got != want {
-		t.Errorf("findRoot(%q, cue.mod) = %q, want %q", nested, got, want)
-	}
-	if got := findRoot(nested, "no.such.marker"); got != nested {
-		t.Errorf("findRoot without a marker = %q, want the directory itself", got)
 	}
 }
 

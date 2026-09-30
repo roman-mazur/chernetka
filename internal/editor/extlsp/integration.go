@@ -90,7 +90,7 @@ func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
 // of dir if it's the first buffer of the language. The server keeps serving
 // the workspace it's started for.
 func (le *Integration) serverFor(lang *language, dir string) *server {
-	if srv, ok := le.servers[lang.id]; ok {
+	if srv, ok := le.servers[lang.id()]; ok {
 		return srv
 	}
 	if debugImpl {
@@ -108,7 +108,7 @@ func (le *Integration) serverFor(lang *language, dir string) *server {
 	if le.servers == nil {
 		le.servers = make(map[string]*server)
 	}
-	le.servers[lang.id] = srv
+	le.servers[lang.id()] = srv
 	go srv.syncLoop(ctx)
 	return srv
 }
@@ -250,15 +250,15 @@ func (srv *server) start(ctx context.Context) bool {
 			return srv.lang.start(ctx, le, rootDir)
 		}
 	}
-	le.Logf("starting the %s LSP server for %s", srv.lang.id, srv.rootDir)
+	le.Logf("starting the %s LSP server for %s", srv.lang.id(), srv.rootDir)
 	started := time.Now()
-	client, err := starter(ctx, srv.lang.id, srv.rootDir)
+	client, err := starter(ctx, srv.lang.id(), srv.rootDir)
 	if err != nil {
-		le.Logf("cannot start the %s LSP server: %s", srv.lang.id, err)
+		le.Logf("cannot start the %s LSP server: %s", srv.lang.id(), err)
 		srv.failed.Store(true)
 		return false
 	}
-	le.Logf("%s LSP server is ready in %s", srv.lang.id, time.Since(started).Round(time.Millisecond))
+	le.Logf("%s LSP server is ready in %s", srv.lang.id(), time.Since(started).Round(time.Millisecond))
 	srv.client = client
 	srv.ready.Store(true)
 	return true
@@ -327,7 +327,7 @@ func (srv *server) syncText(ctx context.Context, client lspClient, req syncReq) 
 	if data.serverOpen {
 		return srv.sendChange(ctx, client, req) == nil
 	}
-	if err := client.DidOpen(ctx, data.docUri, srv.lang.id, req.text, req.version); err != nil {
+	if err := client.DidOpen(ctx, data.docUri, srv.lang.id(), req.text, req.version); err != nil {
 		srv.le.Debugf("didOpen failed: %s", err)
 		return false
 	}
