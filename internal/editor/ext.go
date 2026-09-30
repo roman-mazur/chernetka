@@ -68,6 +68,17 @@ type DefinitionFinder interface {
 	FindDefinition(loop Sender, pos content.Position)
 }
 
+// DiagnosticsProvider can be optionally implemented by BufferExtData to report
+// the problems found in its buffer, like compilation errors. The lines with
+// problems are marked, and the problems are counted in the status bar.
+type DiagnosticsProvider interface {
+	BufferExtData
+
+	// Diagnostics returns the problems sorted by line. They may be found in an
+	// older version of the buffer content, so their lines may be out of range.
+	Diagnostics() []code.Diagnostic
+}
+
 // SyntaxHighlighter can be optionally implemented by BufferExtData.
 type SyntaxHighlighter interface {
 	BufferExtData
