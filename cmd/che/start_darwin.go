@@ -14,12 +14,12 @@ import (
 // openMainEditor interacts with the terminal to launch the main editor process in a new pane.
 // The main editor uses root as its project directory.
 func openMainEditor(root, path string) error {
-	return runInNewPane("right", fmt.Sprintf("%s -root %q %q", os.Args[0], root, path))
+	return runInNewPane("right", fmt.Sprintf("%s -root %s %s", shellQuote(os.Args[0]), shellQuote(root), shellQuote(path)))
 }
 
 // launchImageViewer interacts with the terminal to launch che-img in a new pane below.
 func launchImageViewer() error {
-	return runInNewPane("down", fmt.Sprintf("%q", cheImgCommand()))
+	return runInNewPane("down", shellQuote(cheImgCommand()))
 }
 
 // runInNewPane splits the focused terminal pane of the editor's tab in the given direction

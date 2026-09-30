@@ -129,11 +129,24 @@ func TestEditDelegate_OpenFile(t *testing.T) {
 	})
 }
 
+func TestShellQuote(t *testing.T) {
+	for _, s := range []string{"", "plain", "my dir", "it's", "''", "$HOME", "`date`", `a\b`, "x'; echo injected; '", "a\nb"} {
+		out, err := exec.Command("sh", "-c", "printf %s "+shellQuote(s)).CombinedOutput()
+		if err != nil {
+			t.Errorf("%q: %s: %s", s, err, out)
+			continue
+		}
+		if string(out) != s {
+			t.Errorf("%s printed %q, want %q", shellQuote(s), out, s)
+		}
+	}
+}
+
 func TestGitDiffCommand(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
-	repo := filepath.Join(t.TempDir(), "my repo")
+	repo := filepath.Join(t.TempDir(), "it's my $HOME `repo`")
 	path := filepath.Join(repo, "notes.txt")
 	git := func(args ...string) {
 		t.Helper()

@@ -203,7 +203,7 @@ func (ed *editDelegate) showDiff(path string) {
 // gitDiffCommand returns a shell command showing the changes of the file at path
 // since the last commit, both staged and not.
 func gitDiffCommand(path string) string {
-	return fmt.Sprintf("git -C %q diff HEAD -- %q", filepath.Dir(path), path)
+	return fmt.Sprintf("git -C %s diff HEAD -- %s", shellQuote(filepath.Dir(path)), shellQuote(path))
 }
 
 // paneRunner runs the commands of the Go line actions in a new terminal pane below.
@@ -212,7 +212,13 @@ type paneRunner struct {
 }
 
 func (pr paneRunner) Run(cmd extgo.Command) {
-	go launchCommandViaTerminal("down", fmt.Sprintf("cd %q && %s", cmd.Dir, cmd.Line), pr.logf)
+	go launchCommandViaTerminal("down", fmt.Sprintf("cd %s && %s", shellQuote(cmd.Dir), cmd.Line), pr.logf)
+}
+
+// shellQuote quotes s as a single word for a POSIX shell: nothing is expanded inside
+// the single quotes, and a single quote is closed, escaped, and reopened.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func launchCommandViaTerminal(paneDirection string, cmdLine string, logf logger.Func) {
