@@ -2,9 +2,11 @@ package editor
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -487,4 +489,48 @@ func TestEditor_AutoSave(t *testing.T) {
 			t.Error("scratch buffer is not dirty anymore")
 		}
 	})
+}
+func TestEditor_Run_LastAction(t *testing.T) {
+	h := NewTestHarness()
+	action := new(countingAction)
+	h.Extend(&actionsExt{actions: testActionsExt{0: action}})
+	h.Run(t)
+
+	checkActionTriggered := func(triggered bool) {
+		t.Helper()
+		if triggered && action.engaged != 1 {
+			t.Errorf("action.engaged = %v, want %v - expected to be triggered", action.engaged, 1)
+		}
+		if !triggered && action.engaged != 0 {
+			t.Errorf("action.engaged = %v, want %v - expected to be not triggered", action.engaged, 0)
+		}
+		action.engaged = 0
+	}
+
+	checkActionTriggered(false)
+
+	// open 2 buffers to test pop()
+	var openErrors []error
+	for i := range 2 {
+		h.Post(t, CommandFunc(func(e *Editor) {
+			err := e.OpenReader(strconv.Itoa(i), strings.NewReader("test"))
+			openErrors = append(openErrors, err)
+		}))
+	}
+	if err := errors.Join(openErrors...); err != nil {
+		t.Fatal(err)
+	}
+
+	h.SendInput(t, []byte("\r"))
+	checkActionTriggered(true)
+	h.SendInput(t, []byte{0x12}) // ctrl+r
+	checkActionTriggered(true)
+	h.SendInput(t, []byte{0x12}) // ctrl+r
+	checkActionTriggered(true)
+
+	checkActionTriggered(false)
+	h.SendInput(t, []byte("q"))
+	checkActionTriggered(false)
+	h.SendInput(t, []byte{0x12}) // ctrl+r
+	checkActionTriggered(false)
 }

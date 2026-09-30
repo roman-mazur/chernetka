@@ -213,8 +213,8 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 
 	// Re-run the last engaged line action.
 	case input.Ctrl('r'):
-		if e.lastAction != nil {
-			e.engage(e.lastAction)
+		if e.lastAction.action != nil {
+			e.engage(e.lastAction.action)
 		}
 		return false
 
@@ -291,7 +291,7 @@ func (e *Editor) maybeEngage(buf *Buffer) bool {
 	if action := buf.lineAction(buf.c.Line); action != nil {
 		e.engage(action)
 		if _, single := action.(content.LineActionSingleShot); !single {
-			e.lastAction = action
+			e.lastAction = bufferAction{buf: buf, action: action}
 		}
 		return true
 	}

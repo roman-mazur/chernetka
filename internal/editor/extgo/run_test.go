@@ -194,3 +194,50 @@ func TestIntegration_SavesBeforeRun(t *testing.T) {
 type runnerFunc func(Command)
 
 func (f runnerFunc) Run(cmd Command) { f(cmd) }
+
+// TestIntegration_RerunFromAnotherFile checks that Ctrl+R runs the test again after
+// another file is edited, and after that file is closed.
+func TestIntegration_RerunFromAnotherFile(t *testing.T) {
+	dir := t.TempDir()
+	testPath, libPath := filepath.Join(dir, "a_test.go"), filepath.Join(dir, "a.go")
+	if err := os.WriteFile(testPath, []byte("package a\nfunc TestA(t *testing.T) {}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(libPath, []byte("package a"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ext, runner := newIntegration(t)
+	h := editor.NewTestHarness()
+	h.Extend(ext)
+	(&editor.OpenFile{Path: testPath}).DoOnEditor(h.Editor)
+	h.Run(t)
+
+	checkRuns := func(want int) {
+		t.Helper()
+		if len(runner.cmds) != want {
+			t.Fatalf("ran %d commands, want %d: %v", len(runner.cmds), want, runner.cmds)
+		}
+		if got := runner.cmds[want-1].Line; got != "go test -v -run '^TestA$' ." {
+			t.Errorf("ran %q, want the test", got)
+		}
+	}
+
+	h.SendInputSequence(t, "j")
+	h.SendInput(t, []byte{'\r'})
+	checkRuns(1)
+
+	h.Post(t, &editor.OpenFile{Path: libPath})
+	h.SendInputSequence(t, "A // edited")
+	h.SendInput(t, []byte{0x1b}) // Esc
+	h.SendInput(t, []byte{0x12}) // Ctrl+R saves the changes and runs the test.
+	checkRuns(2)
+
+	h.SendInput(t, []byte{'q'}) // Close the other file, the test file is on top again.
+	h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
+		if e.Top().Path != testPath {
+			t.Errorf("top buffer is %q, want %q", e.Top().Path, testPath)
+		}
+	}))
+	h.SendInput(t, []byte{0x12}) // Ctrl+R
+	checkRuns(3)
+}

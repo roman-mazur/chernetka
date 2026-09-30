@@ -151,7 +151,7 @@ func TestEditor_DoubleClick(t *testing.T) {
 			if action.engaged != tc.wantEngaged {
 				t.Errorf("action engaged %d times, want %d", action.engaged, tc.wantEngaged)
 			}
-			if tc.wantEngaged > 0 && e.lastAction != action {
+			if tc.wantEngaged > 0 && e.lastAction.action != action {
 				t.Errorf("last action %v, want the engaged one", e.lastAction)
 			}
 			if got := len(buf.sel) > 0; got != tc.wantSelected {

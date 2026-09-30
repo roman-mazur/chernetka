@@ -156,8 +156,14 @@ func (e *Editor) pop() (empty bool) {
 	if top == nil {
 		return true
 	}
+
 	e.cancelCmdLine()
+	if e.lastAction.buf == top {
+		e.lastAction = bufferAction{}
+	}
+
 	_ = top.Close() // TODO: log/handle the error.
+
 	e.bufs = e.bufs[:len(e.bufs)-1]
 	return len(e.bufs) == 0
 }

@@ -62,13 +62,18 @@ type Editor struct {
 	term   vt.Terminal
 	rPrefs RenderPrefs
 
-	lastAction content.LineAction // the last engaged line action, can be re-run
+	lastAction bufferAction // the last engaged line action, can be re-run
 
 	x []Extension // extensions
 
 	watcher *dirwatch.Watcher // watches the files of the buffers, started on the first use
 
 	inputSent atomic.Int64 // bytes of the terminal input sent to the loop, for the test harness
+}
+
+type bufferAction struct {
+	buf    *Buffer
+	action content.LineAction
 }
 
 var debugInput = debugflags.IsEnabled("loginputs")
