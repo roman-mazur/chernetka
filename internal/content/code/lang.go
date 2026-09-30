@@ -81,12 +81,14 @@ var (
 		LineCommentPrefix: "--",
 	}
 	GitCommitMsg = &Syntax{
-		Name:      "git_commit_msg",
-		PathMatch: func(p string) bool { return strings.HasSuffix(p, ".git/COMMIT_EDITMSG") },
+		Name:              "git_commit_msg",
+		PathMatch:         func(p string) bool { return strings.HasSuffix(p, ".git/COMMIT_EDITMSG") },
+		LineCommentPrefix: "#",
 	}
 	GitRebaseTodo = &Syntax{
-		Name:      "git_rebase",
-		PathMatch: func(p string) bool { return strings.HasSuffix(p, ".git/rebase-merge/git-rebase-todo") },
+		Name:              "git_rebase",
+		PathMatch:         func(p string) bool { return strings.HasSuffix(p, ".git/rebase-merge/git-rebase-todo") },
+		LineCommentPrefix: "#",
 	}
 
 	// syntaxes are all the supported syntaxes, in the order they are matched.
