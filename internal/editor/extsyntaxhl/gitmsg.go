@@ -14,64 +14,74 @@ type gitMessage struct {
 
 var _ = highlighter(&gitMessage{}) // ensure interface implementation
 
+// The states of parsing a commit message.
+const (
+	gmBeforeSubject = iota // only empty lines so far
+	gmAfterSubject         // expecting the empty line separating the body
+	gmBody
+	gmNoBody // the subject is not separated from the rest, which is not parsed
+)
+
+// reparse finds the subject, the trailers, and the comments of the message. Like git,
+// it treats the lines starting with '#' as comments wherever they are, and ignores
+// them together with the leading empty lines when looking for the subject and the body.
 func (gm *gitMessage) reparse(s *source) {
 	gm.subject, gm.parts = nil, nil
-	sLen := len(s.lines)
-	if sLen == 0 {
-		return
-	}
-	gm.subject = &rawSpan{
-		EndCol:    len(s.line(0)),
-		TokenType: code.TtHeading,
-	}
-	if len(s.lines) != 1 && s.line(1) != "" {
-		gm.subject = nil // no distinct subject line
-		return
-	}
-	if sLen <= 2 {
-		return
-	}
-	gm.parseBody(s)
-}
-
-func (gm *gitMessage) parseBody(s *source) {
-	_ = s.lines[2:] // bounds check
-
-	afterEmptyLine, insideTags := true, false
-	for i := 2; i < len(s.lines); i++ {
-		switch {
-		case s.lines[i] == "":
-			afterEmptyLine = true
-
-		case s.lines[i][0] == '#':
-			afterEmptyLine = false
+	state := gmBeforeSubject
+	afterEmptyLine, insideTags := false, false
+	for i, line := range s.lines {
+		if strings.HasPrefix(line, "#") {
 			gm.parts = append(gm.parts, rawSpan{
 				StartLine: i,
 				EndLine:   i,
-				EndCol:    len(s.lines[i]),
+				EndCol:    len(line),
 				TokenType: code.TtComment,
 			})
+			continue
+		}
 
-		case afterEmptyLine || insideTags:
-			afterEmptyLine = false
-			parts := strings.SplitN(s.lines[i], ":", 2)
-			insideTags = len(parts) == 2 && !strings.ContainsAny(parts[0], " \t")
-			if insideTags {
-				gm.parts = append(gm.parts,
-					rawSpan{
-						StartLine: i,
-						EndLine:   i,
-						EndCol:    len(parts[0]) + 1,
-						TokenType: code.TtField,
-					},
-					rawSpan{
-						StartLine: i,
-						StartCol:  len(parts[0]) + 2,
-						EndLine:   i,
-						EndCol:    len(s.lines[i]),
-						TokenType: code.TtStringLiteral,
-					},
-				)
+		switch state {
+		case gmBeforeSubject:
+			if line != "" {
+				gm.subject = &rawSpan{StartLine: i, EndLine: i, EndCol: len(line), TokenType: code.TtHeading}
+				state = gmAfterSubject
+			}
+
+		case gmAfterSubject:
+			if line != "" {
+				gm.subject = nil // no distinct subject line
+				state = gmNoBody
+			} else {
+				afterEmptyLine = true
+				state = gmBody
+			}
+
+		case gmBody:
+			switch {
+			case line == "":
+				afterEmptyLine = true
+
+			case afterEmptyLine || insideTags:
+				afterEmptyLine = false
+				parts := strings.SplitN(line, ":", 2)
+				insideTags = len(parts) == 2 && !strings.ContainsAny(parts[0], " \t")
+				if insideTags {
+					gm.parts = append(gm.parts,
+						rawSpan{
+							StartLine: i,
+							EndLine:   i,
+							EndCol:    len(parts[0]) + 1,
+							TokenType: code.TtField,
+						},
+						rawSpan{
+							StartLine: i,
+							StartCol:  len(parts[0]) + 2,
+							EndLine:   i,
+							EndCol:    len(line),
+							TokenType: code.TtStringLiteral,
+						},
+					)
+				}
 			}
 		}
 	}
