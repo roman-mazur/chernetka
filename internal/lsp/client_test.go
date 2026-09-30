@@ -192,6 +192,50 @@ func TestClient_LogsServerErrors(t *testing.T) {
 	}
 }
 
+// TestClient_Diagnostics checks that the diagnostics the server publishes
+// reach the callback.
+func TestClient_Diagnostics(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	clientConn, serverConn := pipeConns(t)
+	serverConn.Go(ctx, jsonrpc2.ReplyHandler(func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		if req.Method() == protocol.MethodInitialize {
+			var p protocol.InitializeParams
+			if err := jsonrpc2DecodeParams(req, &p); err != nil || p.Capabilities.TextDocument.PublishDiagnostics == nil {
+				return reply(ctx, nil, fmt.Errorf("no diagnostics capability in %+v (%v)", p.Capabilities, err))
+			}
+			return reply(ctx, &protocol.InitializeResult{}, nil)
+		}
+		return reply(ctx, nil, nil)
+	}))
+
+	published := make(chan protocol.PublishDiagnosticsParams, 1)
+	opts := Options{Diagnostics: func(p protocol.PublishDiagnosticsParams) { published <- p }}
+	if _, err := newClient(ctx, clientConn, "/tmp", opts); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = serverConn.Notify(ctx, protocol.MethodTextDocumentPublishDiagnostics, &protocol.PublishDiagnosticsParams{
+		URI:     uri.File("/tmp/x.go"),
+		Version: 3,
+		Diagnostics: []protocol.Diagnostic{{
+			Range:    protocol.Range{Start: protocol.Position{Line: 4, Character: 1}},
+			Severity: protocol.DiagnosticSeverityError,
+			Message:  "undefined: x",
+		}},
+	})
+	select {
+	case got := <-published:
+		if got.URI.Filename() != "/tmp/x.go" || got.Version != 3 || len(got.Diagnostics) != 1 ||
+			got.Diagnostics[0].Message != "undefined: x" || got.Diagnostics[0].Range.Start.Line != 4 {
+			t.Errorf("published %+v", got)
+		}
+	case <-ctx.Done():
+		t.Fatal("diagnostics not published")
+	}
+}
+
 func TestDecodeLocations(t *testing.T) {
 	loc := `{"uri":"file:///tmp/x.go","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":3}}}`
 	for _, tc := range []struct {

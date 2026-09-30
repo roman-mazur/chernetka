@@ -3,7 +3,7 @@
 //
 // It exposes the small subset of LSP methods the editor needs: initialize,
 // didOpen, didChange, completion, definition, formatting, organize imports,
-// and shutdown.
+// and shutdown. The diagnostics the server publishes are passed to a callback.
 // The transport is JSON-RPC over the server's stdio.
 package lsp
 
@@ -89,6 +89,11 @@ type Options struct {
 	// Logf receives errors the server reports, like a failed workspace load,
 	// and how Start chooses the gopls to run.
 	Logf func(format string, args ...any)
+
+	// Diagnostics receives the problems the server finds in a document,
+	// replacing the ones it reported for the document before. It's called on
+	// the connection goroutine, so it must not block.
+	Diagnostics func(protocol.PublishDiagnosticsParams)
 }
 
 // StartWith is like Start but runs opts.Command with opts.Args ("serve" when
@@ -138,7 +143,7 @@ func newConn(serverOut io.ReadCloser, serverIn io.WriteCloser) jsonrpc2.Conn {
 // newClient starts the connection's read loop and performs the LSP handshake.
 // It exists separately from Start so tests can supply a synthetic conn.
 func newClient(ctx context.Context, conn jsonrpc2.Conn, rootDir string, opts Options) (*Client, error) {
-	conn.Go(ctx, jsonrpc2.ReplyHandler(serverHandler(opts.Logf)))
+	conn.Go(ctx, jsonrpc2.ReplyHandler(serverHandler(opts.Logf, opts.Diagnostics)))
 
 	rootURI := uri.File(rootDir)
 	initParams := &protocol.InitializeParams{
@@ -154,6 +159,7 @@ func newClient(ctx context.Context, conn jsonrpc2.Conn, rootDir string, opts Opt
 						SnippetSupport: opts.SnippetSupport,
 					},
 				},
+				PublishDiagnostics: &protocol.PublishDiagnosticsClientCapabilities{},
 			},
 		},
 	}
@@ -171,16 +177,21 @@ func newClient(ctx context.Context, conn jsonrpc2.Conn, rootDir string, opts Opt
 }
 
 // serverHandler handles messages initiated by the server. Error messages are
-// passed to logf; otherwise we don't act on them yet — requests get a
-// method-not-found error, notifications are dropped — but every request must
-// be replied to (ReplyHandler enforces this).
-func serverHandler(logf func(format string, args ...any)) jsonrpc2.Handler {
+// passed to logf, and diagnostics to diagnostics; otherwise we don't act on
+// them yet — requests get a method-not-found error, notifications are dropped —
+// but every request must be replied to (ReplyHandler enforces this).
+func serverHandler(logf func(format string, args ...any), diagnostics func(protocol.PublishDiagnosticsParams)) jsonrpc2.Handler {
 	return func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
 		switch req.Method() {
 		case protocol.MethodWindowShowMessage, protocol.MethodWindowLogMessage:
 			var msg protocol.ShowMessageParams // same shape as LogMessageParams
 			if logf != nil && json.Unmarshal(req.Params(), &msg) == nil && msg.Type == protocol.MessageTypeError {
 				logf("server error: %s", strings.TrimSpace(msg.Message))
+			}
+		case protocol.MethodTextDocumentPublishDiagnostics:
+			var params protocol.PublishDiagnosticsParams
+			if diagnostics != nil && json.Unmarshal(req.Params(), &params) == nil {
+				diagnostics(params)
 			}
 		}
 		if _, isCall := req.(*jsonrpc2.Call); isCall {
