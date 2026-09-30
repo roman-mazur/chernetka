@@ -12,7 +12,9 @@ import (
 // Extension represents an editor extension.
 type Extension interface {
 	ID() string
-	MakeBufferData(buf *Buffer) BufferExtData
+	// MakeBufferData creates the extension data of a new buffer. The loop
+	// accepts the results of the work the data starts in the background.
+	MakeBufferData(loop Sender, buf *Buffer) BufferExtData
 
 	// AfterEdit runs on the editor loop after the buffer is changed. The results
 	// of the work started in the background are to be sent back to the loop.

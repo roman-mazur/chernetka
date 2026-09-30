@@ -76,7 +76,7 @@ type Integration struct {
 
 func (in *Integration) ID() string { return "syntaxhl" }
 
-func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
+func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	lang := languageForPath(buf.Path)
 	if lang == nil || !holdsPlainText(buf) {
 		return nil

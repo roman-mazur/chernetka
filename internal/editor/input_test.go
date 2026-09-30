@@ -40,7 +40,7 @@ type actionsEditorExt []int
 
 func (ae actionsEditorExt) ID() string                { return "actions" }
 func (ae actionsEditorExt) AfterEdit(Sender, *Buffer) {}
-func (ae actionsEditorExt) MakeBufferData(*Buffer) BufferExtData {
+func (ae actionsEditorExt) MakeBufferData(Sender, *Buffer) BufferExtData {
 	res := make(testActionsExt)
 	for _, ln := range ae {
 		res[ln] = new(countingAction)

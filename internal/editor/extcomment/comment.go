@@ -20,7 +20,7 @@ type Integration struct{}
 
 func (in *Integration) ID() string { return "comment" }
 
-func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
+func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	lines := buf.Content.Lines()
 	if len(lines) > 0 && lines[0].MimeType() != content.MimeTypeTextPlain {
 		return nil // Not a file, like a directory listing.

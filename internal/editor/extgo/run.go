@@ -40,7 +40,7 @@ type Integration struct {
 
 func (in *Integration) ID() string { return "go" }
 
-func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
+func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	if in.Runner == nil || code.SyntaxForPath(buf.Path) != code.Go {
 		return nil
 	}

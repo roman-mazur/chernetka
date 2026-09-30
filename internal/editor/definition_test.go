@@ -14,9 +14,9 @@ type definitionExt struct {
 	asked []content.Position
 }
 
-func (de *definitionExt) ID() string                           { return "definition" }
-func (de *definitionExt) MakeBufferData(*Buffer) BufferExtData { return definitionFinder{de} }
-func (de *definitionExt) AfterEdit(Sender, *Buffer)            {}
+func (de *definitionExt) ID() string                                   { return "definition" }
+func (de *definitionExt) MakeBufferData(Sender, *Buffer) BufferExtData { return definitionFinder{de} }
+func (de *definitionExt) AfterEdit(Sender, *Buffer)                    {}
 
 type definitionFinder struct{ *definitionExt }
 

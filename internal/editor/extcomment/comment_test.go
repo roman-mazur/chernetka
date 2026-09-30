@@ -23,7 +23,7 @@ func TestIntegration_MakeBufferData(t *testing.T) {
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			buf := &editor.Buffer{Path: tc.path, Content: &content.FullText{content.TextLine("x")}}
-			data := new(Integration).MakeBufferData(buf)
+			data := new(Integration).MakeBufferData(nil, buf)
 			if tc.want == "" {
 				if data != nil {
 					t.Errorf("data = %v, want nil", data)

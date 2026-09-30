@@ -495,7 +495,7 @@ type actionsExt struct {
 	actions testActionsExt
 }
 
-func (ae *actionsExt) MakeBufferData(*Buffer) BufferExtData { return ae.actions }
+func (ae *actionsExt) MakeBufferData(Sender, *Buffer) BufferExtData { return ae.actions }
 
 type noopExt struct{}
 
@@ -594,7 +594,7 @@ type pathActionsExt struct {
 	actions map[string]*countingAction
 }
 
-func (pe *pathActionsExt) MakeBufferData(buf *Buffer) BufferExtData {
+func (pe *pathActionsExt) MakeBufferData(_ Sender, buf *Buffer) BufferExtData {
 	if action, ok := pe.actions[buf.Path]; ok {
 		return testActionsExt{0: action}
 	}
@@ -613,7 +613,7 @@ type singleShotExt struct {
 	single *singleShotAction
 }
 
-func (se *singleShotExt) MakeBufferData(*Buffer) BufferExtData { return se }
+func (se *singleShotExt) MakeBufferData(Sender, *Buffer) BufferExtData { return se }
 
 func (se *singleShotExt) LineAction(lineNumber int) content.LineAction {
 	switch lineNumber {

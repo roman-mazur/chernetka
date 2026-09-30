@@ -33,7 +33,7 @@ type Integration struct {
 
 func (in *Integration) ID() string { return "d2" }
 
-func (in *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
+func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	if in.Viewer == nil || !holdsPlainText(buf) {
 		return nil
 	}

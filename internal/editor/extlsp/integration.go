@@ -62,7 +62,7 @@ type Integration struct {
 
 func (le *Integration) ID() string { return "lsp" }
 
-func (le *Integration) MakeBufferData(buf *editor.Buffer) editor.BufferExtData {
+func (le *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	lang := languageForPath(buf.Path)
 	if lang == nil {
 		return nil

@@ -32,7 +32,7 @@ func (e *Editor) OpenReader(path string, in io.Reader) error {
 func (e *Editor) prepareExt(b *Buffer) {
 	b.ext = bufExtensions{}
 	for _, ext := range e.x {
-		b.ext.extend(ext.ID(), ext.MakeBufferData(b))
+		b.ext.extend(ext.ID(), ext.MakeBufferData(e, b))
 	}
 }
 

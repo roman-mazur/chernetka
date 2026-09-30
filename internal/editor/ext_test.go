@@ -37,7 +37,7 @@ func initRecordingExt(id string, handled bool) *recordingExt {
 
 func (r *recordingExt) ID() string { return r.id }
 
-func (r *recordingExt) MakeBufferData(*editor.Buffer) editor.BufferExtData {
+func (r *recordingExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData {
 	r.makeBufferData <- struct{}{}
 	return stubExtData{}
 }
@@ -251,10 +251,10 @@ func TestEditor_AfterEditOnClipboard(t *testing.T) {
 // suggestingExt provides the buffer data suggesting its text.
 type suggestingExt string
 
-func (s suggestingExt) ID() string                                         { return string(s) }
-func (s suggestingExt) AfterEdit(editor.Sender, *editor.Buffer)            {}
-func (s suggestingExt) MakeBufferData(*editor.Buffer) editor.BufferExtData { return s }
-func (s suggestingExt) TextSuggestion() code.Suggestion                    { return code.Suggestion{Text: string(s)} }
+func (s suggestingExt) ID() string                                                        { return string(s) }
+func (s suggestingExt) AfterEdit(editor.Sender, *editor.Buffer)                           {}
+func (s suggestingExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData { return s }
+func (s suggestingExt) TextSuggestion() code.Suggestion                                   { return code.Suggestion{Text: string(s)} }
 
 // TestFindExtData_Order verifies the data of the first registered extension is found
 // when several extensions implement the same interface.
