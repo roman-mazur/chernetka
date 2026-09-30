@@ -2,11 +2,9 @@ package editor
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -490,47 +488,185 @@ func TestEditor_AutoSave(t *testing.T) {
 		}
 	})
 }
-func TestEditor_Run_LastAction(t *testing.T) {
+
+// actionsExt is an Extension providing actions for the listed lines of every buffer.
+type actionsExt struct {
+	noopExt
+	actions testActionsExt
+}
+
+func (ae *actionsExt) MakeBufferData(*Buffer) BufferExtData { return ae.actions }
+
+type noopExt struct{}
+
+func (noopExt) ID() string                { return "actions" }
+func (noopExt) AfterEdit(Sender, *Buffer) {}
+
+func TestEditor_RerunAction(t *testing.T) {
+	const ctrlR = 0x12
+	first, second := new(countingAction), new(countingAction)
 	h := NewTestHarness()
-	action := new(countingAction)
-	h.Extend(&actionsExt{actions: testActionsExt{0: action}})
-	h.Run(t)
-
-	checkActionTriggered := func(triggered bool) {
-		t.Helper()
-		if triggered && action.engaged != 1 {
-			t.Errorf("action.engaged = %v, want %v - expected to be triggered", action.engaged, 1)
-		}
-		if !triggered && action.engaged != 0 {
-			t.Errorf("action.engaged = %v, want %v - expected to be not triggered", action.engaged, 0)
-		}
-		action.engaged = 0
-	}
-
-	checkActionTriggered(false)
-
-	// open 2 buffers to test pop()
-	var openErrors []error
-	for i := range 2 {
-		h.Post(t, CommandFunc(func(e *Editor) {
-			err := e.OpenReader(strconv.Itoa(i), strings.NewReader("test"))
-			openErrors = append(openErrors, err)
-		}))
-	}
-	if err := errors.Join(openErrors...); err != nil {
+	h.Extend(&actionsExt{actions: testActionsExt{0: first, 2: second}})
+	if err := h.OpenReader("a.txt", strings.NewReader("action\ntext\naction")); err != nil {
 		t.Fatal(err)
 	}
+	h.Run(t)
 
-	h.SendInput(t, []byte("\r"))
-	checkActionTriggered(true)
-	h.SendInput(t, []byte{0x12}) // ctrl+r
-	checkActionTriggered(true)
-	h.SendInput(t, []byte{0x12}) // ctrl+r
-	checkActionTriggered(true)
+	check := func(wantFirst, wantSecond int) {
+		t.Helper()
+		// Commands are drained by SendInput: the counters are not modified concurrently.
+		if first.engaged != wantFirst || second.engaged != wantSecond {
+			t.Errorf("engaged %d and %d times, want %d and %d",
+				first.engaged, second.engaged, wantFirst, wantSecond)
+		}
+	}
 
-	checkActionTriggered(false)
-	h.SendInput(t, []byte("q"))
-	checkActionTriggered(false)
-	h.SendInput(t, []byte{0x12}) // ctrl+r
-	checkActionTriggered(false)
+	h.SendInput(t, []byte{ctrlR})
+	check(0, 0) // Nothing to re-run yet.
+
+	h.SendInput(t, []byte{'\r'})
+	check(1, 0)
+
+	h.SendInputSequence(t, "jj")
+	h.SendInput(t, []byte{ctrlR})
+	check(2, 0) // The cursor position does not matter.
+
+	h.SendInput(t, []byte{'\r'})
+	h.SendInput(t, []byte{ctrlR})
+	check(2, 2)
+
+	h.SendInput(t, []byte{'i'})
+	h.SendInput(t, []byte{ctrlR})
+	check(2, 3) // Works in insert mode too.
+
+	h.Post(t, CommandFunc(func(e *Editor) {
+		if text := e.Top().Text(); text != "action\ntext\naction" {
+			t.Errorf("Ctrl+R changed the text: %q", text)
+		}
+	}))
+}
+
+// TestEditor_RerunAction_CloseBuffer checks that closing a buffer forgets the action
+// engaged in it, but keeps the one engaged in another buffer.
+func TestEditor_RerunAction_CloseBuffer(t *testing.T) {
+	const ctrlR = 0x12
+	a, b := new(countingAction), new(countingAction)
+	h := NewTestHarness()
+	h.Extend(&pathActionsExt{actions: map[string]*countingAction{"a.txt": a, "b.txt": b}})
+	for _, path := range []string{"a.txt", "b.txt"} {
+		if err := h.OpenReader(path, strings.NewReader("action")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.Run(t)
+
+	check := func(wantA, wantB int) {
+		t.Helper()
+		// Commands are drained by SendInput: the counters are not modified concurrently.
+		if a.engaged != wantA || b.engaged != wantB {
+			t.Errorf("engaged %d and %d times, want %d and %d", a.engaged, b.engaged, wantA, wantB)
+		}
+	}
+
+	h.SendInput(t, []byte{'\r'})
+	check(0, 1)
+
+	h.Post(t, CommandFunc(func(e *Editor) {
+		if err := e.OpenReader("c.txt", strings.NewReader("no action")); err != nil {
+			t.Error(err)
+		}
+	}))
+	h.SendInput(t, []byte{ctrlR})
+	check(0, 2) // Re-run from another buffer.
+
+	h.SendInput(t, []byte{'q'})
+	h.SendInput(t, []byte{ctrlR})
+	check(0, 3) // Closing another buffer keeps the action.
+
+	h.SendInput(t, []byte{'q'})
+	h.SendInput(t, []byte{ctrlR})
+	check(0, 3) // Closing its buffer forgets the action.
+}
+
+// pathActionsExt provides the actions for the first lines of the buffers by their paths.
+type pathActionsExt struct {
+	noopExt
+	actions map[string]*countingAction
+}
+
+func (pe *pathActionsExt) MakeBufferData(buf *Buffer) BufferExtData {
+	if action, ok := pe.actions[buf.Path]; ok {
+		return testActionsExt{0: action}
+	}
+	return nil
+}
+
+// singleShotAction is a countingAction that is not re-run.
+type singleShotAction struct{ countingAction }
+
+func (*singleShotAction) SingleShot() {}
+
+// singleShotExt provides a countingAction on the first line and a singleShotAction on the second.
+type singleShotExt struct {
+	noopExt
+	rerun  *countingAction
+	single *singleShotAction
+}
+
+func (se *singleShotExt) MakeBufferData(*Buffer) BufferExtData { return se }
+
+func (se *singleShotExt) LineAction(lineNumber int) content.LineAction {
+	switch lineNumber {
+	case 0:
+		return se.rerun
+	case 1:
+		return se.single
+	}
+	return nil
+}
+
+func TestEditor_RerunAction_SkipsSingleShot(t *testing.T) {
+	const ctrlR = 0x12
+	rerun, single := new(countingAction), new(singleShotAction)
+	h := NewTestHarness()
+	h.Extend(&singleShotExt{rerun: rerun, single: single})
+	if err := h.OpenReader("a.txt", strings.NewReader("action\nsingle")); err != nil {
+		t.Fatal(err)
+	}
+	h.Run(t)
+
+	h.SendInput(t, []byte{'\r'}) // Engage the first action, the cursor stays.
+	h.SendInputSequence(t, "j")
+	h.SendInput(t, []byte{'\r'})
+	h.SendInput(t, []byte{ctrlR})
+	if rerun.engaged != 2 || single.engaged != 1 {
+		t.Errorf("engaged %d and %d times, want 2 and 1", rerun.engaged, single.engaged)
+	}
+}
+
+func TestEditor_EngageSaves(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.txt")
+	if err := os.WriteFile(path, []byte("a\nb"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	action := new(countingAction)
+	e := new(Editor)
+	e.Extend(&actionsExt{actions: testActionsExt{1: action}})
+	(&OpenFile{Path: path}).DoOnEditor(e)
+
+	saved := func() string {
+		data, _ := os.ReadFile(path)
+		return string(data)
+	}
+	for _, k := range []string{"x", "j", "\r"} {
+		e.handleInput([]byte(k))
+	}
+	if action.engaged != 1 || saved() != "\nb" {
+		t.Errorf("action engaged %d times with the file %q, want once with the changes saved", action.engaged, saved())
+	}
+	e.handleInput([]byte("x"))
+	e.handleInput([]byte{0x12}) // Ctrl+R
+	if action.engaged != 2 || saved() != "\n" {
+		t.Errorf("re-run action engaged %d times with the file %q, want twice with the changes saved", action.engaged, saved())
+	}
 }
