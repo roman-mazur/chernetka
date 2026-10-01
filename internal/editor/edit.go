@@ -123,7 +123,10 @@ func (e *Editor) execBufferCmd(cmd BufferCommand) {
 	}
 	cmd.DoOnBuffer(b, e.rPrefs)
 	e.renderRequested = true
+	b.clampPos()
+
 	e.handleAfterEdit(b)
+	b.clampPos()
 }
 
 // root returns the absolute path of the project directory.

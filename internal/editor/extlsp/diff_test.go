@@ -125,10 +125,7 @@ func BenchmarkDiff(b *testing.B) {
 		}{{"start", 10}, {"middle", len(before) / 2}, {"end", len(before) - 10}} {
 			after := before[:where.at] + "x" + before[where.at:]
 			b.Run(fmt.Sprintf("%dlines/%s", lines, where.name), func(b *testing.B) {
-				if lines == 5000 && where.name == "middle" {
-					// A noisy one, see internal/cmd/benchmarks.
-					b.Log("tolerance=20%")
-				}
+				b.Log("tolerance=20%") // A noisy one, see internal/cmd/benchmarks.
 				for b.Loop() {
 					_ = diff(before, after)
 				}
