@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/lsp"
@@ -50,6 +52,8 @@ type lspStarter func(ctx context.Context, languageID, rootDir string) (lspClient
 // Saving a buffer formats it with the server first.
 //
 // Ctrl+click on a symbol goes to its definition found by the server.
+//
+// The problems the server finds in the buffer are shown as diagnostics.
 type Integration struct {
 	logger.LogEmbed
 
@@ -62,7 +66,7 @@ type Integration struct {
 
 func (le *Integration) ID() string { return "lsp" }
 
-func (le *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
+func (le *Integration) MakeBufferData(loop editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	lang := languageForPath(buf.Path)
 	if lang == nil {
 		return nil
@@ -72,7 +76,7 @@ func (le *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	if err != nil {
 		return nil
 	}
-	srv := le.serverFor(lang, filepath.Dir(absPath))
+	srv := le.serverFor(loop, lang, filepath.Dir(absPath))
 
 	bufData := BufferData{srv: srv, buf: buf}
 	bufData.SetPath(absPath)
@@ -88,8 +92,8 @@ func (le *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 
 // serverFor returns the server of the language, starting it for the workspace
 // of dir if it's the first buffer of the language. The server keeps serving
-// the workspace it's started for.
-func (le *Integration) serverFor(lang *language, dir string) *server {
+// the workspace it's started for, and sends what it finds on its own to loop.
+func (le *Integration) serverFor(loop editor.Sender, lang *language, dir string) *server {
 	if srv, ok := le.servers[lang.id()]; ok {
 		return srv
 	}
@@ -99,6 +103,7 @@ func (le *Integration) serverFor(lang *language, dir string) *server {
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &server{
 		le:       le,
+		loop:     loop,
 		lang:     lang,
 		rootDir:  lang.root(dir),
 		cancel:   cancel,
@@ -205,6 +210,7 @@ func (le *Integration) Close() error {
 // talking to it.
 type server struct {
 	le      *Integration
+	loop    editor.Sender // gets the diagnostics published by the server
 	lang    *language
 	rootDir string // the workspace root to start the server with
 
@@ -214,6 +220,10 @@ type server struct {
 	client   lspClient   // owned by the sync loop until it's done
 	ready    atomic.Bool // the server has started
 	failed   atomic.Bool // the server couldn't start
+
+	diagsMu       sync.Mutex
+	diags         map[uri.URI][]code.Diagnostic // the latest published problems by document
+	renderPending atomic.Bool                   // a render is requested for the published problems
 }
 
 // syncLoop starts the language server, then sends it buffer changes and
@@ -247,7 +257,11 @@ func (srv *server) start(ctx context.Context) bool {
 	starter := le.Starter
 	if starter == nil {
 		starter = func(ctx context.Context, _, rootDir string) (lspClient, error) {
-			return srv.lang.start(ctx, le, rootDir)
+			return srv.lang.start(ctx, le, rootDir, lsp.Options{
+				SnippetSupport: true,
+				Logf:           le.Logf,
+				Diagnostics:    srv.publishDiagnostics,
+			})
 		}
 	}
 	le.Logf("starting the %s LSP server for %s", srv.lang.id(), srv.rootDir)
@@ -319,6 +333,57 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 		data.assign(suggestions, at)
 		e.RequestRender()
 	}))
+}
+
+// publishDiagnostics replaces the problems of a document with the ones the
+// server found and makes the editor show them. The problems less severe than
+// warnings, like hints for code modernization, are left out.
+// It runs on the connection goroutine, so it must not wait for the editor loop.
+func (srv *server) publishDiagnostics(params protocol.PublishDiagnosticsParams) {
+	var diags []code.Diagnostic
+	for _, d := range params.Diagnostics {
+		sev := code.SeverityError // the client decides if it's not set
+		switch d.Severity {
+		case protocol.DiagnosticSeverityWarning:
+			sev = code.SeverityWarning
+		case protocol.DiagnosticSeverityInformation, protocol.DiagnosticSeverityHint:
+			continue
+		}
+		ln := int(d.Range.Start.Line)
+		i := sort.Search(len(diags), func(i int) bool { return diags[i].Line > ln })
+		diags = slices.Insert(diags, i, code.Diagnostic{Line: ln, Severity: sev, Message: d.Message})
+	}
+
+	srv.updateDiags(params.URI, diags)
+
+	if srv.loop == nil || !srv.renderPending.CompareAndSwap(false, true) {
+		return // Nowhere to render, or the render is already on its way.
+	}
+	go srv.loop.Send(editor.CommandFunc(func(e *editor.Editor) {
+		srv.renderPending.Store(false)
+		e.RequestRender()
+	}))
+}
+
+func (srv *server) updateDiags(uri protocol.DocumentURI, diags []code.Diagnostic) {
+	srv.diagsMu.Lock()
+	defer srv.diagsMu.Unlock()
+
+	if srv.diags == nil {
+		srv.diags = make(map[protocol.DocumentURI][]code.Diagnostic)
+	}
+	if len(diags) == 0 {
+		delete(srv.diags, uri)
+	} else {
+		srv.diags[uri] = diags
+	}
+}
+
+// diagnostics returns the latest problems published for the document.
+func (srv *server) diagnostics(doc uri.URI) []code.Diagnostic {
+	srv.diagsMu.Lock()
+	defer srv.diagsMu.Unlock()
+	return srv.diags[doc]
 }
 
 // syncText sends the server the text of req.

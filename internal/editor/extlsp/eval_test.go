@@ -31,6 +31,7 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/lsp"
@@ -956,5 +957,43 @@ func TestRealGoplsGoesToDefinition(t *testing.T) {
 	fmt.Printf("strings.ToUpper is defined at %s:%v\n", got.Path, got.Pos)
 	if filepath.Base(got.Path) != "strings.go" {
 		t.Errorf("strings.ToUpper is defined in %s", got.Path)
+	}
+}
+
+// TestRealGoplsDiagnostics opens a file with an error with the production
+// integration and a real gopls, and waits for the error to be reported.
+func TestRealGoplsDiagnostics(t *testing.T) {
+	skipUnlessEval(t)
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/x\n\ngo 1.22\n"), 0o644)
+	src := "package main\n\nfunc main() {\n\tx := 1\n}\n"
+	path := filepath.Join(dir, "main.go")
+	_ = os.WriteFile(path, []byte(src), 0o644)
+
+	var le Integration
+	h := editor.NewTestHarness()
+	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
+	h.Extend(&le)
+	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
+		t.Fatal(err)
+	}
+	defer le.Close()
+	data := h.Top().ExtensionData(le.ID()).(*BufferData)
+	h.Run(t)
+
+	started := time.Now()
+	for {
+		diags := onLoop(t, h, data.Diagnostics)
+		if len(diags) > 0 {
+			fmt.Printf("diagnostics in %s: %+v\n", time.Since(started).Round(time.Millisecond), diags)
+			if d := diags[0]; d.Line != 3 || d.Severity != code.SeverityError || !strings.Contains(d.Message, "declared and not used") {
+				t.Errorf("diagnostics = %+v", diags)
+			}
+			return
+		}
+		if time.Since(started) > 30*time.Second {
+			t.Fatal("no diagnostics")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

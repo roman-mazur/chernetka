@@ -174,8 +174,17 @@ func (lbd *BufferData) FindDefinition(loop editor.Sender, pos content.Position) 
 	})
 }
 
+// Diagnostics returns the latest problems the server found in the buffer.
+func (lbd *BufferData) Diagnostics() []code.Diagnostic {
+	if lbd.srv == nil || lbd.docUri == "" {
+		return nil
+	}
+	return lbd.srv.diagnostics(lbd.docUri)
+}
+
 var (
-	_ editor.CodeAssist       = new(BufferData) // enforce code assist interface implementation
-	_ editor.Formatter        = new(BufferData)
-	_ editor.DefinitionFinder = new(BufferData)
+	_ editor.CodeAssist          = new(BufferData) // enforce code assist interface implementation
+	_ editor.Formatter           = new(BufferData)
+	_ editor.DefinitionFinder    = new(BufferData)
+	_ editor.DiagnosticsProvider = new(BufferData)
 )

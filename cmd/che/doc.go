@@ -101,6 +101,11 @@
 //
 // Go and CUE files are formatted with their language server when saved.
 //
+// The problems the language server finds are shown as diagnostics: the line
+// numbers of the lines with errors are red, and yellow with warnings. The
+// problem of the cursor line is explained at the end of the line, and the
+// status bar counts the errors (E) and warnings (W) of the file.
+//
 // Ctrl+click on a symbol goes to its definition, opening its file if needed.
 // Ctrl+O and Enter switch back to the previous buffer.
 //

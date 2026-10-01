@@ -13,8 +13,9 @@ import (
 type language struct {
 	syntax *code.Syntax // with the root finder
 
-	// start launches the server for the workspace in rootDir.
-	start func(ctx context.Context, le *Integration, rootDir string) (lspClient, error)
+	// start launches the server for the workspace in rootDir. The problems the
+	// server finds are passed to diagnostics.
+	start func(ctx context.Context, le *Integration, rootDir string, opts lsp.Options) (lspClient, error)
 
 	// rankedCompletion is set if the server sorts completion items by
 	// relevance. Items of other servers are ranked by the typed prefix.
@@ -53,25 +54,18 @@ func languageForPath(path string) *language {
 }
 
 // startGopls starts gopls with the Go toolchain the workspace requires.
-func startGopls(ctx context.Context, le *Integration, rootDir string) (lspClient, error) {
+func startGopls(ctx context.Context, le *Integration, rootDir string, opts lsp.Options) (lspClient, error) {
 	var cache string
 	if dir, err := internal.UserDir(); err == nil {
 		cache = filepath.Join(dir, "gopls")
 	}
-	return lsp.Start(ctx, rootDir, lsp.Options{
-		GoplsCache: cache,
-		// Calls come with brackets and the cursor placed inside them.
-		SnippetSupport: true,
-		Logf:           le.Logf,
-	})
+	opts.GoplsCache = cache
+	return lsp.Start(ctx, rootDir, opts)
 }
 
 // startCUE starts the language server built into the cue command.
-func startCUE(ctx context.Context, le *Integration, rootDir string) (lspClient, error) {
-	return lsp.StartWith(ctx, rootDir, lsp.Options{
-		Command:        "cue",
-		Args:           []string{"lsp"},
-		SnippetSupport: true,
-		Logf:           le.Logf,
-	})
+func startCUE(ctx context.Context, le *Integration, rootDir string, opts lsp.Options) (lspClient, error) {
+	opts.Command = "cue"
+	opts.Args = []string{"lsp"}
+	return lsp.StartWith(ctx, rootDir, opts)
 }
