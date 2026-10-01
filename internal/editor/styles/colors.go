@@ -17,6 +17,8 @@ var DefaultColors = ColorTheme{
 	LineAction:     parseColor("6AAB73"),
 	SearchMatchBg:  parseColor("5C4B1E"),
 	SearchCursorBg: parseColor("9E7A1A"),
+	Error:          parseColor("F75464"),
+	Warning:        parseColor("E0BB65"),
 
 	syntaxColors: map[code.TokenType]color.Color{
 		code.TtKeyword:         parseColor("CF8E6D"),

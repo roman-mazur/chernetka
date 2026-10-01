@@ -37,6 +37,8 @@ type ColorTheme struct {
 	LineAction     color.Color // marker of the lines that can be engaged
 	SearchMatchBg  color.Color // search matches
 	SearchCursorBg color.Color // the search match at the cursor
+	Error          color.Color // marker of the lines with errors
+	Warning        color.Color // marker of the lines with warnings
 
 	syntaxColors map[code.TokenType]color.Color
 }
