@@ -25,6 +25,7 @@ type contentPrinter struct {
 	i, j  int // lines range
 
 	suggestion code.Suggestion
+	diags      map[int]code.Diagnostic // the most severe problem of the lines that have them
 
 	lnDigits int      // number of digits for line numbers
 	lnBuf    [10]byte // buffer for line numbers
@@ -45,6 +46,34 @@ func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
 	if cr.CodeAssist != nil && b.mode == ModeInsert {
 		cr.suggestion = cr.TextSuggestion()
 	}
+	if dp, ok := FindExtData[DiagnosticsProvider](b); ok {
+		cr.diags = worstDiagnostics(dp.Diagnostics(), i, j)
+	}
+}
+
+// worstDiagnostics returns the most severe of diags for every line in [i, j).
+func worstDiagnostics(diags []code.Diagnostic, i, j int) map[int]code.Diagnostic {
+	var res map[int]code.Diagnostic
+	for _, d := range diags {
+		if d.Line < i || d.Line >= j {
+			continue
+		}
+		if prev, ok := res[d.Line]; ok && prev.Severity <= d.Severity {
+			continue
+		}
+		if res == nil {
+			res = make(map[int]code.Diagnostic)
+		}
+		res[d.Line] = d
+	}
+	return res
+}
+
+func severityColor(s code.Severity) color.Color {
+	if s == code.SeverityError {
+		return styles.DefaultColors.Error
+	}
+	return styles.DefaultColors.Warning
 }
 
 func (cr *contentPrinter) lineNumber(n int) string {
@@ -70,6 +99,9 @@ func (cr *contentPrinter) render(out io.Writer) {
 			style := styles.TextStyle{TextColor: styles.DefaultColors.Suggestion}
 			if ln == cr.b.c.Line {
 				style.TextColor = styles.DefaultColors.LineSelected
+			}
+			if d, ok := cr.diags[ln]; ok {
+				style.TextColor = severityColor(d.Severity)
 			}
 			escape.StyleText(out, cr.lineNumber(ln+1), style)
 		}
@@ -155,13 +187,22 @@ func (cr *contentPrinter) hasGhost(ln int, line string) bool {
 }
 
 // renderLineTail fills the rest of the line after its content: the current
-// line background, and the suggestion info aligned to the right.
+// line background, and the info aligned to the right: about the suggestion, or
+// the problem found on the line.
 func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, lineHL bool) {
 	used := runeToScreenCol(raw, len(raw), len(cr.tab))
-	var info string
+	var (
+		info      string
+		infoColor = styles.DefaultColors.Suggestion
+		shorten   bool // the info may be cut to fit
+	)
 	if cr.hasGhost(ln, raw) {
 		used += utf8.RuneCountInString(cr.suggestion.Text)
 		info = cr.suggestion.Info
+	} else if d, ok := cr.diags[ln]; ok && ln == cr.b.c.Line {
+		info, _, _ = strings.Cut(d.Message, "\n")
+		infoColor = severityColor(d.Severity)
+		shorten = true
 	}
 	used = max(0, used-cr.b.xoff) // only the visible part takes the space
 	free := cr.b.w - used
@@ -174,10 +215,13 @@ func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, line
 		bg.BgColor = styles.DefaultColors.LineSelectedBg
 	}
 	const gap, margin = 4, 2 // keep the info off the text and the action marker
+	if shorten {
+		info = shortenText(info, free-gap-margin)
+	}
 	if infoLen := utf8.RuneCountInString(info); info != "" && free >= infoLen+gap+margin {
 		escape.StyleText(out, strings.Repeat(" ", free-infoLen-margin), bg)
 		infoStyle := bg
-		infoStyle.TextColor = styles.DefaultColors.Suggestion
+		infoStyle.TextColor = infoColor
 		escape.StyleText(out, info, infoStyle)
 		free = margin
 	}
@@ -323,6 +367,23 @@ func (clp *colorLinePrinter) emit(s string, style styles.TextStyle) {
 		s = s[:end]
 	}
 	escape.StyleText(clp.out, s, style)
+}
+
+// minShortened is the width text is not shortened below: less isn't readable.
+const minShortened = 12
+
+// shortenText cuts s to be no wider than w, marking the cut with an ellipsis.
+// s is returned as is if it fits or w is too small to show anything useful.
+func shortenText(s string, w int) string {
+	if w < minShortened || utf8.RuneCountInString(s) <= w {
+		return s
+	}
+	i := 0
+	for range w - 1 {
+		_, sz := utf8.DecodeRuneInString(s[i:])
+		i += sz
+	}
+	return s[:i] + "…"
 }
 
 func nlDigitsLen(x int) int {

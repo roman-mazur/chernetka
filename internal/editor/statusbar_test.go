@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 func TestStatusBar_Render(t *testing.T) {
@@ -99,4 +101,35 @@ func TestStatusBar_Render(t *testing.T) {
 		})
 	}
 
+}
+
+func TestStatusBar_Diagnostics(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		diags []code.Diagnostic
+		want  string
+	}{
+		{name: "none", want: ""},
+		{name: "errors", diags: []code.Diagnostic{{Line: 1}, {Line: 1}}, want: "E2"},
+		{name: "warnings", diags: []code.Diagnostic{{Severity: code.SeverityWarning}}, want: "W1"},
+		{name: "both", diags: []code.Diagnostic{{Line: 3}, {Severity: code.SeverityWarning}}, want: "E1 W1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := newDiagnosticsTestBuffer("x", tc.diags...)
+			sb := StatusBar{buf: buf}
+			var out bytes.Buffer
+			sb.Render(&out)
+			got := escape.Clean(out.String())
+			t.Log(got)
+			if tc.want == "" {
+				if strings.Contains(got, " E") || strings.Contains(got, " W") {
+					t.Errorf("problems shown: %q", got)
+				}
+				return
+			}
+			if !strings.Contains(got, "test.go  "+tc.want) {
+				t.Errorf("status %q, want %q", got, tc.want)
+			}
+		})
+	}
 }

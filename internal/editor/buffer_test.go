@@ -3,9 +3,11 @@ package editor
 import (
 	"bytes"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -865,5 +867,71 @@ func TestBuffer_HorizontalScroll_Coordinates(t *testing.T) {
 		if want := fmt.Sprintf("\x1b[1;%dH", wantCol); out.String() != want {
 			t.Errorf("%q scrolled by %d: cursor position %q, want %q", tc.text, tc.xoff, out.String(), want)
 		}
+	}
+}
+
+// diagnostics is a DiagnosticsProvider with fixed problems.
+type diagnostics []code.Diagnostic
+
+func (d diagnostics) Diagnostics() []code.Diagnostic { return d }
+
+var clearLine = func() string {
+	var s strings.Builder
+	escape.ClearLine(&s)
+	return s.String()
+}()
+
+func newDiagnosticsTestBuffer(text string, diags ...code.Diagnostic) *Buffer {
+	var data content.FullText
+	for l := range strings.SplitSeq(text, "\n") {
+		data = append(data, content.TextLine(l))
+	}
+	buf := &Buffer{Path: "test.go", Content: &data, w: 60, h: data.Len() + 1}
+	buf.ext.extend("lsp", diagnostics(diags))
+	return buf
+}
+
+func TestBuffer_Render_Diagnostics(t *testing.T) {
+	buf := newDiagnosticsTestBuffer("first\nsecond\nthird\nfourth",
+		code.Diagnostic{Line: 1, Severity: code.SeverityWarning, Message: "unused result"},
+		code.Diagnostic{Line: 1, Severity: code.SeverityError, Message: "undefined: someVariable\nmore details"},
+		code.Diagnostic{Line: 2, Severity: code.SeverityWarning, Message: "unreachable code"},
+		code.Diagnostic{Line: 10, Severity: code.SeverityError, Message: "stale, out of range"},
+	)
+	buf.c.Line = 1
+
+	var out bytes.Buffer
+	buf.Render(&out, &RenderPrefs{TabSize: 4})
+	t.Log("\n" + out.String())
+	rows := strings.Split(out.String(), "\r\n")
+
+	// markedWith reports if the line number of row i is shown in the color.
+	markedWith := func(i int, c color.Color) bool {
+		var s strings.Builder
+		escape.StyleText(&s, strconv.Itoa(i+1)+" ", styles.TextStyle{TextColor: c})
+		return strings.HasPrefix(strings.TrimPrefix(rows[i], clearLine), s.String())
+	}
+	for i, want := range []color.Color{nil, styles.DefaultColors.Error, styles.DefaultColors.Warning, nil} {
+		for _, c := range []color.Color{styles.DefaultColors.Error, styles.DefaultColors.Warning} {
+			if marked := markedWith(i, c); marked != (c == want) {
+				t.Errorf("row %d marked with %v = %t: %q", i, c, marked, rows[i])
+			}
+		}
+	}
+
+	// The most severe problem of the cursor line is explained, in its first line only.
+	if got := escape.Clean(rows[1]); !strings.Contains(got, "undefined: someVariable") || strings.Contains(got, "more details") {
+		t.Errorf("cursor line = %q, want the error message", got)
+	}
+	if got := escape.Clean(rows[2]); strings.Contains(got, "unreachable") {
+		t.Errorf("message shown off the cursor line: %q", got)
+	}
+
+	buf.w = 34 // The message is cut to fit.
+	out.Reset()
+	buf.Render(&out, &RenderPrefs{TabSize: 4})
+	rows = strings.Split(out.String(), "\r\n")
+	if got := escape.Clean(rows[1]); !strings.HasSuffix(strings.TrimSpace(got), "undefined: someVari…") {
+		t.Errorf("cursor line = %q, want a shortened message", got)
 	}
 }

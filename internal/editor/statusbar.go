@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
@@ -66,6 +67,9 @@ func (s *StatusBar) Render(out io.Writer) {
 	if s.buf.dirty {
 		suffix = " [*]"
 	}
+	if problems := s.problems(); problems != "" {
+		suffix += "  " + problems
+	}
 	if re := s.buf.search; re != nil {
 		suffix += "  /" + re.String()
 	}
@@ -77,4 +81,29 @@ func (s *StatusBar) Render(out io.Writer) {
 	_, _ = io.WriteString(out, status)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 	_, _ = io.WriteString(out, pos)
+}
+
+// problems summarizes the problems found in the buffer, like "E2 W1".
+// It's empty if there are none.
+func (s *StatusBar) problems() string {
+	dp, ok := FindExtData[DiagnosticsProvider](s.buf)
+	if !ok {
+		return ""
+	}
+	var errs, warns int
+	for _, d := range dp.Diagnostics() {
+		if d.Severity == code.SeverityError {
+			errs++
+		} else {
+			warns++
+		}
+	}
+	var parts []string
+	if errs > 0 {
+		parts = append(parts, fmt.Sprintf("E%d", errs))
+	}
+	if warns > 0 {
+		parts = append(parts, fmt.Sprintf("W%d", warns))
+	}
+	return strings.Join(parts, " ")
 }
