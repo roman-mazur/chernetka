@@ -307,10 +307,6 @@ type colorLinePrinter struct {
 	from, to int // visible screen columns range, the text outside of it is scrolled away
 }
 
-func (clp *colorLinePrinter) printedText(s string) string {
-	return strings.ReplaceAll(s, "\t", clp.tab)
-}
-
 func (clp *colorLinePrinter) currentBgIdx() int {
 	return slices.IndexFunc(clp.bg, func(cs colorSpan) bool {
 		return cs.Start.Col <= clp.li && cs.End.Col >= clp.li
@@ -322,14 +318,14 @@ func (clp *colorLinePrinter) print(s string, style styles.TextStyle) {
 	bgIdx := clp.currentBgIdx()
 	if bgIdx == -1 {
 		appliedStyle.BgColor = nil
-		clp.emit(clp.printedText(s), appliedStyle)
+		clp.emitTabSplit(s, appliedStyle)
 		return
 	}
 	for start := 0; start < len(s); {
 		bg := clp.bg[bgIdx]
 		end := min(len(s), bg.End.Col-clp.li)
 		appliedStyle.BgColor = bg.color
-		clp.emit(clp.printedText(s[start:end]), appliedStyle)
+		clp.emitTabSplit(s[start:end], appliedStyle)
 		start = end
 		if clp.li+start >= bg.End.Col {
 			bgIdx++
@@ -344,7 +340,18 @@ func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
 		style.BgColor = clp.bg[bgIdx].color
 	}
 
-	clp.emit(clp.printedText(txt), style)
+	clp.emitTabSplit(txt, style)
+}
+
+func (clp *colorLinePrinter) emitTabSplit(s string, style styles.TextStyle) {
+	i := 0
+	for s := range strings.SplitSeq(s, "\t") {
+		if i > 0 {
+			clp.emit(clp.tab, style)
+		}
+		i++
+		clp.emit(s, style)
+	}
 }
 
 // emit writes the part of the printed text that falls into the visible columns range.
