@@ -8,8 +8,8 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/go-cmp v0.7.0
 	github.com/kanrichan/resvg-go v0.0.1
+	github.com/mattn/go-pointer v0.0.1
 	github.com/tree-sitter-grammars/tree-sitter-yaml v0.7.2
-	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-bash v0.25.1
 	github.com/tree-sitter/tree-sitter-go v0.25.0
 	github.com/tree-sitter/tree-sitter-json v0.24.8
@@ -36,12 +36,13 @@ require (
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/pprof v0.0.0-20240927180334-d43a67379298 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/mazznoer/csscolorparser v0.1.5 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.3.4 // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tetratelabs/wazero v1.4.0 // indirect
+	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
 	github.com/yuin/goldmark v1.7.4 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

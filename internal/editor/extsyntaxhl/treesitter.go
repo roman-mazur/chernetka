@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
-	treesitter "github.com/tree-sitter/go-tree-sitter"
+	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	bashsitter "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	jsonsitter "github.com/tree-sitter/tree-sitter-json/bindings/go"
@@ -181,13 +180,6 @@ func newTreeSitter(g *tsGrammar) func() highlighter {
 	return func() highlighter { return &tsHighlighter{grammar: g} }
 }
 
-// parseTimeout limits parsing the text of n bytes. It runs on the editor loop, and some
-// grammars never finish on some broken input, like tree-sitter-cue on "{R(z&[".
-// The grammars parse megabytes per second: a parse of a valid file is far below it.
-func parseTimeout(n int) time.Duration {
-	return 100*time.Millisecond + time.Duration(n>>10)*time.Millisecond
-}
-
 func (h *tsHighlighter) reparse(src *source) error {
 	h.closeTree()
 	if err := h.grammar.prepare(); err != nil {
@@ -199,18 +191,8 @@ func (h *tsHighlighter) reparse(src *source) error {
 	if err := parser.SetLanguage(h.grammar.lang); err != nil {
 		return err
 	}
-	text := []byte(src.text)
-	timeout := parseTimeout(len(text))
-	deadline := time.Now().Add(timeout)
 	// TODO: feed the edited ranges to Parse to reparse incrementally.
-	h.tree = parser.ParseWithOptions(func(offset int, _ treesitter.Point) []byte {
-		return text[min(offset, len(text)):]
-	}, nil, &treesitter.ParseOptions{
-		ProgressCallback: func(treesitter.ParseState) bool { return time.Now().After(deadline) },
-	})
-	if h.tree == nil {
-		return fmt.Errorf("parsing is canceled after %s", timeout)
-	}
+	h.tree = parser.Parse([]byte(src.text), nil)
 	return nil
 }
 

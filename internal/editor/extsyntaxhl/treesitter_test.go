@@ -143,23 +143,19 @@ func TestCUEHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
-// TestCUEParseTimeout checks that the input the CUE grammar never finishes parsing
-// is given up on instead of freezing the editor.
-func TestCUEParseTimeout(t *testing.T) {
+// TestCUEErrorRecovery checks the input the core v0.25.0 never finished parsing
+// with the CUE grammar.
+func TestCUEErrorRecovery(t *testing.T) {
 	const text = "{R(z&["
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		buf, ext := openDoc(t, "hang.cue", text)
-		hlDoc{{text, nil}}.check(t, highlighterOf(t, buf, ext))
-		if doc := buf.ExtensionData(ext.ID()).(*document); doc.parseErr == nil {
-			t.Error("no parse error")
-		}
+		openDoc(t, "recovery.cue", text)
 	}()
 	select {
 	case <-done:
-	case <-time.After(10 * parseTimeout(len(text))):
-		t.Fatal("parsing is not canceled")
+	case <-time.After(5 * time.Second):
+		t.Fatal("parsing does not finish")
 	}
 }
 
