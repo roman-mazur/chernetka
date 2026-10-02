@@ -18,7 +18,7 @@ func TestConsumeClipboardPaste_NotAPaste(t *testing.T) {
 		{"wrong marker", []byte("\x1b[201~hello")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			content, detected, err := ConsumeClipboardPaste(tc.b, strings.NewReader(""))
+			content, _, detected, err := ConsumeClipboardPaste(tc.b, strings.NewReader(""))
 			if err != nil {
 				t.Fatalf("err = %v, want nil", err)
 			}
@@ -38,6 +38,7 @@ func TestConsumeClipboardPaste(t *testing.T) {
 		b    []byte // the bytes already read before the paste was recognized
 		rest string // the rest of the stream, split byte-by-byte on read
 		want string
+		left string // the input after the paste
 	}{
 		{
 			name: "empty paste",
@@ -78,18 +79,31 @@ func TestConsumeClipboardPaste(t *testing.T) {
 			want: "before\x1b[201-after",
 		},
 		{
-			name: "trailing text after the paste is left in the reader",
-			b:    []byte("\x1b[200~hello\x1b[201~ignored"),
+			name: "text after the paste in the buffer",
+			b:    []byte("\x1b[200~hello\x1b[201~left"),
 			want: "hello",
+			left: "left",
+		},
+		{
+			name: "text after the paste in the reader",
+			b:    []byte("\x1b[200~hel"),
+			rest: "lo\x1b[201~left",
+			want: "hello",
+			left: "left",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// iotest.OneByteReader forces every Read to return at most one
 			// byte, exercising the case where the terminator marker arrives
 			// fragmented across multiple reads.
-			content, detected, err := ConsumeClipboardPaste(tc.b, iotest.OneByteReader(strings.NewReader(tc.rest)))
+			r := strings.NewReader(tc.rest)
+			content, rest, detected, err := ConsumeClipboardPaste(tc.b, iotest.OneByteReader(r))
 			if err != nil {
 				t.Fatalf("err = %v, want nil", err)
+			}
+			// The reader is read one byte at a time: the rest may stay in it.
+			if left := string(rest) + tc.rest[len(tc.rest)-r.Len():]; left != tc.left {
+				t.Errorf("left %q, want %q", left, tc.left)
 			}
 			if !detected {
 				t.Errorf("detected = false, want true")
@@ -116,7 +130,7 @@ func TestConsumeClipboardPaste_ReaderError(t *testing.T) {
 			if tc.rest != "" {
 				r = iotest.TimeoutReader(strings.NewReader(tc.rest))
 			}
-			content, detected, err := ConsumeClipboardPaste(tc.b, r)
+			content, _, detected, err := ConsumeClipboardPaste(tc.b, r)
 			if err == nil {
 				t.Fatal("err = nil, want an error")
 			}

@@ -234,6 +234,29 @@ func TestEditor_Run(t *testing.T) {
 	})
 }
 
+// TestEditor_Run_EscAtReadEnd checks that a sequence split by a read of the terminal
+// is not taken for the Esc key followed by text. Taking a paste for the typed keys
+// in the normal mode would run them as commands, quitting the editor on q.
+func TestEditor_Run_EscAtReadEnd(t *testing.T) {
+	te := NewTestHarness()
+	if err := te.OpenReader("test.txt", strings.NewReader("one")); err != nil {
+		t.Fatalf("OpenReader: %s", err)
+	}
+	te.Run(t)
+
+	// The editor reads 64 bytes at once: the paste starts at the end of the first read.
+	typed := "i" + strings.Repeat("a", 62)
+	te.SendInput(t, []byte(typed+"\x1b[200~xq\x1b[201~"))
+
+	var line string
+	te.Post(t, CommandFunc(func(e *Editor) {
+		line = e.Top().Content.Lines()[0].String()
+	}))
+	if want := typed[1:] + "xqone"; line != want {
+		t.Errorf("line %q, want %q", line, want)
+	}
+}
+
 // TestEditor_LayoutWindowSize covers the terminal size resolution used by layout.
 // A horizontally split terminal pane is shorter than the mock fallback height, and
 // the editor used to keep that fallback because it treated fd 0 (the tty arriving on

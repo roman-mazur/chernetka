@@ -24,6 +24,20 @@ func (e *Editor) readAndHandleInput(ctx context.Context, terminal *bufio.Reader)
 			break
 		}
 		data := append(pending, inBuf[:n]...)
+		// An Esc at the end may start a sequence split by the read: it's the Esc key
+		// only if nothing else is read from the terminal with it.
+		for len(data) > 0 && data[len(data)-1] == escByte && terminal.Buffered() > 0 {
+			if n, err = in.Read(inBuf[:1]); n > 0 {
+				data = append(data, inBuf[0])
+			}
+			if err != nil {
+				break
+			}
+		}
+		if err != nil {
+			e.handleInputError(err)
+			break
+		}
 		if debugInput {
 			e.Logf("input: %v", data)
 		}
@@ -52,12 +66,16 @@ func (cr *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// maxPendingInput limits the incomplete sequence kept until the next read.
-const maxPendingInput = 256
+const (
+	// maxPendingInput limits the incomplete sequence kept until the next read.
+	maxPendingInput = 256
+
+	escByte = 0x1b
+)
 
 // sendInput sends the keys, mouse events, and pastes read from the terminal to the editor loop.
 // It returns the incomplete sequence at the end of the input to be completed by the next read.
-// A paste is read until its end from in.
+// A paste is read until its end from in, and the input read after it is handled too.
 func (e *Editor) sendInput(data []byte, in io.Reader) (rest []byte, err error) {
 	for len(data) > 0 {
 		keys, n := input.Keys(data)
@@ -83,7 +101,7 @@ func (e *Editor) sendInput(data []byte, in io.Reader) (rest []byte, err error) {
 			data = data[n:]
 			continue
 		}
-		pasted, detected, err := input.ConsumeClipboardPaste(data, in)
+		pasted, after, detected, err := input.ConsumeClipboardPaste(data, in)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +109,8 @@ func (e *Editor) sendInput(data []byte, in io.Reader) (rest []byte, err error) {
 			if pasted != "" {
 				e.SendBufferCmd(PasteText(pasted))
 			}
-			return nil, nil // The rest of the input is consumed by the paste.
+			data = after
+			continue
 		}
 		return data, nil // Incomplete.
 	}

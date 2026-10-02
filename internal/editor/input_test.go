@@ -94,6 +94,26 @@ func TestEditor_SendInput(t *testing.T) {
 		}
 	})
 
+	t.Run("keys after paste", func(t *testing.T) {
+		e := newEditor(t)
+		sendChunks(t, e, "i\x1b[200~x\x1b[201~yz")
+		if got := e.Top().Content.Lines()[0].String(); got != "xyzone" {
+			t.Errorf("line %q", got)
+		}
+	})
+
+	t.Run("paste after paste", func(t *testing.T) {
+		e := newEditor(t)
+		// The second paste starts in the read of the first one. It's not typed in the normal mode.
+		sendChunks(t, e, "\x1b[200~x\x1b[201~\x1b[20", "0~qj\x1b[201~")
+		if e.quitRequested {
+			t.Fatal("quit on a paste")
+		}
+		if got := e.Top().Content.Lines()[0].String(); got != "xqjone" {
+			t.Errorf("line %q", got)
+		}
+	})
+
 	t.Run("keys after quit", func(t *testing.T) {
 		e := newEditor(t)
 		sendChunks(t, e, "qj")

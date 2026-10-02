@@ -6,7 +6,9 @@ import (
 	"io"
 )
 
-func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, detected bool, err error) {
+// ConsumeClipboardPaste reads the bracketed paste starting b until its end, reading the rest
+// of it from in. The rest is the input read after the end of the paste, from b or from in.
+func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, rest []byte, detected bool, err error) {
 	if !checkClipboardPaste(b, "200~") {
 		return
 	}
@@ -37,6 +39,7 @@ func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, detected boo
 	}
 
 	content = res.String()
+	rest, _ = input.Peek(input.Buffered())
 	return
 }
 
