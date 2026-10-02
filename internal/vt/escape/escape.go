@@ -50,11 +50,9 @@ func ClearLine(out io.Writer) {
 	_, _ = io.WriteString(out, "\x1b[2K")
 }
 
-// StyleText prints the provided text with the defined TextStyle.
-func StyleText(out io.Writer, text string, style styles.TextStyle) {
+func StyleTextSet(out io.Writer, style styles.TextStyle) bool {
 	if style == (styles.TextStyle{}) {
-		_, _ = io.WriteString(out, text)
-		return
+		return false
 	}
 
 	styleSet := false
@@ -84,8 +82,16 @@ func StyleText(out io.Writer, text string, style styles.TextStyle) {
 	}
 
 	_, _ = io.WriteString(out, "m")
+	return true
+}
+
+// StyleText prints the provided text with the defined TextStyle.
+func StyleText(out io.Writer, text string, style styles.TextStyle) {
+	styleSet := StyleTextSet(out, style)
 	_, _ = io.WriteString(out, text)
-	_, _ = io.WriteString(out, "\x1b[0m")
+	if styleSet {
+		StyleTextReset(out)
+	}
 }
 
 //go:generate go run ./mklookup zlookup.go
@@ -97,6 +103,10 @@ func write8bitColor(out io.Writer, c color.Color) {
 	_, _ = io.WriteString(out, numbersLookup[g>>8])
 	_, _ = io.WriteString(out, ";")
 	_, _ = io.WriteString(out, numbersLookup[b>>8])
+}
+
+func StyleTextReset(out io.Writer) {
+	_, _ = io.WriteString(out, "\x1b[0m")
 }
 
 func DisableLineWrapping(out io.Writer) (restore func()) {

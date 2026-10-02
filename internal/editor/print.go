@@ -344,22 +344,29 @@ func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
 }
 
 func (clp *colorLinePrinter) emitTabSplit(s string, style styles.TextStyle) {
+	var styleSet bool
 	i := 0
 	for s := range strings.SplitSeq(s, "\t") {
 		if i > 0 {
-			clp.emit(clp.tab, style)
+			if clp.emit(clp.tab, styleSet, style) {
+				styleSet = true
+			}
 		}
 		i++
-		clp.emit(s, style)
+		if clp.emit(s, styleSet, style) {
+			styleSet = true
+		}
+	}
+	if styleSet {
+		escape.StyleTextReset(clp.out)
 	}
 }
 
-// emit writes the part of the printed text that falls into the visible columns range.
-func (clp *colorLinePrinter) emit(s string, style styles.TextStyle) {
+func (clp *colorLinePrinter) emit(s string, styleSet bool, style styles.TextStyle) (styleUpdated bool) {
 	x := clp.x
 	clp.x += utf8.RuneCountInString(s)
 	if clp.x <= clp.from || x >= clp.to {
-		return
+		return false
 	}
 	for ; x < clp.from; x++ {
 		_, sz := utf8.DecodeRuneInString(s)
@@ -373,7 +380,11 @@ func (clp *colorLinePrinter) emit(s string, style styles.TextStyle) {
 		}
 		s = s[:end]
 	}
-	escape.StyleText(clp.out, s, style)
+	if !styleSet {
+		styleUpdated = escape.StyleTextSet(clp.out, style)
+	}
+	_, _ = io.WriteString(clp.out, s)
+	return
 }
 
 // minShortened is the width text is not shortened below: less isn't readable.
