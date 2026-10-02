@@ -25,7 +25,7 @@ const (
 // reparse finds the subject, the trailers, and the comments of the message. Like git,
 // it treats the lines starting with '#' as comments wherever they are, and ignores
 // them together with the leading empty lines when looking for the subject and the body.
-func (gm *gitMessage) reparse(s *source) {
+func (gm *gitMessage) reparse(s *source) error {
 	gm.subject, gm.parts = nil, nil
 	state := gmBeforeSubject
 	afterEmptyLine, insideTags := false, false
@@ -85,6 +85,7 @@ func (gm *gitMessage) reparse(s *source) {
 			}
 		}
 	}
+	return nil
 }
 
 func (gm *gitMessage) spans(_ *source, emit func(rawSpan)) {
@@ -102,7 +103,7 @@ type gitRebase struct {
 	parts []rawSpan
 }
 
-func (gr *gitRebase) reparse(s *source) {
+func (gr *gitRebase) reparse(s *source) error {
 	for i, line := range s.lines {
 		if strings.HasPrefix(line, "#") {
 			gr.parts = append(gr.parts, rawSpan{
@@ -126,6 +127,7 @@ func (gr *gitRebase) reparse(s *source) {
 			gr.parts = append(gr.parts, gitRebaseTokenSpan(m, 3, code.TtComment, i))
 		}
 	}
+	return nil
 }
 
 func (gr *gitRebase) spans(_ *source, emit func(rawSpan)) {

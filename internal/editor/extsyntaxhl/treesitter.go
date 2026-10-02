@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
@@ -180,19 +181,37 @@ func newTreeSitter(g *tsGrammar) func() highlighter {
 	return func() highlighter { return &tsHighlighter{grammar: g} }
 }
 
-func (h *tsHighlighter) reparse(src *source) {
+// parseTimeout limits parsing the text of n bytes. It runs on the editor loop, and some
+// grammars never finish on some broken input, like tree-sitter-cue on "{R(z&[".
+// The grammars parse megabytes per second: a parse of a valid file is far below it.
+func parseTimeout(n int) time.Duration {
+	return 100*time.Millisecond + time.Duration(n>>10)*time.Millisecond
+}
+
+func (h *tsHighlighter) reparse(src *source) error {
 	h.closeTree()
 	if err := h.grammar.prepare(); err != nil {
-		return
+		return err
 	}
 
 	parser := treesitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(h.grammar.lang); err != nil {
-		return
+		return err
 	}
+	text := []byte(src.text)
+	timeout := parseTimeout(len(text))
+	deadline := time.Now().Add(timeout)
 	// TODO: feed the edited ranges to Parse to reparse incrementally.
-	h.tree = parser.Parse([]byte(src.text), nil)
+	h.tree = parser.ParseWithOptions(func(offset int, _ treesitter.Point) []byte {
+		return text[min(offset, len(text)):]
+	}, nil, &treesitter.ParseOptions{
+		ProgressCallback: func(treesitter.ParseState) bool { return time.Now().After(deadline) },
+	})
+	if h.tree == nil {
+		return fmt.Errorf("parsing is canceled after %s", timeout)
+	}
+	return nil
 }
 
 func (h *tsHighlighter) spans(src *source, emit func(rawSpan)) {

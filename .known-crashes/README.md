@@ -16,9 +16,3 @@ CHEMONKEY=1 go test -count=1 -run 'TestMonkey$' ./cmd/che > run.log 2>&1
 ```
 
 Remove the folder with the fix of the problem.
-
-| Problem                                                              | Seen | Kind  | Where                                         |
-|----------------------------------------------------------------------|------|-------|-----------------------------------------------|
-| [001 Insert at a stale cursor column](001-insert-stale-cursor-column) | 5    | panic | `editor.insertContent`, `content.InsertText`  |
-| [002 Unexpected exit](002-unexpected-exit)                            | 2    | exit  | unknown input quits che                       |
-| [003 Tree-sitter parse hang](003-treesitter-parse-hang)               | 1    | hang  | `extsyntaxhl.(*tsHighlighter).reparse` (cue)  |

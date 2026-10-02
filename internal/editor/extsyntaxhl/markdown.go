@@ -16,7 +16,7 @@ func newMarkdown() highlighter { return new(mdHighlighter) }
 
 // reparse does nothing: scanning a document is cheap enough that all the work
 // happens in spans, which also runs once per revision.
-func (*mdHighlighter) reparse(*source) {}
+func (*mdHighlighter) reparse(*source) error { return nil }
 
 func (*mdHighlighter) Close() error { return nil }
 

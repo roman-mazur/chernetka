@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	"rmazur.io/chernetka/internal/editor"
@@ -140,6 +141,26 @@ func TestCUEHighlight(t *testing.T) {
 
 	buf, ext := openDoc(t, "config.cue", doc.text())
 	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+// TestCUEParseTimeout checks that the input the CUE grammar never finishes parsing
+// is given up on instead of freezing the editor.
+func TestCUEParseTimeout(t *testing.T) {
+	const text = "{R(z&["
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		buf, ext := openDoc(t, "hang.cue", text)
+		hlDoc{{text, nil}}.check(t, highlighterOf(t, buf, ext))
+		if doc := buf.ExtensionData(ext.ID()).(*document); doc.parseErr == nil {
+			t.Error("no parse error")
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * parseTimeout(len(text))):
+		t.Fatal("parsing is not canceled")
+	}
 }
 
 func TestJSONHighlight(t *testing.T) {

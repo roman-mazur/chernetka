@@ -19,8 +19,9 @@ import (
 type highlighter interface {
 	// reparse rebuilds whatever state the highlighter keeps for a new revision
 	// of the document. It is called on every edit, so it holds the expensive
-	// work, while spans is called during rendering.
-	reparse(src *source)
+	// work, while spans is called during rendering. On an error, the document
+	// has no highlighting until the next successful reparse.
+	reparse(src *source) error
 	// spans reports every highlighted region of the document. Reported spans may
 	// cover several lines and may be nested inside one another; the caller
 	// flattens them.
@@ -105,10 +106,11 @@ type document struct {
 	lang *language
 	hl   highlighter
 
-	src     *source
-	builder spanBuilder
-	spans   []editor.SyntaxSpan // sorted by line number, then by start offset
-	built   bool
+	src      *source
+	parseErr error // of the last reparse
+	builder  spanBuilder
+	spans    []editor.SyntaxSpan // sorted by line number, then by start offset
+	built    bool
 }
 
 func (d *document) ensureParsed(text string) {
@@ -117,7 +119,12 @@ func (d *document) ensureParsed(text string) {
 		return
 	}
 	d.src = newSource(text)
-	d.hl.reparse(d.src)
+	err := d.hl.reparse(d.src)
+	if err != nil && d.parseErr == nil {
+		// Logged once: the document may stay broken for many edits.
+		d.Logf("cannot highlight %s: %s", d.buf.Path, err)
+	}
+	d.parseErr = err
 	// Spans are rebuilt lazily: a buffer that is edited several times between
 	// two renders is only flattened once, and one that is never rendered never
 	// gets flattened at all.
