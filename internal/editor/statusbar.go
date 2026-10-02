@@ -73,7 +73,7 @@ func (s *StatusBar) Render(out io.Writer) {
 	if re := s.buf.search; re != nil {
 		suffix += "  /" + re.String()
 	}
-	pos := fmt.Sprintf("%d:%d ", s.buf.c.Line+1, s.buf.c.Col+1)
+	pos := fmt.Sprintf("%d:%d ", s.buf.c().Line+1, s.buf.c().Col+1)
 	// Leave at least one space between the path and the cursor position.
 	pathWidth := s.buf.w - utf8.RuneCountInString(prefix+suffix+pos) - 1
 	status := prefix + shortenPath(s.buf.Path, pathWidth) + suffix

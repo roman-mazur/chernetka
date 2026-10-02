@@ -61,11 +61,11 @@ func TestRelMove_Dx(t *testing.T) {
 			for i, l := range tc.lines {
 				ft[i] = content.TextLine(l)
 			}
-			buf := &Buffer{Content: &ft, c: content.Position{tc.cx, tc.cy}}
+			buf := &Buffer{Content: &ft, _c: content.Position{tc.cx, tc.cy}}
 			RelMove{Dx: tc.d}.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
-			if buf.c.Col != tc.wantCx {
+			if buf.c().Col != tc.wantCx {
 				t.Errorf("cx = %d, want %d (line %q, cx=%d, d=%d)",
-					buf.c.Col, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
+					buf.c().Col, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
 			}
 		})
 	}
@@ -90,28 +90,28 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 		},
 		{
 			dy:     1,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{2, 0}},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, _c: content.Position{2, 0}},
 			cx:     2,
 			cy:     38,
 			offset: 38,
 		},
 		{
 			dy:     2,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{3, 5}},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, _c: content.Position{3, 5}},
 			cx:     3,
 			cy:     82,
 			offset: 77,
 		},
 		{
 			dy:     -1,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{1, 60}, offset: 40},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, _c: content.Position{1, 60}, offset: 40},
 			cx:     1,
 			cy:     22,
 			offset: 2,
 		},
 		{
 			dy:     -2,
-			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, c: content.Position{1, 60}, offset: 40},
+			buf:    Buffer{Content: &hundredLines, w: 80, h: 39, _c: content.Position{1, 60}, offset: 40},
 			cx:     1,
 			cy:     0,
 			offset: 0,
@@ -122,11 +122,11 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cmd := ScreenMove{ScreenD: tc.dy}
 			cmd.DoOnBuffer(&tc.buf, RenderPrefs{TabSize: 4})
-			if tc.buf.c.Col != tc.cx {
-				t.Errorf("buf.cx = %d, want %d", tc.buf.c.Col, tc.cx)
+			if tc.buf.c().Col != tc.cx {
+				t.Errorf("buf.cx = %d, want %d", tc.buf.c().Col, tc.cx)
 			}
-			if tc.buf.c.Line != tc.cy {
-				t.Errorf("buf.cy = %d, want %d", tc.buf.c.Line, tc.cy)
+			if tc.buf.c().Line != tc.cy {
+				t.Errorf("buf.cy = %d, want %d", tc.buf.c().Line, tc.cy)
 			}
 			if tc.buf.offset != tc.offset {
 				t.Errorf("buf.offset = %d, want %d", tc.buf.offset, tc.offset)
@@ -209,7 +209,7 @@ func TestScroll_Horizontal(t *testing.T) {
 		hideLineNumbers: true,
 	}
 	prefs := RenderPrefs{TabSize: 4}
-	c := buf.c
+	c := buf.c()
 
 	for _, step := range []struct {
 		dir  input.ScrollDirection
@@ -229,8 +229,8 @@ func TestScroll_Horizontal(t *testing.T) {
 			t.Errorf("scroll %d: xoff = %d, want %d", step.dir, buf.xoff, step.want)
 		}
 	}
-	if buf.c != c {
-		t.Errorf("cursor moved to %s", buf.c)
+	if buf.c() != c {
+		t.Errorf("cursor moved to %s", buf.c())
 	}
 
 	// Scrolled further by the cursor: scrolling right does not move back.
@@ -338,7 +338,7 @@ func TestClipboardCut(t *testing.T) {
 	prefs := RenderPrefs{TabSize: 4}
 
 	StartTextSelection.DoOnBuffer(buf, prefs)
-	buf.c.Col = 5
+	buf.updateCursor(content.Position{Line: buf.c().Line, Col: 5})
 	StopTextSelection.DoOnBuffer(buf, prefs)
 
 	ClipboardCut.DoOnBuffer(buf, prefs)
@@ -349,8 +349,8 @@ func TestClipboardCut(t *testing.T) {
 	if got, want := ft.Lines()[0].String(), " world"; got != want {
 		t.Errorf("line after cut = %q, want %q", got, want)
 	}
-	if buf.c != (content.Position{Col: 0, Line: 0}) {
-		t.Errorf("cursor after cut = %+v, want start of removed span", buf.c)
+	if buf.c() != (content.Position{Col: 0, Line: 0}) {
+		t.Errorf("cursor after cut = %+v, want start of removed span", buf.c())
 	}
 	if buf.selecting || len(buf.sel) != 0 {
 		t.Errorf("selection not cleared after cut")
@@ -378,7 +378,7 @@ func TestClipboardCut_NotMutable(t *testing.T) {
 
 func TestClipboardPaste(t *testing.T) {
 	ft := content.FullText{content.TextLine("ad")}
-	buf := &Buffer{Content: &ft, c: content.Position{Col: 1, Line: 0}}
+	buf := &Buffer{Content: &ft, _c: content.Position{Col: 1, Line: 0}}
 	prefs := RenderPrefs{TabSize: 4}
 
 	clipboard.Write("b\nc")
@@ -387,8 +387,8 @@ func TestClipboardPaste(t *testing.T) {
 	if got, want := []string{ft.Lines()[0].String(), ft.Lines()[1].String()}, []string{"ab", "cd"}; got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("lines after paste = %q, want %q", got, want)
 	}
-	if buf.c != (content.Position{Col: 1, Line: 1}) {
-		t.Errorf("cursor after paste = %+v, want %+v", buf.c, content.Position{Col: 1, Line: 1})
+	if buf.c() != (content.Position{Col: 1, Line: 1}) {
+		t.Errorf("cursor after paste = %+v, want %+v", buf.c(), content.Position{Col: 1, Line: 1})
 	}
 	if !buf.dirty {
 		t.Error("buffer not marked dirty after paste")
@@ -418,24 +418,24 @@ func TestSave_NotMutable(t *testing.T) {
 func TestSelectWord(t *testing.T) {
 	const line = "some words"
 	ft := content.FullText{content.TextLine(line)}
-	buf := &Buffer{Content: &ft, c: content.Position{Col: 1, Line: 0}}
+	buf := &Buffer{Content: &ft, _c: content.Position{Col: 1, Line: 0}}
 	prefs := RenderPrefs{TabSize: 4}
 
 	SelectWord.DoOnBuffer(buf, prefs)
 	if res := buf.SelectedText(); res != "some" {
 		t.Errorf("got %q, want %q", res, "some")
 	}
-	if buf.c.Col != 4 {
-		t.Errorf("cursor didn't move on first word selection: %s", buf.c)
+	if buf.c().Col != 4 {
+		t.Errorf("cursor didn't move on first word selection: %s", buf.c())
 	}
 
-	buf.c.Col = 5
+	buf.updateCursor(content.Position{Line: buf.c().Line, Col: 5})
 	SelectWord.DoOnBuffer(buf, prefs)
 	if res := buf.SelectedText(); res != "words" {
 		t.Errorf("got %q, want %q", res, "words")
 	}
-	if buf.c.Col != len(line) {
-		t.Errorf("cursor didn't move on second word selection: %s", buf.c)
+	if buf.c().Col != len(line) {
+		t.Errorf("cursor didn't move on second word selection: %s", buf.c())
 	}
 }
 
@@ -456,21 +456,21 @@ func TestMoveHome(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%q@%d", tc.line, tc.col), func(t *testing.T) {
 			buf := &Buffer{Content: &content.FullText{content.TextLine(tc.line)}}
-			buf.c.Col = tc.col
+			buf.updateCursor(content.Position{Line: buf.c().Line, Col: tc.col})
 			MoveHome.DoOnBuffer(buf, RenderPrefs{})
-			if buf.c.Col != tc.exp {
-				t.Errorf("col = %d, want %d", buf.c.Col, tc.exp)
+			if buf.c().Col != tc.exp {
+				t.Errorf("col = %d, want %d", buf.c().Col, tc.exp)
 			}
 		})
 	}
 
 	t.Run("twice", func(t *testing.T) {
 		buf := &Buffer{Content: &content.FullText{content.TextLine("  abc")}}
-		buf.c.Col = 4
+		buf.updateCursor(content.Position{Line: buf.c().Line, Col: 4})
 		MoveHome.DoOnBuffer(buf, RenderPrefs{})
 		MoveHome.DoOnBuffer(buf, RenderPrefs{})
-		if buf.c.Col != 0 {
-			t.Errorf("col = %d, want 0", buf.c.Col)
+		if buf.c().Col != 0 {
+			t.Errorf("col = %d, want 0", buf.c().Col)
 		}
 	})
 

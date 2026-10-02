@@ -75,7 +75,7 @@ func (e *Editor) watchDir(buf *Buffer, dir string, open content.OpenFile) {
 			}
 			folder.SyncState(buf.Content.(*content.FsContent))
 			buf.Content = folder
-			buf.clampPos() // The new listing may be shorter.
+			buf.clampPos()
 			e.renderRequested = true
 		}))
 	})
@@ -110,7 +110,6 @@ func (e *Editor) reloadBuffer(buf *Buffer, data []byte) {
 	e.Logf("reload %s", buf.Path)
 	buf.Content = &ft
 	buf.cancelSelection()
-	buf.clampPos() // The new content may be shorter.
 	buf.setMutated()
 	buf.dirty = false
 	e.renderRequested = true

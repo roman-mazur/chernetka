@@ -50,7 +50,7 @@ func TestStatusBar_Render(t *testing.T) {
 					content.TextLine("third"),
 				},
 				mode: ModeNormal,
-				c:    content.Position{Col: 3, Line: 1},
+				_c:   content.Position{Col: 3, Line: 1},
 			},
 			contains: []string{"2:4"},
 		},

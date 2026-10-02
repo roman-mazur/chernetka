@@ -18,7 +18,7 @@
 - undo/redo backed by tracking changes with content/changes.History, consider batch edit interface on a buffer
 - project search (render with the tool buffer), unify how text content is distinguished by the buffer
 - project search inter-process (dir + main editor)
-- find references (render with the tool buffer)
+- find references (render with the tool buffer), call hierarchy, diagnostics using the tool buffer
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 
 - Windows and Linux support for spawning the main editor in a new pane

@@ -29,7 +29,7 @@ type searchPrompt struct {
 // startSearch shows the command line to type the search pattern.
 func (e *Editor) startSearch(buf *Buffer) {
 	e.openCmdLine(buf, "", func(c *cmdLine) prompt {
-		return &searchPrompt{c: c, origin: buf.c, offset: buf.offset, xoff: buf.xoff, prev: buf.search}
+		return &searchPrompt{c: c, origin: buf.c(), offset: buf.offset, xoff: buf.xoff, prev: buf.search}
 	})
 }
 
@@ -57,7 +57,8 @@ func (p *searchPrompt) changed(*Editor) {
 	p.replace, p.template, p.failure = replace, template, ""
 	if pattern == "" {
 		b.search = nil
-		b.c, b.offset, b.xoff = p.origin, p.offset, p.xoff
+		b.offset, b.xoff = p.offset, p.xoff
+		b.updateCursor(p.origin)
 		return
 	}
 	re, err := regexp.Compile(pattern)
@@ -67,9 +68,10 @@ func (p *searchPrompt) changed(*Editor) {
 	}
 	b.search = re
 	if span, ok := b.findMatch(p.origin, 1, true); ok {
-		b.c = span.Start
+		b.updateCursor(span.Start)
 	} else {
-		b.c, b.offset, b.xoff = p.origin, p.offset, p.xoff
+		b.offset, b.xoff = p.offset, p.xoff
+		b.updateCursor(p.origin)
 		p.failure = "no matches"
 	}
 }
@@ -91,7 +93,8 @@ func (p *searchPrompt) submit(*Editor) (quit bool) {
 // cancel returns the cursor where it was before, and restores the previous search.
 func (p *searchPrompt) cancel(*Editor) {
 	b := p.c.buf
-	b.c, b.offset, b.xoff = p.origin, p.offset, p.xoff
+	b.offset, b.xoff = p.offset, p.xoff
+	b.updateCursor(p.origin)
 	b.search = p.prev
 }
 
@@ -113,8 +116,8 @@ func (b *Buffer) searchMove(dir int) {
 	if b.search == nil {
 		return
 	}
-	if span, ok := b.findMatch(b.c, dir, false); ok {
-		b.c = span.Start
+	if span, ok := b.findMatch(b.c(), dir, false); ok {
+		b.updateCursor(span.Start)
 		b.updateSelection()
 	}
 }
@@ -186,7 +189,7 @@ func (b *Buffer) replaceAll(template string) {
 	if !b.canEdit() {
 		return
 	}
-	first, found := b.findMatch(b.c, 1, true)
+	first, found := b.findMatch(b.c(), 1, true)
 
 	lines := b.Content.Lines()
 	for ln, line := range slices.Backward(lines) {
@@ -201,7 +204,7 @@ func (b *Buffer) replaceAll(template string) {
 		}, replaced)
 	}
 	if found {
-		b.c = first.Start
+		b.updateCursor(first.Start)
 	}
 }
 

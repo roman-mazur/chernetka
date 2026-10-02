@@ -31,26 +31,28 @@ func (r RelMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 		r.moveDx(buf)
 	}
 	if r.Dy != 0 {
-		buf.c.Line += r.Dy
+		c := buf.c()
+		c.Line += r.Dy
+		buf.updateCursor(c)
 	}
-	buf.clampPos()
 	buf.updateSelection()
 }
 
 func (r RelMove) moveDx(b *Buffer) {
-	line := b.Content.Lines()[b.c.Line].String()
+	c := b.c()
+	line := b.Content.Lines()[c.Line].String()
 	d := r.Dx
-	for d > 0 && b.c.Col < len(line) {
-		_, sz := utf8.DecodeRuneInString(line[b.c.Col:])
-		b.c.Col += sz
+	for d > 0 && c.Col < len(line) {
+		_, sz := utf8.DecodeRuneInString(line[c.Col:])
+		c.Col += sz
 		d--
 	}
-	for d < 0 && b.c.Col > 0 {
-		_, sz := utf8.DecodeLastRuneInString(line[:b.c.Col])
-		b.c.Col -= sz
+	for d < 0 && c.Col > 0 {
+		_, sz := utf8.DecodeLastRuneInString(line[:c.Col])
+		c.Col -= sz
 		d++
 	}
-	clampBufferCx(b)
+	b.updateCursor(c)
 }
 
 // ScreenMove adjusts Buffer offset and cursor position to scroll by the screen height.
@@ -79,9 +81,9 @@ func (sm ScreenMove) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	}
 
 	buf.offset = max(0, min(buf.offset+dy, contentLen-1))
-	buf.c.Line = max(0, min(buf.c.Line+dy, contentLen-1))
-
-	clampBufferCx(buf)
+	c := buf.c()
+	c.Line += dy
+	buf.updateCursor(c)
 	buf.updateSelection()
 }
 
@@ -117,15 +119,6 @@ func (b *Buffer) maxScrollX(tabSize int) int {
 	return max(0, widest-b.textWidth()+1)
 }
 
-func clampBufferCx(buf *Buffer) {
-	curLen := buf.Content.Len()
-	if curLen > 0 && buf.c.Line < curLen {
-		buf.c.Col = max(0, min(buf.c.Col, buf.Content.Lines()[buf.c.Line].Len()))
-	} else {
-		buf.c.Col = 0
-	}
-}
-
 // GoToLine moves the cursor to the first non-blank character of the line with the given number
 // (starting from 1, clamped to the content lines), scrolling it to the upper part of the screen if it's not visible.
 type GoToLine int
@@ -135,9 +128,9 @@ func (g GoToLine) DoOnBuffer(b *Buffer, _ RenderPrefs) {
 	if b.Content.Len() == 0 {
 		return
 	}
-	b.c.Line = max(0, min(int(g)-1, b.Content.Len()-1))
-	line := b.Content.Lines()[b.c.Line].String()
-	b.c.Col = len(line) - len(strings.TrimLeftFunc(line, unicode.IsSpace))
+	ln := max(0, min(int(g)-1, b.Content.Len()-1))
+	line := b.Content.Lines()[ln].String()
+	b.updateCursor(content.Position{Line: ln, Col: len(line) - len(strings.TrimLeftFunc(line, unicode.IsSpace))})
 	b.noKeyboard = false
 	b.reveal = true
 }
@@ -154,25 +147,28 @@ var (
 		if b.Content.Len() == 0 {
 			return
 		}
-		line := b.Content.Lines()[b.c.Line].String()
+		c := b.c()
+		line := b.Content.Lines()[c.Line].String()
 		indent := len(line) - len(strings.TrimLeftFunc(line, unicode.IsSpace))
-		if b.c.Col <= indent {
-			b.c.Col = 0
+		if c.Col <= indent {
+			c.Col = 0
 		} else {
-			b.c.Col = indent
+			c.Col = indent
 		}
+		b.updateCursor(c)
 		b.updateSelection()
 	})
 	// MoveEnd moves the cursor to the end of the line.
 	MoveEnd = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
-		b.c.Col = b.Content.Lines()[b.c.Line].Len()
+		c := b.c()
+		c.Col = b.Content.Lines()[c.Line].Len()
+		b.updateCursor(c)
 		b.updateSelection()
 	})
 	// MoveContentStart moves the cursor to the first line.
 	MoveContentStart = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
-		b.c.Line = 0
+		b.updateCursor(content.Position{Col: b.c().Col})
 		b.offset = 0
-		clampBufferCx(b)
 		b.updateSelection()
 	})
 	// MoveContentEnd moves the cursor to the last line.
@@ -181,9 +177,8 @@ var (
 		if linesCnt == 0 {
 			return
 		}
-		b.c.Line = linesCnt - 1
-		b.offset = max(0, b.c.Line-b.h)
-		clampBufferCx(b)
+		b.updateCursor(content.Position{Line: linesCnt - 1, Col: b.c().Col})
+		b.offset = max(0, b.c().Line-b.h)
 		b.updateSelection()
 	})
 	// StartTextSelection begins selecting text at the current cursor position.
@@ -192,12 +187,11 @@ var (
 		if b.selecting {
 			return
 		}
-		b.clampPos()
 		b.selecting = true
-		if n := len(b.sel); n > 0 && b.sel[n-1].End == b.c {
+		if n := len(b.sel); n > 0 && b.sel[n-1].End == b.c() {
 			return
 		}
-		b.sel = []content.Span{{b.c, b.c}}
+		b.sel = []content.Span{{b.c(), b.c()}}
 	})
 	// StopTextSelection finishes selecting text at the current cursor position.
 	StopTextSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
@@ -213,9 +207,9 @@ var (
 		if b.Content.Len() == 0 {
 			return
 		}
-		line := b.Content.Lines()[b.c.Line].String()
+		line := b.Content.Lines()[b.c().Line].String()
 
-		start := b.c.Col
+		start := b.c().Col
 		for start > 0 {
 			r, size := utf8.DecodeLastRuneInString(line[:start])
 			if unicode.IsLetter(r) {
@@ -225,7 +219,7 @@ var (
 			}
 		}
 
-		end := b.c.Col
+		end := b.c().Col
 		for end < len(line) {
 			r, size := utf8.DecodeRuneInString(line[end:])
 			if unicode.IsLetter(r) {
@@ -237,10 +231,10 @@ var (
 
 		if end > start {
 			b.sel = append(b.sel, content.Span{
-				Start: content.Position{Line: b.c.Line, Col: start},
-				End:   content.Position{Line: b.c.Line, Col: end},
+				Start: content.Position{Line: b.c().Line, Col: start},
+				End:   content.Position{Line: b.c().Line, Col: end},
 			})
-			b.c.Col = end
+			b.updateCursor(content.Position{Line: b.c().Line, Col: end})
 		}
 	})
 	// SelectLine adjusts the buffer selection to select the whole line at the current cursor,
@@ -250,19 +244,18 @@ var (
 		if b.Content.Len() == 0 {
 			return
 		}
-		b.clampPos()
-		end := content.Position{Line: b.c.Line + 1}
+		end := content.Position{Line: b.c().Line + 1}
 		if end.Line == b.Content.Len() {
-			end = content.Position{Line: b.c.Line, Col: b.Content.Lines()[b.c.Line].Len()}
+			end = content.Position{Line: b.c().Line, Col: b.Content.Lines()[b.c().Line].Len()}
 		}
-		b.sel = []content.Span{{Start: content.Position{Line: b.c.Line}, End: end}}
-		b.c = end
+		b.sel = []content.Span{{Start: content.Position{Line: b.c().Line}, End: end}}
+		b.updateCursor(end)
 	})
 	// DeleteSelection command deletes currently selected content in the buffer adjusting the cursor position.
 	DeleteSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		m := b.Mutate()
 		for _, span := range slices.Backward(b.sel) {
-			b.c = content.DeleteSpan(m, span)
+			b.updateCursor(content.DeleteSpan(m, span))
 		}
 		b.cancelSelection()
 	})
@@ -297,7 +290,7 @@ func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 		DeleteSelection.DoOnBuffer(b, prefs)
 	}
 	b.cancelSelection()
-	b.c = content.InsertText(b.Mutate(), b.c, string(pt))
+	b.updateCursor(content.InsertText(b.Mutate(), b.c(), string(pt)))
 }
 
 // Save stores the buffer content in the destination path, formatting it first

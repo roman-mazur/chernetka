@@ -26,7 +26,7 @@ type Buffer struct {
 	dirty      bool // if buffer content is different from the source file
 	noKeyboard bool // a flag that indicates that the last input was not from the keyboard
 
-	c      content.Position // cursor position
+	_c     content.Position // cursor position, user updateCursor() and c()
 	offset int              // first visible row (scroll)
 	reveal bool             // scroll the cursor line to the upper part of the screen on the next render
 	xoff   int              // first visible screen column of the text (horizontal scroll)
@@ -62,7 +62,7 @@ func (b *Buffer) ExtensionData(id string) BufferExtData { return b.ext.data(id) 
 // Pos provides a pair of coordinates pointing to the current cursor location.
 // cx is the symbol offset within the content line.
 // cy is the line index in the Content.
-func (b *Buffer) Pos() (cx, cy int) { return b.c.Col, b.c.Line }
+func (b *Buffer) Pos() (cx, cy int) { return b._c.Col, b._c.Line }
 
 // Mode returns the current editing mode.
 func (b *Buffer) Mode() Mode { return b.mode }
@@ -81,31 +81,37 @@ func (b *Buffer) Close() error {
 	return errors.Join(allErrors...)
 }
 
+func (b *Buffer) c() content.Position { return b._c }
+
+func (b *Buffer) updateCursor(p content.Position) {
+	b._c = p
+	b.clampPos()
+}
+
 func (b *Buffer) clampCursor(tabSize int) {
 	lines := b.Content.Lines()
-	b.clampPos()
 	// The content may shrink while it's scrolled by the mouse, which leaves the cursor as is.
 	b.offset = max(0, min(b.offset, len(lines)-1))
 
 	var line string
 	if len(lines) > 0 {
-		line = lines[b.c.Line].String()
+		line = lines[b.c().Line].String()
 	}
 
-	if b.reveal && (b.c.Line < b.offset || b.c.Line >= b.offset+b.h) {
-		b.offset = max(0, min(b.c.Line-b.h/3, len(lines)-b.h))
+	if b.reveal && (b.c().Line < b.offset || b.c().Line >= b.offset+b.h) {
+		b.offset = max(0, min(b.c().Line-b.h/3, len(lines)-b.h))
 	}
 	b.reveal = false
 
 	// Adjust scroll so cursor is visible.
 	if !b.noKeyboard {
-		if b.c.Line < b.offset {
-			b.offset = b.c.Line
+		if b.c().Line < b.offset {
+			b.offset = b.c().Line
 		}
-		if b.c.Line >= b.offset+b.h {
-			b.offset = b.c.Line - b.h + 1
+		if b.c().Line >= b.offset+b.h {
+			b.offset = b.c().Line - b.h + 1
 		}
-		b.followCursorX(runeToScreenCol(line, b.c.Col, tabSize))
+		b.followCursorX(runeToScreenCol(line, b.c().Col, tabSize))
 	}
 }
 
@@ -113,17 +119,17 @@ func (b *Buffer) clampCursor(tabSize int) {
 func (b *Buffer) clampPos() {
 	lines := b.Content.Lines()
 
-	b.c.Line = max(0, min(b.c.Line, len(lines)-1))
+	b._c.Line = max(0, min(b._c.Line, len(lines)-1))
 
 	var line string
 	if len(lines) > 0 {
-		line = lines[b.c.Line].String()
+		line = lines[b._c.Line].String()
 	}
-	b.c.Col = max(0, min(b.c.Col, len(line)))
+	b._c.Col = max(0, min(b._c.Col, len(line)))
 
 	// Vertical movement may land cx mid-rune; snap back to the rune start.
-	for b.c.Col > 0 && b.c.Col < len(line) && !utf8.RuneStart(line[b.c.Col]) {
-		b.c.Col--
+	for b._c.Col > 0 && b._c.Col < len(line) && !utf8.RuneStart(line[b._c.Col]) {
+		b._c.Col--
 	}
 }
 
@@ -214,11 +220,11 @@ func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
 	lines := b.Content.Lines()
 	var cursorLine string
 	if len(lines) > 0 {
-		cursorLine = lines[b.c.Line].String()
+		cursorLine = lines[b.c().Line].String()
 	}
 
-	screenCol := runeToScreenCol(cursorLine, b.c.Col, prefs.TabSize) - b.xoff
-	screenRow := b.c.Line - b.offset + 1
+	screenCol := runeToScreenCol(cursorLine, b.c().Col, prefs.TabSize) - b.xoff
+	screenRow := b.c().Line - b.offset + 1
 	numDisplayWidth := b.lineNumberPrefixWidth()
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 }
@@ -259,12 +265,12 @@ func (b *Buffer) AcceptSuggestion(sug string, cursor int) {
 	if sug == "" || !b.canEdit() {
 		return
 	}
-	line := b.Content.Lines()[b.c.Line].String()
-	if b.c.Col > len(line) {
-		b.c.Col = len(line)
-	}
-	b.Mutate().Update(b.c.Line, content.TextLine(line[:b.c.Col]+sug+line[b.c.Col:]))
-	b.c.Col += min(max(cursor, 0), len(sug))
+	c := b.c()
+	line := b.Content.Lines()[c.Line].String()
+	c.Col = min(c.Col, len(line))
+	b.Mutate().Update(c.Line, content.TextLine(line[:c.Col]+sug+line[c.Col:]))
+	c.Col += min(max(cursor, 0), len(sug))
+	b.updateCursor(c)
 }
 
 // ReplaceText replaces the text of span with text, which may span several
@@ -278,6 +284,7 @@ func (b *Buffer) ReplaceText(span content.Span, text string) {
 		start.Col > lines[start.Line].Len() || end.Col > lines[end.Line].Len() {
 		return
 	}
+	c := b.c() // The mutations clamp the cursor to the changed content.
 	mut := b.Mutate()
 	content.DeleteSpan(mut, content.Span{Start: start, End: end})
 	newEnd := content.InsertText(mut, start, text)
@@ -292,7 +299,8 @@ func (b *Buffer) ReplaceText(span content.Span, text string) {
 			*p = newEnd
 		}
 	}
-	follow(&b.c)
+	follow(&c)
+	b.updateCursor(c)
 	for i := range b.sel {
 		follow(&b.sel[i].Start)
 		follow(&b.sel[i].End)
@@ -382,8 +390,7 @@ func (b *Buffer) hasSelection() bool {
 // The cursor is clamped first: the selection must not refer to positions outside the content.
 func (b *Buffer) updateSelection() {
 	if b.selecting {
-		b.clampPos()
-		b.sel[len(b.sel)-1].End = b.c
+		b.sel[len(b.sel)-1].End = b.c()
 	}
 }
 
@@ -406,6 +413,7 @@ func (b *Buffer) setMutated() {
 	b.dirty = true
 	b._mutated = true
 	b._textCache = ""
+	b.clampPos()
 	b.version++
 }
 

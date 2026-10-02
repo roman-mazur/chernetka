@@ -92,7 +92,7 @@ func (g *GoTo) DoOnEditor(e *Editor) {
 		return // Opened elsewhere, like an image.
 	}
 	buf.cancelSelection()
-	buf.c = g.Pos
+	buf.updateCursor(g.Pos)
 	buf.noKeyboard = false
 	buf.reveal = true
 }

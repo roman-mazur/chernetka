@@ -373,7 +373,7 @@ func TestEditor_RenderQuickOpen(t *testing.T) {
 	}
 	e.OpenBuffer(&Buffer{Path: "a.txt", Content: &lines})
 	top := e.Top()
-	top.c.Line = 38 // The last visible line with one status row.
+	top.updateCursor(content.Position{Line: 38}) // The last visible line with one status row.
 
 	e.handleInput([]byte{0x0f})
 	runQueuedCommand(t, e)

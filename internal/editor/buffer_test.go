@@ -80,7 +80,7 @@ func TestBuffer_Render(t *testing.T) {
 				Path:    "test.go",
 				Content: &content.FullText{content.TextLine("Pri")},
 				mode:    ModeInsert,
-				c:       content.Position{3, 0},
+				_c:      content.Position{3, 0},
 				w:       40,
 				h:       3,
 			},
@@ -278,23 +278,23 @@ func (tse testSuggestionExt) TextSuggestion() (s code.Suggestion) {
 func TestBuffer_AcceptSuggestion(t *testing.T) {
 	buf := &Buffer{
 		Content: &content.FullText{content.TextLine("Pri")},
-		c:       content.Position{3, 0},
+		_c:      content.Position{3, 0},
 	}
 
 	buf.AcceptSuggestion("ntln", 4)
 	if got := buf.Content.Lines()[0].String(); got != "Println" {
 		t.Errorf("line = %q, want %q", got, "Println")
 	}
-	if buf.c.Col != 7 {
-		t.Errorf("cx = %d, want 7", buf.c.Col)
+	if buf.c().Col != 7 {
+		t.Errorf("cx = %d, want 7", buf.c().Col)
 	}
 
 	buf.AcceptSuggestion("()", 1)
 	if got := buf.Content.Lines()[0].String(); got != "Println()" {
 		t.Errorf("line = %q, want %q", got, "Println()")
 	}
-	if buf.c.Col != 8 {
-		t.Errorf("cx = %d, want 8 (inside the brackets)", buf.c.Col)
+	if buf.c().Col != 8 {
+		t.Errorf("cx = %d, want 8 (inside the brackets)", buf.c().Col)
 	}
 }
 
@@ -325,6 +325,13 @@ func TestBuffer_ReplaceText(t *testing.T) {
 			cursor: pos(3, 1), start: pos(0, 1), end: pos(2, 0), text: "",
 			wantText:   "ac\nx",
 			wantCursor: pos(1, 1),
+		},
+		{
+			name:   "collapse lines above the cursor at the content end",
+			lines:  []string{"a", "b", "c", "last line"},
+			cursor: pos(3, 9), start: pos(0, 0), end: pos(2, 1), text: "x",
+			wantText:   "x\nlast line",
+			wantCursor: pos(1, 9),
 		},
 		{
 			name:   "edit before the cursor on its line",
@@ -388,13 +395,13 @@ func TestBuffer_ReplaceText(t *testing.T) {
 			for _, l := range tc.lines {
 				text = append(text, content.TextLine(l))
 			}
-			buf := &Buffer{Content: &text, c: tc.cursor, sel: tc.sel}
+			buf := &Buffer{Content: &text, _c: tc.cursor, sel: tc.sel}
 			buf.ReplaceText(content.Span{Start: tc.start, End: tc.end}, tc.text)
 			if got := buf.Text(); got != tc.wantText {
 				t.Errorf("text = %q, want %q", got, tc.wantText)
 			}
-			if buf.c != tc.wantCursor {
-				t.Errorf("cursor = %s, want %s", buf.c, tc.wantCursor)
+			if buf.c() != tc.wantCursor {
+				t.Errorf("cursor = %s, want %s", buf.c(), tc.wantCursor)
 			}
 			if !slices.Equal(buf.Selection(), tc.wantSel) {
 				t.Errorf("selection = %v, want %v", buf.Selection(), tc.wantSel)
@@ -672,7 +679,7 @@ func TestBuffer_Render_ActionMarker(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			buf, _ := newActionsTestBuffer("first\nsecond line that does not fit the window\nthird", tc.actionLines...)
 			buf.hideLineActions = tc.hide
-			buf.c.Line = tc.cursorLine
+			buf.updateCursor(content.Position{Line: tc.cursorLine})
 			buf.offset = tc.offset
 
 			var out bytes.Buffer
@@ -720,7 +727,7 @@ func TestBuffer_RenderGhostKeepsSyntaxHighlight(t *testing.T) {
 		Path:    "test.go",
 		Content: &content.FullText{content.TextLine("fmt.Pr()")},
 		mode:    ModeInsert,
-		c:       content.Position{Col: 6},
+		_c:      content.Position{Col: 6},
 		w:       40,
 		h:       3,
 
@@ -791,7 +798,7 @@ func TestBuffer_Render_HorizontalScroll(t *testing.T) {
 				h:               1,
 				xoff:            tc.xoff,
 				mode:            tc.mode,
-				c:               tc.c,
+				_c:              tc.c,
 				sel:             tc.sel,
 				hideLineNumbers: true,
 				noCurrentLineHL: !tc.hlLine,
@@ -833,7 +840,8 @@ func TestBuffer_ClampCursor_FollowsHorizontally(t *testing.T) {
 		{name: "mouse input keeps the scroll", c: content.Position{Col: 0}, noKeyboard: true, want: 40 - margin},
 		{name: "short line", c: content.Position{Line: 1, Col: 40}, want: 0},
 	} {
-		buf.c, buf.noKeyboard = step.c, step.noKeyboard
+		buf.noKeyboard = step.noKeyboard
+		buf.updateCursor(step.c)
 		buf.clampCursor(4)
 		if buf.xoff != step.want {
 			t.Errorf("%s: xoff = %d, want %d", step.name, buf.xoff, step.want)
@@ -860,7 +868,7 @@ func TestBuffer_HorizontalScroll_Coordinates(t *testing.T) {
 		}
 
 		// The cursor goes back to the clicked column.
-		buf.c.Col = tc.want
+		buf.updateCursor(content.Position{Line: buf.c().Line, Col: tc.want})
 		var out bytes.Buffer
 		buf.RenderCursorPosition(&out, &RenderPrefs{TabSize: tabSize})
 		wantCol := runeToScreenCol(tc.text, tc.want, tabSize) - tc.xoff + buf.lineNumberPrefixWidth() + 1
@@ -898,7 +906,7 @@ func TestBuffer_Render_Diagnostics(t *testing.T) {
 		code.Diagnostic{Line: 2, Severity: code.SeverityWarning, Message: "unreachable code"},
 		code.Diagnostic{Line: 10, Severity: code.SeverityError, Message: "stale, out of range"},
 	)
-	buf.c.Line = 1
+	buf.updateCursor(content.Position{Line: 1})
 
 	var out bytes.Buffer
 	buf.Render(&out, &RenderPrefs{TabSize: 4})

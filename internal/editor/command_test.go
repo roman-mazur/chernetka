@@ -110,7 +110,7 @@ func TestCommandInput_Clipboard(t *testing.T) {
 	_, input := newCmdEditor(buf)
 
 	StartTextSelection.DoOnBuffer(buf, prefs)
-	buf.c.Col = ft.Lines()[0].Len()
+	buf.updateCursor(content.Position{Line: buf.c().Line, Col: ft.Lines()[0].Len()})
 	StopTextSelection.DoOnBuffer(buf, prefs)
 	if selText := buf.SelectedText(); selText != "hello" {
 		t.Errorf("SelectedText() = %q, want %q", selText, "hello")
@@ -131,7 +131,7 @@ func TestCommandInput_ClipboardCutAndPaste(t *testing.T) {
 	_, input := newCmdEditor(buf)
 
 	StartTextSelection.DoOnBuffer(buf, prefs)
-	buf.c.Col = ft.Lines()[0].Len()
+	buf.updateCursor(content.Position{Line: buf.c().Line, Col: ft.Lines()[0].Len()})
 	StopTextSelection.DoOnBuffer(buf, prefs)
 
 	if q := input(":pbcut", "\r"); q {
@@ -162,8 +162,8 @@ func TestCommandInput_GoToLine(t *testing.T) {
 	e, input := newCmdEditor(buf)
 
 	input(":60", "\r")
-	if want := (content.Position{Line: 59, Col: 3}); buf.c != want {
-		t.Errorf("cursor at %v, want %v", buf.c, want)
+	if want := (content.Position{Line: 59, Col: 3}); buf.c() != want {
+		t.Errorf("cursor at %v, want %v", buf.c(), want)
 	}
 	buf.clampCursor(e.rPrefs.TabSize)
 	if buf.offset != 49 {
@@ -172,8 +172,8 @@ func TestCommandInput_GoToLine(t *testing.T) {
 
 	for cmd, line := range map[string]int{"1": 0, "0": 0, "1000": 99} {
 		input(":"+cmd, "\r")
-		if buf.c.Line != line {
-			t.Errorf(":%s moved to line %d, want %d", cmd, buf.c.Line, line)
+		if buf.c().Line != line {
+			t.Errorf(":%s moved to line %d, want %d", cmd, buf.c().Line, line)
 		}
 	}
 }
@@ -188,7 +188,7 @@ func TestCommandInput_GoToLineFromInsertMode(t *testing.T) {
 		t.Fatal("Ctrl+L did not open the command line")
 	}
 	input("3", "\r")
-	if buf.c.Line != 2 || buf.mode != ModeInsert {
-		t.Errorf("cursor line %d, mode %s", buf.c.Line, buf.mode)
+	if buf.c().Line != 2 || buf.mode != ModeInsert {
+		t.Errorf("cursor line %d, mode %s", buf.c().Line, buf.mode)
 	}
 }

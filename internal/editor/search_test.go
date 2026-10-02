@@ -89,26 +89,26 @@ func TestSearch(t *testing.T) {
 	t.Run("incremental", func(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
-		b.c = pos(1, 0)
+		b.updateCursor(pos(1, 0))
 		input("/")
 		if !prompting[*searchPrompt](e) || e.status.cmd.text != "" {
 			t.Fatalf("command line %+v", e.status.cmd)
 		}
 		input("t")
-		if b.c != pos(1, 0) {
-			t.Errorf("cursor at %s, want the match at the cursor", b.c)
+		if b.c() != pos(1, 0) {
+			t.Errorf("cursor at %s, want the match at the cursor", b.c())
 		}
 		input("w")
-		if b.c != pos(1, 6) {
-			t.Errorf("cursor at %s, want the first match after the cursor", b.c)
+		if b.c() != pos(1, 6) {
+			t.Errorf("cursor at %s, want the first match after the cursor", b.c())
 		}
 		input("x")
-		if b.c != pos(1, 0) || searchFailure(e) != "no matches" {
-			t.Errorf("cursor at %s, failure %q", b.c, searchFailure(e))
+		if b.c() != pos(1, 0) || searchFailure(e) != "no matches" {
+			t.Errorf("cursor at %s, failure %q", b.c(), searchFailure(e))
 		}
 		input("\x7f", enter)
-		if e.status.cmd != nil || b.c != pos(1, 6) || b.search == nil {
-			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c, b.search)
+		if e.status.cmd != nil || b.c() != pos(1, 6) || b.search == nil {
+			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c(), b.search)
 		}
 	})
 
@@ -116,36 +116,36 @@ func TestSearch(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
 		input("/two")
-		if b.c != pos(0, 4) {
-			t.Fatalf("cursor at %s", b.c)
+		if b.c() != pos(0, 4) {
+			t.Fatalf("cursor at %s", b.c())
 		}
 		input(tab)
-		if b.c != pos(1, 6) {
-			t.Errorf("tab: cursor at %s", b.c)
+		if b.c() != pos(1, 6) {
+			t.Errorf("tab: cursor at %s", b.c())
 		}
 		input(down, ctrlF)
-		if b.c != pos(0, 4) {
-			t.Errorf("down, ctrl+f: cursor at %s, want wrapping to the first match", b.c)
+		if b.c() != pos(0, 4) {
+			t.Errorf("down, ctrl+f: cursor at %s, want wrapping to the first match", b.c())
 		}
 		input(up)
-		if b.c != pos(3, 0) {
-			t.Errorf("up: cursor at %s, want wrapping to the last match", b.c)
+		if b.c() != pos(3, 0) {
+			t.Errorf("up: cursor at %s, want wrapping to the last match", b.c())
 		}
 		input(enter, "n")
-		if b.c != pos(0, 4) {
-			t.Errorf("n: cursor at %s", b.c)
+		if b.c() != pos(0, 4) {
+			t.Errorf("n: cursor at %s", b.c())
 		}
 		input("N", "N")
-		if b.c != pos(1, 6) {
-			t.Errorf("N: cursor at %s", b.c)
+		if b.c() != pos(1, 6) {
+			t.Errorf("N: cursor at %s", b.c())
 		}
 		input(esc)
 		if b.search != nil {
 			t.Error("search is not cleared with Esc")
 		}
 		input("n")
-		if b.c != pos(1, 6) {
-			t.Errorf("n without search: cursor at %s", b.c)
+		if b.c() != pos(1, 6) {
+			t.Errorf("n without search: cursor at %s", b.c())
 		}
 	})
 
@@ -154,22 +154,22 @@ func TestSearch(t *testing.T) {
 		b := e.Top()
 		input("/a", enter)
 		input("n")
-		if b.c != pos(0, 0) {
-			t.Errorf("n: cursor at %s", b.c)
+		if b.c() != pos(0, 0) {
+			t.Errorf("n: cursor at %s", b.c())
 		}
 		input("N")
-		if b.c != pos(0, 0) {
-			t.Errorf("N: cursor at %s", b.c)
+		if b.c() != pos(0, 0) {
+			t.Errorf("N: cursor at %s", b.c())
 		}
 	})
 
 	t.Run("cancel", func(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
-		b.c = pos(2, 1)
+		b.updateCursor(pos(2, 1))
 		input("/two", esc)
-		if b.mode != ModeNormal || b.c != pos(2, 1) || b.search != nil || e.status.cmd != nil {
-			t.Errorf("mode %s, cursor at %s, pattern %v, command line %+v", b.mode, b.c, b.search, e.status.cmd)
+		if b.mode != ModeNormal || b.c() != pos(2, 1) || b.search != nil || e.status.cmd != nil {
+			t.Errorf("mode %s, cursor at %s, pattern %v, command line %+v", b.mode, b.c(), b.search, e.status.cmd)
 		}
 
 		input("/t", "\x7f", "\x7f")
@@ -182,8 +182,8 @@ func TestSearch(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
 		input("/two", enter, "/four", esc)
-		if b.search == nil || b.search.String() != "two" || b.c != pos(0, 4) {
-			t.Errorf("pattern %v, cursor at %s", b.search, b.c)
+		if b.search == nil || b.search.String() != "two" || b.c() != pos(0, 4) {
+			t.Errorf("pattern %v, cursor at %s", b.search, b.c())
 		}
 	})
 
@@ -198,11 +198,11 @@ func TestSearch(t *testing.T) {
 	t.Run("switching the buffer cancels", func(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
-		b.c = pos(2, 1)
+		b.updateCursor(pos(2, 1))
 		input("/two")
 		e.New()
-		if e.status.cmd != nil || b.c != pos(2, 1) || b.search != nil {
-			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c, b.search)
+		if e.status.cmd != nil || b.c() != pos(2, 1) || b.search != nil {
+			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c(), b.search)
 		}
 	})
 
@@ -235,8 +235,8 @@ func TestSearch(t *testing.T) {
 			t.Fatalf("mode %s, command line %+v", b.mode, e.status.cmd)
 		}
 		input("four", enter)
-		if b.mode != ModeInsert || b.c != pos(2, 0) {
-			t.Errorf("mode %s, cursor at %s", b.mode, b.c)
+		if b.mode != ModeInsert || b.c() != pos(2, 0) {
+			t.Errorf("mode %s, cursor at %s", b.mode, b.c())
 		}
 		input(ctrlF, esc)
 		if b.mode != ModeInsert {
@@ -247,7 +247,7 @@ func TestSearch(t *testing.T) {
 	t.Run("replace", func(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
-		b.c = pos(1, 0)
+		b.updateCursor(pos(1, 0))
 		input("/t(w)o/[&\\1]")
 		if b.Text() != strings.Join(sample, "\n") {
 			t.Fatalf("replaced before Enter: %q", b.Text())
@@ -257,8 +257,8 @@ func TestSearch(t *testing.T) {
 		if b.Text() != want {
 			t.Errorf("text %q, want %q", b.Text(), want)
 		}
-		if b.c != pos(1, 6) || b.mode != ModeNormal || b.search != nil || !b.dirty {
-			t.Errorf("cursor at %s, mode %s, pattern %v, dirty %t", b.c, b.mode, b.search, b.dirty)
+		if b.c() != pos(1, 6) || b.mode != ModeNormal || b.search != nil || !b.dirty {
+			t.Errorf("cursor at %s, mode %s, pattern %v, dirty %t", b.c(), b.mode, b.search, b.dirty)
 		}
 	})
 

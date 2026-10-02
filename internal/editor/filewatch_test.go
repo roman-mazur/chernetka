@@ -82,14 +82,14 @@ func TestEditor_ReloadShorter(t *testing.T) {
 	defer func() { _ = e.watcher.Close() }()
 	buf := e.Top()
 	buf.h = 10
-	buf.c = content.Position{Line: 99, Col: 4}
+	buf.updateCursor(content.Position{Line: 99, Col: 4})
 	buf.offset = 95
 	buf.noKeyboard = true // Scrolled by the mouse.
 
 	e.reloadBuffer(buf, []byte("a\nb"))
 	MoveEnd.DoOnBuffer(buf, e.rPrefs)
-	if buf.c != (content.Position{Line: 1, Col: 1}) {
-		t.Errorf("cursor is %v after the reload", buf.c)
+	if buf.c() != (content.Position{Line: 1, Col: 1}) {
+		t.Errorf("cursor is %v after the reload", buf.c())
 	}
 	buf.clampCursor(e.rPrefs.TabSize)
 	var out strings.Builder

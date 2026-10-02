@@ -21,8 +21,9 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		}
 		buf.cancelSelection()
 		buf.mode = ModeNormal
-		if buf.c.Col > 0 {
-			buf.c.Col-- // Land on the last typed character.
+		if c := buf.c(); c.Col > 0 {
+			c.Col-- // Land on the last typed character.
+			buf.updateCursor(c)
 		}
 		return
 
@@ -47,29 +48,28 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	}
 	buf.cancelSelection() // An empty selection is not replaced, and the edit invalidates it.
 	lines := buf.Content.Lines()
-	line := lines[buf.c.Line].String()
+	c := buf.c()
+	line := lines[c.Line].String()
 	mut := buf.Mutate()
 
 	switch k.Special {
 	case input.Backspace:
-		if buf.c.Col > 0 {
-			_, sz := utf8.DecodeLastRuneInString(line[:buf.c.Col])
-			mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col-sz]+line[buf.c.Col:]))
-			buf.c.Col -= sz
-		} else if buf.c.Line > 0 {
-			prev := lines[buf.c.Line-1].String()
-			buf.c.Col = len(prev)
-			mut.Update(buf.c.Line-1, content.TextLine(prev+line))
-			mut.Delete(buf.c.Line)
-			buf.c.Line--
+		if c.Col > 0 {
+			_, sz := utf8.DecodeLastRuneInString(line[:c.Col])
+			mut.Update(c.Line, content.TextLine(line[:c.Col-sz]+line[c.Col:]))
+			buf.updateCursor(content.Position{Line: c.Line, Col: c.Col - sz})
+		} else if c.Line > 0 {
+			prev := lines[c.Line-1].String()
+			mut.Update(c.Line-1, content.TextLine(prev+line))
+			mut.Delete(c.Line)
+			buf.updateCursor(content.Position{Line: c.Line - 1, Col: len(prev)})
 		}
 		return
 
 	case input.Enter:
-		mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col]))
-		mut.Insert(buf.c.Line+1, content.TextLine(line[buf.c.Col:]))
-		buf.c.Line++
-		buf.c.Col = 0
+		mut.Update(c.Line, content.TextLine(line[:c.Col]))
+		mut.Insert(c.Line+1, content.TextLine(line[c.Col:]))
+		buf.updateCursor(content.Position{Line: c.Line + 1})
 		return
 
 	case input.Tab:
@@ -83,13 +83,13 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		insertContent(buf, []byte{byte(ch), bracketPair(byte(ch))}, mut, line, 1)
 	case '}', ')', ']':
 		if isRepeatedBracket(buf, line, byte(ch)) {
-			buf.c.Col++
+			buf.updateCursor(content.Position{Line: c.Line, Col: c.Col + 1})
 		} else {
 			insertContent(buf, []byte{byte(ch)}, mut, line, 1)
 		}
 	case '"', '\'', '`':
 		if isRepeatedBracket(buf, line, byte(ch)) {
-			buf.c.Col++
+			buf.updateCursor(content.Position{Line: c.Line, Col: c.Col + 1})
 		} else {
 			insertContent(buf, []byte{byte(ch), bracketPair(byte(ch))}, mut, line, 1)
 		}
@@ -103,15 +103,17 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 }
 
 func isRepeatedBracket(buf *Buffer, line string, ch byte) bool {
-	return 0 < buf.c.Col && buf.c.Col < len(line) &&
-		line[buf.c.Col] == ch && line[buf.c.Col-1] == bracketPair(ch)
+	c := buf.c()
+	return 0 < c.Col && c.Col < len(line) &&
+		line[c.Col] == ch && line[c.Col-1] == bracketPair(ch)
 }
 
 func insertContent(buf *Buffer, b []byte, mut content.Mutable, line string, advanceCursor int) {
+	c := buf.c()
 	if len(b) > 0 {
-		mut.Update(buf.c.Line, content.TextLine(line[:buf.c.Col]+string(b)+line[buf.c.Col:]))
+		mut.Update(c.Line, content.TextLine(line[:c.Col]+string(b)+line[c.Col:]))
 	}
-	buf.c.Col += advanceCursor
+	buf.updateCursor(content.Position{Line: c.Line, Col: c.Col + advanceCursor})
 }
 
 func bracketPair(b byte) byte {

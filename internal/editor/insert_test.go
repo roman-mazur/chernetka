@@ -20,7 +20,7 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 	if buf.resetMutated() {
 		t.Error("unexpected mutation")
 	}
-	if buf.c.Col != 1 {
+	if buf.c().Col != 1 {
 		t.Errorf("cx didn't change after arrow right")
 	}
 }
@@ -35,7 +35,7 @@ func TestInsertInput_AutomateBrackets(t *testing.T) {
 	}
 	buf := Buffer{
 		Content: &data,
-		c:       content.Position{Col: data.Lines()[0].Len()}, // at the end of the first line
+		_c:      content.Position{Col: data.Lines()[0].Len()}, // at the end of the first line
 	}
 	prefs := RenderPrefs{TabSize: 2}
 
@@ -54,8 +54,8 @@ func TestInsertInput_AutomateBrackets(t *testing.T) {
 		t.Errorf("got %q, want %q", res, expected)
 	}
 	expectedCurPos := content.Position{Col: len(firstLineContent) + len(expectedBrackets)/2}
-	if buf.c != expectedCurPos {
-		t.Errorf("buf.c=%v, want %v", buf.c, expectedCurPos)
+	if buf.c() != expectedCurPos {
+		t.Errorf("cursor=%v, want %v", buf.c(), expectedCurPos)
 	}
 }
 
@@ -108,8 +108,8 @@ func TestInsertInput_AcceptUTF8(t *testing.T) {
 		t.Errorf("buf.Text()=%q, want %q", res, sample)
 	}
 	expectedPos := content.Position{Col: len(sample)}
-	if buf.c != expectedPos {
-		t.Errorf("buf.c=%v, want %v", buf.c, expectedPos)
+	if buf.c() != expectedPos {
+		t.Errorf("cursor=%v, want %v", buf.c(), expectedPos)
 	}
 }
 
@@ -132,7 +132,7 @@ func TestInsertInput_ReplaceMultilineSelection(t *testing.T) {
 			end := content.Position{Line: 2, Col: 2}
 			buf := Buffer{
 				Content: &data,
-				c:       end,
+				_c:      end,
 				sel:     []content.Span{{Start: content.Position{Col: 8}, End: end}},
 			}
 			insertInput(&buf, tc.key, &RenderPrefs{TabSize: 2})

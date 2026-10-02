@@ -97,7 +97,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 
 		if !cr.b.hideLineNumbers {
 			style := styles.TextStyle{TextColor: styles.DefaultColors.Suggestion}
-			if ln == cr.b.c.Line {
+			if ln == cr.b.c().Line {
 				style.TextColor = styles.DefaultColors.LineSelected
 			}
 			if d, ok := cr.diags[ln]; ok {
@@ -106,7 +106,7 @@ func (cr *contentPrinter) render(out io.Writer) {
 			escape.StyleText(out, cr.lineNumber(ln+1), style)
 		}
 
-		lineHL := ln == cr.b.c.Line && !cr.b.noCurrentLineHL
+		lineHL := ln == cr.b.c().Line && !cr.b.noCurrentLineHL
 		cr.renderLine(out, ln, raw, lineHL)
 		cr.renderLineTail(out, ln, raw, lineHL)
 
@@ -148,7 +148,7 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 	// the highlighted segments.
 	ghostAt := -1
 	if cr.hasGhost(ln, line) {
-		ghostAt = cr.b.c.Col
+		ghostAt = cr.b.c().Col
 	}
 	printSegment := func(from, to int, style styles.TextStyle) {
 		if from <= ghostAt && ghostAt < to {
@@ -183,7 +183,7 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 }
 
 func (cr *contentPrinter) hasGhost(ln int, line string) bool {
-	return ln == cr.b.c.Line && cr.suggestion.Text != "" && cr.b.c.Col <= len(line)
+	return ln == cr.b.c().Line && cr.suggestion.Text != "" && cr.b.c().Col <= len(line)
 }
 
 // renderLineTail fills the rest of the line after its content: the current
@@ -199,7 +199,7 @@ func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, line
 	if cr.hasGhost(ln, raw) {
 		used += utf8.RuneCountInString(cr.suggestion.Text)
 		info = cr.suggestion.Info
-	} else if d, ok := cr.diags[ln]; ok && ln == cr.b.c.Line {
+	} else if d, ok := cr.diags[ln]; ok && ln == cr.b.c().Line {
 		info, _, _ = strings.Cut(d.Message, "\n")
 		infoColor = severityColor(d.Severity)
 		shorten = true
@@ -245,7 +245,7 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 			continue
 		}
 		bg := styles.DefaultColors.SearchMatchBg
-		if match.Start == cr.b.c {
+		if match.Start == cr.b.c() {
 			bg = styles.DefaultColors.SearchCursorBg
 		}
 		spans = append(spans, colorSpan{Span: match, color: bg})

@@ -61,7 +61,7 @@ func TestEditor_SendInput(t *testing.T) {
 	t.Run("keys read at once", func(t *testing.T) {
 		e := newEditor(t)
 		sendChunks(t, e, "\x1b[B\x1b[B", "jl")
-		if got := e.Top().c; got != pos(3, 1) {
+		if got := e.Top().c(); got != pos(3, 1) {
 			t.Errorf("cursor at %s", got)
 		}
 	})
@@ -69,8 +69,8 @@ func TestEditor_SendInput(t *testing.T) {
 	t.Run("split sequence", func(t *testing.T) {
 		e := newEditor(t)
 		sendChunks(t, e, "\x1b[1;", "2B")
-		if b := e.Top(); b.c != pos(1, 0) || len(b.sel) == 0 {
-			t.Errorf("cursor at %s, selection %v", b.c, b.sel)
+		if b := e.Top(); b.c() != pos(1, 0) || len(b.sel) == 0 {
+			t.Errorf("cursor at %s, selection %v", b.c(), b.sel)
 		}
 	})
 
@@ -81,8 +81,8 @@ func TestEditor_SendInput(t *testing.T) {
 			t.Fatal("quit on a split mouse event")
 		}
 		// The click at the first row moves the cursor back from the second line.
-		if b := e.Top(); b.mode != ModeInsert || b.c.Line != 0 {
-			t.Errorf("mode %s, cursor at %s after the click", b.mode, b.c)
+		if b := e.Top(); b.mode != ModeInsert || b.c().Line != 0 {
+			t.Errorf("mode %s, cursor at %s after the click", b.mode, b.c())
 		}
 	})
 
@@ -97,8 +97,8 @@ func TestEditor_SendInput(t *testing.T) {
 	t.Run("keys after quit", func(t *testing.T) {
 		e := newEditor(t)
 		sendChunks(t, e, "qj")
-		if !e.quitRequested || e.Top().c != pos(0, 0) {
-			t.Errorf("quit %t, cursor at %s", e.quitRequested, e.Top().c)
+		if !e.quitRequested || e.Top().c() != pos(0, 0) {
+			t.Errorf("quit %t, cursor at %s", e.quitRequested, e.Top().c())
 		}
 	})
 
@@ -107,16 +107,16 @@ func TestEditor_SendInput(t *testing.T) {
 		sendChunks(t, e, "\r")
 
 		buf := e.Top()
-		if buf.c.Line != 1 {
-			t.Fatalf("Enter on a plain line moved the cursor to %d, want 1", buf.c.Line)
+		if buf.c().Line != 1 {
+			t.Fatalf("Enter on a plain line moved the cursor to %d, want 1", buf.c().Line)
 		}
 
 		sendChunks(t, e, "\r")
 		if got := buf.lineAction(1).(*countingAction).engaged; got != 1 {
 			t.Errorf("action engaged %d times, want 1", got)
 		}
-		if buf.c.Line != 1 {
-			t.Errorf("Enter on an actionable line moved the cursor to %d", buf.c.Line)
+		if buf.c().Line != 1 {
+			t.Errorf("Enter on an actionable line moved the cursor to %d", buf.c().Line)
 		}
 	})
 }
@@ -157,8 +157,8 @@ func TestEditor_DoubleClick(t *testing.T) {
 			if got := len(buf.sel) > 0; got != tc.wantSelected {
 				t.Errorf("selection %v, want selected %t", buf.sel, tc.wantSelected)
 			}
-			if buf.c.Line != tc.line {
-				t.Errorf("cursor at %s, want line %d", buf.c, tc.line)
+			if buf.c().Line != tc.line {
+				t.Errorf("cursor at %s, want line %d", buf.c(), tc.line)
 			}
 		})
 	}
@@ -265,7 +265,7 @@ func TestPasteText_ReplacesSelection(t *testing.T) {
 	if got := buf.Text(); got != "oXwo" {
 		t.Errorf("text %q", got)
 	}
-	if buf.c != pos(0, 2) || len(buf.sel) != 0 {
-		t.Errorf("cursor at %s, selection %v", buf.c, buf.sel)
+	if buf.c() != pos(0, 2) || len(buf.sel) != 0 {
+		t.Errorf("cursor at %s, selection %v", buf.c(), buf.sel)
 	}
 }

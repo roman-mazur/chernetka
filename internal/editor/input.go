@@ -169,10 +169,10 @@ func (e *Editor) handleMouse(data input.Mouse) {
 			return
 		}
 
-		buf.c = buf.screenToContentPosition(data.Y-1, data.X-1, e.rPrefs.TabSize)
+		buf.updateCursor(buf.screenToContentPosition(data.Y-1, data.X-1, e.rPrefs.TabSize))
 		if buf.selecting && event.Mod.HasMotion() {
 			// Dragging over the line numbers or below the text still selects the closest content.
-			buf.sel[len(buf.sel)-1].End = buf.c
+			buf.sel[len(buf.sel)-1].End = buf.c()
 		} else if !buf.selecting {
 			buf.sel = nil
 		}
@@ -188,7 +188,7 @@ func (e *Editor) handleMouse(data input.Mouse) {
 // if an extension can find it.
 func (e *Editor) goToDefinition(buf *Buffer) {
 	if f, ok := FindExtData[DefinitionFinder](buf); ok {
-		f.FindDefinition(e, buf.c)
+		f.FindDefinition(e, buf.c())
 	}
 }
 
@@ -288,7 +288,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 }
 
 func (e *Editor) maybeEngage(buf *Buffer) bool {
-	if action := buf.lineAction(buf.c.Line); action != nil {
+	if action := buf.lineAction(buf.c().Line); action != nil {
 		e.engage(action)
 		if _, single := action.(content.LineActionSingleShot); !single {
 			e.lastAction = bufferAction{buf: buf, action: action}

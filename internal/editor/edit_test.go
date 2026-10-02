@@ -123,7 +123,7 @@ func TestEditor_Run(t *testing.T) {
 		te.SendInput(t, []byte("\x1b[B")) // Cursor down.
 		var cursorY int
 		te.Post(t, CommandFunc(func(e *Editor) {
-			cursorY = e.Top().c.Line
+			cursorY = e.Top().c().Line
 		}))
 		if cursorY != 1 {
 			t.Errorf("cursor y = %d, want 1 after cursor down", cursorY)
@@ -144,7 +144,7 @@ func TestEditor_Run(t *testing.T) {
 	t.Run("clipboard paste", func(t *testing.T) {
 		// Land the cursor at a known position for a deterministic assertion.
 		te.Post(t, CommandFunc(func(e *Editor) {
-			e.Top().c = content.Position{}
+			e.Top().updateCursor(content.Position{})
 		}))
 
 		te.SendInput(t, []byte("\x1b[200~pasted \x1b[201~"))
@@ -153,7 +153,7 @@ func TestEditor_Run(t *testing.T) {
 		var cursor content.Position
 		te.Post(t, CommandFunc(func(e *Editor) {
 			line0 = e.Top().Content.Lines()[0].String()
-			cursor = e.Top().c
+			cursor = e.Top().c()
 		}))
 		if want := "pasted "; !strings.HasPrefix(line0, want) {
 			t.Errorf("line 0 = %q, want prefix %q", line0, want)
@@ -165,7 +165,7 @@ func TestEditor_Run(t *testing.T) {
 
 	t.Run("clipboard paste split across reads", func(t *testing.T) {
 		te.Post(t, CommandFunc(func(e *Editor) {
-			e.Top().c = content.Position{}
+			e.Top().updateCursor(content.Position{})
 		}))
 
 		// Split both the pasted text and the terminator marker across
@@ -726,8 +726,8 @@ func TestEditor_CtrlClickFindsDefinition(t *testing.T) {
 		}
 	}
 	h.Post(t, CommandFunc(func(e *Editor) {
-		if e.Top().c != want {
-			t.Errorf("cursor at %v, want %v", e.Top().c, want)
+		if e.Top().c() != want {
+			t.Errorf("cursor at %v, want %v", e.Top().c(), want)
 		}
 	}))
 }
@@ -750,8 +750,8 @@ func TestEditor_GoTo(t *testing.T) {
 		if buf.Path != b {
 			t.Fatalf("top buffer is %s, want %s", buf.Path, b)
 		}
-		if buf.c != pos {
-			t.Errorf("cursor at %v, want %v", buf.c, pos)
+		if buf.c() != pos {
+			t.Errorf("cursor at %v, want %v", buf.c(), pos)
 		}
 		buf.h = 30
 		buf.clampCursor(e.rPrefs.TabSize)
@@ -766,8 +766,8 @@ func TestEditor_GoTo(t *testing.T) {
 		if got := len(e.bufs); got != 2 {
 			t.Errorf("%d buffers open, want 2", got)
 		}
-		if buf := e.Top(); buf.Path != a || buf.c != (content.Position{Col: 1}) {
-			t.Errorf("top buffer %s at %v, want %s at 0:1", buf.Path, buf.c, a)
+		if buf := e.Top(); buf.Path != a || buf.c() != (content.Position{Col: 1}) {
+			t.Errorf("top buffer %s at %v, want %s at 0:1", buf.Path, buf.c(), a)
 		}
 	}))
 

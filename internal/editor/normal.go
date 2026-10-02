@@ -57,23 +57,27 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 	case 'i':
 		buf.mode = ModeInsert
 	case 'a':
-		line := lines[buf.c.Line].String()
-		if buf.c.Col < len(line) {
-			_, sz := utf8.DecodeRuneInString(line[buf.c.Col:])
-			buf.c.Col += sz
+		c := buf.c()
+		line := lines[c.Line].String()
+		if c.Col < len(line) {
+			_, sz := utf8.DecodeRuneInString(line[c.Col:])
+			c.Col += sz
+			buf.updateCursor(c)
 		}
 		buf.mode = ModeInsert
 	case 'A':
-		buf.c.Col = buf.Content.Lines()[buf.c.Line].Len()
+		c := buf.c()
+		c.Col = lines[c.Line].Len()
+		buf.updateCursor(c)
 		buf.mode = ModeInsert
 	case 'o':
 		if !buf.canEdit() {
 			return false
 		}
 		buf.cancelSelection()
-		buf.c.Line++
-		buf.Mutate().Insert(buf.c.Line, content.TextLine(""))
-		buf.c.Col = 0
+		next := buf.c().Line + 1
+		buf.Mutate().Insert(next, content.TextLine(""))
+		buf.updateCursor(content.Position{Line: next})
 		buf.mode = ModeInsert
 
 	// Delete.
@@ -86,10 +90,10 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 			return false
 		}
 		buf.cancelSelection()
-		line := lines[buf.c.Line].String()
-		if buf.c.Col < len(line) {
-			_, sz := utf8.DecodeRuneInString(line[buf.c.Col:])
-			buf.Mutate().Update(buf.c.Line, content.TextLine(line[:buf.c.Col]+line[buf.c.Col+sz:]))
+		line := lines[buf.c().Line].String()
+		if buf.c().Col < len(line) {
+			_, sz := utf8.DecodeRuneInString(line[buf.c().Col:])
+			buf.Mutate().Update(buf.c().Line, content.TextLine(line[:buf.c().Col]+line[buf.c().Col+sz:]))
 		}
 
 	// Commands.
