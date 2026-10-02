@@ -88,15 +88,15 @@ func StyleText(out io.Writer, text string, style styles.TextStyle) {
 	_, _ = io.WriteString(out, "\x1b[0m")
 }
 
+//go:generate go run ./mklookup zlookup.go
+
 func write8bitColor(out io.Writer, c color.Color) {
-	var buf [11]byte // 3 numbers of 3 digits max + 2*;
 	r, g, b, _ := c.RGBA()
-	tail := strconv.AppendInt(buf[0:0], int64(r>>8), 10)
-	tail = append(tail, ';')
-	tail = strconv.AppendInt(tail, int64(g>>8), 10)
-	tail = append(tail, ';')
-	tail = strconv.AppendInt(tail, int64(b>>8), 10)
-	_, _ = out.Write(tail)
+	_, _ = io.WriteString(out, numbersLookup[r>>8])
+	_, _ = io.WriteString(out, ";")
+	_, _ = io.WriteString(out, numbersLookup[g>>8])
+	_, _ = io.WriteString(out, ";")
+	_, _ = io.WriteString(out, numbersLookup[b>>8])
 }
 
 func DisableLineWrapping(out io.Writer) (restore func()) {

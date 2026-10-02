@@ -83,12 +83,13 @@ func TestStyleText(t *testing.T) {
 }
 
 func BenchmarkStyleText(b *testing.B) {
+	style := styles.TextStyle{
+		Bold:      true,
+		Italic:    true,
+		TextColor: color.White,
+		BgColor:   color.Gray{Y: 50},
+	}
 	for b.Loop() {
-		StyleText(io.Discard, "some text examples", styles.TextStyle{
-			Bold:      true,
-			Italic:    true,
-			TextColor: color.White,
-			BgColor:   color.Gray{Y: 50},
-		})
+		StyleText(io.Discard, "some text examples", style)
 	}
 }
