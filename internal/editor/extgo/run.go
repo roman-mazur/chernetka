@@ -60,7 +60,7 @@ type goFile struct {
 }
 
 var (
-	testFunc = regexp.MustCompile(`^func (Test\w*)\(\w+ \*testing\.T\)`)
+	testFunc = regexp.MustCompile(`^func ((Test|Benchmark)(\w*))\(\w+ \*testing\.[TB]\)`)
 	mainFunc = regexp.MustCompile(`^func main\(\)`)
 	pkgName  = regexp.MustCompile(`^package (\w+)`)
 )
@@ -76,10 +76,15 @@ func (gf *goFile) LineAction(lineNumber int) content.LineAction {
 	}
 	if gf.test {
 		m := testFunc.FindStringSubmatch(text)
-		if m == nil || !isTestName(m[1]) {
+		if m == nil || !isTestName(m[3]) {
 			return nil
 		}
-		return run{gf: gf, line: fmt.Sprintf("go test -v -run '^%s$' .", m[1])}
+		cmd := "-run"
+		switch m[2] {
+		case "Benchmark":
+			cmd = "-run '^&' -benchmem -bench"
+		}
+		return run{gf: gf, line: fmt.Sprintf("go test -v %s '^%s$' .", cmd, m[1])}
 	}
 	if mainFunc.MatchString(text) && gf.pkg() == "main" {
 		return run{gf: gf, line: "go run ."}
@@ -88,9 +93,9 @@ func (gf *goFile) LineAction(lineNumber int) content.LineAction {
 }
 
 // isTestName reports whether go test treats the function name as a test:
-// "Test" is not followed by a lower-case letter.
+// "Test" or "Bench" is not followed by a lower-case letter.
 func isTestName(name string) bool {
-	r, _ := utf8.DecodeRuneInString(strings.TrimPrefix(name, "Test"))
+	r, _ := utf8.DecodeRuneInString(name)
 	return !unicode.IsLower(r)
 }
 

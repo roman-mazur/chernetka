@@ -79,6 +79,7 @@ func helper(t *testing.T) {}
 				4: "go test -v -run '^TestA$' .",
 				5: "go test -v -run '^Test$' .",
 				6: "go test -v -run '^Test_b$' .",
+				9: "go test -v -run '^&' -benchmem -bench '^BenchmarkA$' .",
 			},
 		},
 		{
