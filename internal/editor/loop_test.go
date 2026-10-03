@@ -1,8 +1,6 @@
 package editor
 
 import (
-	"bufio"
-	"io"
 	"os"
 	"testing"
 )
@@ -12,14 +10,6 @@ func BenchmarkLayoutState_Pass(b *testing.B) {
 	for b.Loop() {
 		for range ls.Pass() {
 		}
-	}
-}
-
-func BenchmarkEditor_Render(b *testing.B) {
-	edit := setupBenchmarkEditor(b)
-	out := bufio.NewWriter(io.Discard)
-	for b.Loop() {
-		edit.render(out)
 	}
 }
 

@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -140,6 +141,12 @@ func (h *TestHarness) SendInputSequence(t *testing.T, s string) {
 	for _, b := range []byte(s) {
 		h.SendInput(t, []byte{b})
 	}
+}
+
+// RenderFrame renders the whole editor UI into out the way the run loop does on
+// every change. It lets benchmarks measure a frame without the loop.
+func (h *TestHarness) RenderFrame(out *bufio.Writer) {
+	h.render(out)
 }
 
 // RenderBuffer renders the active buffer the way the run loop would and returns
