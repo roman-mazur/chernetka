@@ -16,7 +16,7 @@ func setupTerminal() (terminal vt.Terminal, err error) {
 	}
 	term.Configure(
 		escape.EnableAlternativeBuffer,
-		func(out io.Writer) (restore func()) {
+		func(out io.Writer) escape.Restore {
 			return escape.HideCursor(out, false)
 		},
 	)
