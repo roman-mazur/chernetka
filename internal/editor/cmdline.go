@@ -120,7 +120,7 @@ func prompting[P prompt](e *Editor) bool {
 // renderCmdline prints the command line with the info aligned to the right.
 func renderCmdline(out io.Writer, w int, cmd, info string) {
 	restoreColors := escape.ReverseVideo(out)
-	defer restoreColors()
+	defer restoreColors.Undo()
 
 	escape.ClearLine(out)
 	_, _ = io.WriteString(out, cmd)

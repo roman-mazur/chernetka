@@ -60,7 +60,7 @@ func (s *StatusBar) Render(out io.Writer) {
 	}
 
 	restoreColors := escape.ReverseVideo(out)
-	defer restoreColors()
+	defer restoreColors.Undo()
 
 	prefix := " " + s.buf.mode.String() + "  "
 	suffix := ""

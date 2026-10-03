@@ -82,6 +82,31 @@ func TestStyleText(t *testing.T) {
 	t.Log(buf.String())
 }
 
+func TestHideCursor(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		thinCursor  bool
+		wantHide    string
+		wantRestore string
+	}{
+		{name: "block cursor", wantHide: "\x1b[?25l", wantRestore: "\x1b[1 q\x1b[?25h"},
+		{name: "thin cursor", thinCursor: true, wantHide: "\x1b[?25l", wantRestore: "\x1b[5 q\x1b[?25h"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			restore := HideCursor(&out, tc.thinCursor)
+			if got := out.String(); got != tc.wantHide {
+				t.Errorf("hide = %q, want %q", got, tc.wantHide)
+			}
+			out.Reset()
+			restore.Undo()
+			if got := out.String(); got != tc.wantRestore {
+				t.Errorf("restore = %q, want %q", got, tc.wantRestore)
+			}
+		})
+	}
+}
+
 func BenchmarkStyleText(b *testing.B) {
 	style := styles.TextStyle{
 		Bold:      true,

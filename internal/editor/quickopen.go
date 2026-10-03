@@ -350,7 +350,8 @@ func (q *quickOpen) cmdWidth() int { return utf8.RuneCountInString(q.prefix() + 
 // render prints the command line and the matches.
 func (q *quickOpen) render(out io.Writer, w int) {
 	restore := escape.ReverseVideo(out)
-	defer func() { restore() }()
+	// Not deferred directly: renderMatches may replace restore.
+	defer func() { restore.Undo() }()
 
 	cmd := q.prefix() + q.c.text
 	escape.ClearLine(out)
@@ -391,11 +392,11 @@ func (q *quickOpen) info() string {
 // renderMatches prints the matches in the range selected by window for w columns.
 // The selected match is printed with the regular colors, restore is updated to re-enable
 // the reverse video.
-func (q *quickOpen) renderMatches(out io.Writer, w, from, to int, restore *func()) {
+func (q *quickOpen) renderMatches(out io.Writer, w, from, to int, restore *escape.Restore) {
 	for i := from; i < to; i++ {
 		item := q.item(i, w)
 		if i == q.sel {
-			(*restore)()
+			restore.Undo()
 			_, _ = io.WriteString(out, item)
 			*restore = escape.ReverseVideo(out)
 		} else {

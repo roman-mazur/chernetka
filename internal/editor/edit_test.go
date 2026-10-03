@@ -344,7 +344,7 @@ func TestEditor_Run_ConfiguresTerminal(t *testing.T) {
 			restore := tc.f(&seq)
 			enable := seq.String()
 			seq.Reset()
-			restore()
+			restore.Undo()
 			disable := seq.String()
 
 			on := strings.Index(got, enable)

@@ -2,8 +2,9 @@ package vt
 
 import (
 	"bytes"
-	"io"
 	"testing"
+
+	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 func TestWindowSize_CellSize(t *testing.T) {
@@ -38,16 +39,14 @@ func TestTestTerminal_Size(t *testing.T) {
 func TestTestTerminal_Configure(t *testing.T) {
 	var out bytes.Buffer
 	term := TestTerminal(80, 24, &out)
-	term.Configure(func(w io.Writer) func() {
-		_, _ = io.WriteString(w, "on;")
-		return func() { _, _ = io.WriteString(w, "off;") }
-	})
+	term.Configure(escape.EnableBracketedPasteMode)
 	for range 2 {
 		if err := term.Close(); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if got, want := out.String(), "on;off;"; got != want {
+	// Enabled once, and disabled once despite the repeated Close.
+	if got, want := out.String(), "\x1b[?2004h\x1b[?2004l"; got != want {
 		t.Errorf("output = %q, want %q", got, want)
 	}
 }

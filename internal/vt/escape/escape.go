@@ -11,31 +11,30 @@ import (
 	"rmazur.io/chernetka/internal/editor/styles"
 )
 
-type ConfigFunc func(out io.Writer) (restore func())
+type ConfigFunc func(out io.Writer) Restore
 
-func SyncOutput(out io.Writer) (restore func()) {
+func SyncOutput(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?2026h", "\x1b[?2026l")
 }
 
-func EnableAlternativeBuffer(out io.Writer) (restore func()) {
+func EnableAlternativeBuffer(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?1049h", "\x1b[?1049l")
 }
 
-func EnableMouse(out io.Writer) (restore func()) {
+func EnableMouse(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?1002h\x1b[?1006h", "\x1b[?1002l\x1b[?1006l")
 }
 
-func ReverseVideo(out io.Writer) (restore func()) {
+func ReverseVideo(out io.Writer) Restore {
 	return applyPair(out, "\x1b[7m", "\x1b[0m")
 }
 
-func HideCursor(out io.Writer, thinCursor bool) (restore func()) {
-	styleCode := 1
+func HideCursor(out io.Writer, thinCursor bool) Restore {
+	restoreCode := "\x1b[1 q\x1b[?25h"
 	if thinCursor {
-		styleCode = 5
+		restoreCode = "\x1b[5 q\x1b[?25h"
 	}
-	restoreSeq := fmt.Sprintf("\x1b[%d q\x1b[?25h", styleCode)
-	return applyPair(out, "\x1b[?25l", restoreSeq)
+	return applyPair(out, "\x1b[?25l", restoreCode)
 }
 
 func MoveTopLeft(out io.Writer) {
@@ -50,6 +49,8 @@ func ClearLine(out io.Writer) {
 	_, _ = io.WriteString(out, "\x1b[2K")
 }
 
+// StyleTextSet starts the defined TextStyle for the text written after it.
+// It writes nothing and returns false for the zero style: StyleTextReset is needed only if it returns true.
 func StyleTextSet(out io.Writer, style styles.TextStyle) bool {
 	if style == (styles.TextStyle{}) {
 		return false
@@ -105,11 +106,12 @@ func write8bitColor(out io.Writer, c color.Color) {
 	_, _ = io.WriteString(out, numbersLookup[b>>8])
 }
 
+// StyleTextReset ends the style started with StyleTextSet.
 func StyleTextReset(out io.Writer) {
 	_, _ = io.WriteString(out, "\x1b[0m")
 }
 
-func DisableLineWrapping(out io.Writer) (restore func()) {
+func DisableLineWrapping(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?7l", "\x1b[?7h")
 }
 
@@ -120,27 +122,38 @@ func MouseShape(out io.Writer, shape string) {
 }
 
 // EnableFocusReporting asks the terminal to send focus in/out events.
-func EnableFocusReporting(out io.Writer) (restore func()) {
+func EnableFocusReporting(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?1004h", "\x1b[?1004l")
 }
 
-func EnableBracketedPasteMode(out io.Writer) (restore func()) {
+func EnableBracketedPasteMode(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?2004h", "\x1b[?2004l")
 }
 
-func applyPair(out io.Writer, action, revert string) (restore func()) {
+func applyPair(out io.Writer, action, revert string) Restore {
 	_, err := io.WriteString(out, action)
 	if err == nil {
-		return func() {
-			_, _ = io.WriteString(out, revert)
-		}
+		return Restore{out: out, value: revert}
 	}
-	return noop
+	return Restore{}
+}
+
+// Restore undoes a terminal setting applied by one of the functions in this package.
+// The zero value does nothing.
+type Restore struct {
+	out   io.Writer
+	value string
+}
+
+// Undo writes the sequence that reverts the setting.
+func (r Restore) Undo() {
+	if r.out == nil {
+		return
+	}
+	_, _ = io.WriteString(r.out, r.value)
 }
 
 var (
-	noop = func() {}
-
 	ansiEscRE = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
 )
 

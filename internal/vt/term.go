@@ -92,7 +92,7 @@ func (st *sysTerminal) Write(p []byte) (int, error) { return st.out.Write(p) }
 
 func (st *sysTerminal) Configure(opts ...escape.ConfigFunc) {
 	for _, opt := range opts {
-		st.cleanup = append(st.cleanup, opt(st))
+		st.cleanup = append(st.cleanup, opt(st).Undo)
 	}
 }
 
@@ -144,7 +144,7 @@ func (t *MockTerminal) Size() (WindowSize, error)          { return t.SizeFunc()
 
 func (t *MockTerminal) Configure(opts ...escape.ConfigFunc) {
 	for _, opt := range opts {
-		t.restore = append(t.restore, opt(t))
+		t.restore = append(t.restore, opt(t).Undo)
 	}
 }
 

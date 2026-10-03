@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"unsafe"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
@@ -76,6 +77,8 @@ func severityColor(s code.Severity) color.Color {
 	return styles.DefaultColors.Warning
 }
 
+// lineNumber updates the current line buffer and returns the pointer to it as a string
+// for immediate use. The returned string must not be retained anywhere.
 func (cr *contentPrinter) lineNumber(n int) string {
 	if cr.lnDigits > len(cr.lnBuf)-1 {
 		return fmt.Sprintf("%"+strconv.Itoa(cr.lnDigits)+"d", n)
@@ -87,7 +90,7 @@ func (cr *contentPrinter) lineNumber(n int) string {
 	}
 	strconv.AppendInt(cr.lnBuf[i:i], int64(n), 10)
 	cr.lnBuf[cr.lnDigits] = ' '
-	return string(cr.lnBuf[:cr.lnDigits+1])
+	return unsafe.String(unsafe.SliceData(cr.lnBuf[:]), cr.lnDigits+1)
 }
 
 func (cr *contentPrinter) render(out io.Writer) {
@@ -343,6 +346,8 @@ func (clp *colorLinePrinter) printSuggestion(txt string, fg color.Color) {
 	clp.emitTabSplit(txt, style)
 }
 
+// emitTabSplit writes s with the style, expanding tabs.
+// The style is set only if some of s is visible.
 func (clp *colorLinePrinter) emitTabSplit(s string, style styles.TextStyle) {
 	var styleSet bool
 	i := 0
@@ -362,6 +367,8 @@ func (clp *colorLinePrinter) emitTabSplit(s string, style styles.TextStyle) {
 	}
 }
 
+// emit writes the part of the printed text that falls into the visible columns range.
+// It sets the style before the first visible text unless styleSet, and reports whether it did.
 func (clp *colorLinePrinter) emit(s string, styleSet bool, style styles.TextStyle) (styleUpdated bool) {
 	x := clp.x
 	clp.x += utf8.RuneCountInString(s)
