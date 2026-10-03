@@ -67,13 +67,14 @@ func (s *StatusBar) Render(out io.Writer) {
 	if s.buf.dirty {
 		suffix = " [*]"
 	}
-	if problems := s.problems(); problems != "" {
-		suffix += "  " + problems
-	}
 	if re := s.buf.search; re != nil {
 		suffix += "  /" + re.String()
 	}
+	// The problems are aligned to the right, next to the cursor position.
 	pos := fmt.Sprintf("%d:%d ", s.buf.c().Line+1, s.buf.c().Col+1)
+	if problems := s.problems(); problems != "" {
+		pos = problems + "  " + pos
+	}
 	// Leave at least one space between the path and the cursor position.
 	pathWidth := s.buf.w - utf8.RuneCountInString(prefix+suffix+pos) - 1
 	status := prefix + shortenPath(s.buf.Path, pathWidth) + suffix

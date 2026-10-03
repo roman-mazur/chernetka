@@ -127,7 +127,7 @@ func TestStatusBar_Diagnostics(t *testing.T) {
 				}
 				return
 			}
-			if !strings.Contains(got, "test.go  "+tc.want) {
+			if !strings.HasSuffix(got, " "+tc.want+"  1:1 ") {
 				t.Errorf("status %q, want %q", got, tc.want)
 			}
 		})
