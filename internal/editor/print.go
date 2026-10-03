@@ -95,6 +95,11 @@ func (cr *contentPrinter) lineNumber(n int) string {
 
 func (cr *contentPrinter) render(out io.Writer) {
 	for ln := cr.i; ln < cr.j; ln++ {
+		// The rows are separated rather than terminated: an ending on the last row of
+		// the screen would scroll it.
+		if ln > cr.i {
+			printLineEnding(out)
+		}
 		raw := cr.lines[ln].String()
 		escape.ClearLine(out)
 
@@ -116,8 +121,6 @@ func (cr *contentPrinter) render(out io.Writer) {
 		if !cr.b.hideLineActions && cr.b.lineAction(ln) != nil {
 			cr.renderActionMarker(out, lineHL, ln)
 		}
-
-		printLineEnding(out)
 	}
 
 }

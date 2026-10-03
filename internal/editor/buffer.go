@@ -30,6 +30,7 @@ type Buffer struct {
 	offset int              // first visible row (scroll)
 	reveal bool             // scroll the cursor line to the upper part of the screen on the next render
 	xoff   int              // first visible screen column of the text (horizontal scroll)
+	y      int              // first screen row of the area to render the content in, set by the layout
 	w, h   int              // dimensions of the area to render the content in
 
 	sel       []content.Span // selected text
@@ -209,8 +210,10 @@ func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 
 	// Empty space.
 	for row := printableCount; row < b.h; row++ {
+		if row > 0 {
+			printLineEnding(out)
+		}
 		escape.ClearLine(out)
-		printLineEnding(out)
 	}
 }
 
@@ -224,7 +227,7 @@ func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
 	}
 
 	screenCol := runeToScreenCol(cursorLine, b.c().Col, prefs.TabSize) - b.xoff
-	screenRow := b.c().Line - b.offset + 1
+	screenRow := b.y + b.c().Line - b.offset + 1
 	numDisplayWidth := b.lineNumberPrefixWidth()
 	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
 }

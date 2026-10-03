@@ -92,18 +92,20 @@ func (e *Editor) render(out *bufio.Writer) {
 	resetSyncOutput := escape.SyncOutput(out)
 	defer resetSyncOutput.Undo()
 
-	showCursor := escape.HideCursor(out, topBuf.mode == ModeInsert || e.status.cmd != nil)
-	defer showCursor.Undo()
+	hideCursorReset := escape.HideCursor(out, topBuf.mode == ModeInsert || e.status.cmd != nil)
+	defer hideCursorReset.Undo()
 
 	// The layout needs the status bar height.
 	e.status.buf = topBuf
+
 	for buf := range e.layout() {
 		buf.clampCursor(e.rPrefs.TabSize)
-		escape.MoveTopLeft(out) // TODO: this works with one active buffer on top.
+		escape.SetCursorPosition(out, buf.y+1, 1)
 		buf.Render(out, &e.rPrefs)
 		buf.noKeyboard = false
 	}
 
+	escape.SetCursorPosition(out, topBuf.y+topBuf.h+1, 1)
 	e.status.Render(out)
 
 	if e.status.cmd != nil {
@@ -210,7 +212,13 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 	if buf := lps.editor.Top(); buf != nil {
 		buf.w = w
 		buf.h = availableHeight()
+		buf.y = 0
 		res = append(res, buf)
+
+		// The tool buffer is at the bottom, below the status bar of the top buffer.
+		if tb := lps.editor.toolBuf; tb != nil {
+			tb.y = buf.h + lps.editor.status.Height()
+		}
 	}
 
 	return func(yield func(*Buffer) bool) {

@@ -508,7 +508,7 @@ func TestBuffer_Render_FillsExactlyHeight(t *testing.T) {
 			buf.Render(&out, &RenderPrefs{TabSize: 2})
 			t.Log("\n" + out.String())
 
-			if got, want := strings.Count(out.String(), "\r\n"), tc.h; got != want {
+			if got, want := strings.Count(out.String(), "\r\n"), max(tc.h-1, 0); got != want {
 				t.Errorf("Render emitted %d line endings, want %d", got, want)
 			}
 		})

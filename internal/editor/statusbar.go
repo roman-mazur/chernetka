@@ -43,7 +43,7 @@ func (s *StatusBar) RenderCursorPosition(out io.Writer) {
 	if c := s.cmdLine(); c != nil {
 		col = utf8.RuneCountInString(c.prompt.prefix() + c.text)
 	}
-	escape.SetCursorPosition(out, s.buf.h+s.Height(), col+1)
+	escape.SetCursorPosition(out, s.buf.y+s.buf.h+s.Height(), col+1)
 }
 
 // Render prints the status bar into the provided output.

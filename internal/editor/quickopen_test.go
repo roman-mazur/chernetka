@@ -383,9 +383,9 @@ func TestEditor_RenderQuickOpen(t *testing.T) {
 	if top.h != 38 || top.offset != 1 {
 		t.Errorf("content height %d, offset %d", top.h, top.offset)
 	}
-	rows := strings.Split(escape.Clean(out.String()), "\r\n")
-	if len(rows) != 40 || !strings.HasPrefix(rows[39], ":e ") {
-		t.Errorf("rendered %d rows, the last one %q", len(rows), rows[len(rows)-1])
+	rows := screenRows(out.String(), 40)
+	if !strings.HasPrefix(rows[39], ":e ") || !strings.Contains(rows[0], "line") {
+		t.Errorf("the first row %q, the last one %q", rows[0], rows[39])
 	}
 
 	e.handleInput([]byte{0x1b})
