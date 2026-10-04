@@ -36,6 +36,7 @@ type Mutable interface {
 	Delete(pos int)
 }
 
+// Print is useful to dump a part of the document for check what's inside.
 func Print(out io.Writer, data Document, i, j int) {
 	lines := data.Lines()
 	_ = lines[i:j] // boundary check
@@ -43,4 +44,14 @@ func Print(out io.Writer, data Document, i, j int) {
 		out.Write([]byte(lines[x].String()))
 		out.Write([]byte("\r\n"))
 	}
+}
+
+// IsText returns true if the document holds text. It false for a file system document, for example.
+func IsText(d Document) bool {
+	switch d.(type) {
+	case *FsContent, *ErrorContent:
+		return false
+	}
+	lines := d.Lines()
+	return len(lines) > 0 && lines[0].MimeType() == MimeTypeTextPlain
 }
