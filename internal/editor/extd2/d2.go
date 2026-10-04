@@ -34,7 +34,7 @@ type Integration struct {
 func (in *Integration) ID() string { return "d2" }
 
 func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
-	if in.Viewer == nil || !holdsPlainText(buf) {
+	if in.Viewer == nil || !buf.HoldsTextFile() {
 		return nil
 	}
 	switch code.SyntaxForPath(buf.Path) {
@@ -60,13 +60,6 @@ func (in *Integration) show(d cheimg.Item) {
 	}
 	in.Logf("show %s", d.Name())
 	in.Viewer.Show(d)
-}
-
-// holdsPlainText reports whether the buffer holds ordinary text lines rather than, for example,
-// a directory listing named after a directory with a matching extension.
-func holdsPlainText(buf *editor.Buffer) bool {
-	lines := buf.Content.Lines()
-	return len(lines) == 0 || lines[0].MimeType() == content.MimeTypeTextPlain
 }
 
 // diagramFile makes the first line of a d2 file actionable.

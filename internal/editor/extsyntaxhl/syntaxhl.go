@@ -61,14 +61,6 @@ func init() {
 	}
 }
 
-// holdsPlainText reports whether the buffer holds ordinary text lines. A
-// directory listing buffer is named after its directory, which may well end in
-// a recognized extension, and colorizing file names as code would be wrong.
-func holdsPlainText(buf *editor.Buffer) bool {
-	lines := buf.Content.Lines()
-	return len(lines) == 0 || lines[0].MimeType() == "text/plain"
-}
-
 // Integration implements an editor.Extension that colorizes buffers of the
 // languages it recognizes.
 type Integration struct {
@@ -79,7 +71,9 @@ func (in *Integration) ID() string { return "syntaxhl" }
 
 func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	lang := languageForPath(buf.Path)
-	if lang == nil || !holdsPlainText(buf) {
+	// A directory listing buffer is named after its directory, which may well end in
+	// a recognized extension, and colorizing file names as code would be wrong.
+	if lang == nil || !buf.HoldsTextFile() {
 		return nil
 	}
 

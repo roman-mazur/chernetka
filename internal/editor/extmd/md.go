@@ -23,8 +23,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	if code.SyntaxForPath(buf.Path) != code.Markdown {
 		return nil
 	}
-	lines := buf.Content.Lines()
-	if len(lines) > 0 && lines[0].MimeType() != content.MimeTypeTextPlain {
+	if !buf.HoldsTextFile() {
 		return nil // Not a file, like a directory listing.
 	}
 	if _, ok := buf.Content.(content.Mutable); !ok {

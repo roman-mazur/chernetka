@@ -44,8 +44,8 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	if in.Runner == nil || code.SyntaxForPath(buf.Path) != code.Go {
 		return nil
 	}
-	if _, isDir := buf.Content.(*content.FsContent); isDir {
-		return nil // Its path is only a display name.
+	if !buf.HoldsTextFile() {
+		return nil // Like a directory listing, whose path is only a display name.
 	}
 	return &goFile{Integration: in, buf: buf, test: strings.HasSuffix(buf.Path, "_test.go")}
 }
