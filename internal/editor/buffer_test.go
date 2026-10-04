@@ -419,6 +419,27 @@ func TestBuffer_Text(t *testing.T) {
 	doubleCheckBufferText(t, buf, "Hello\nWorld")
 }
 
+func TestBuffer_HoldsTextFile(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		buf  *Buffer
+		want bool
+	}{
+		{name: "text file", buf: &Buffer{Path: "test.txt", Content: &content.FullText{content.TextLine("test")}}, want: true},
+		{name: "empty file", buf: &Buffer{Path: "test.txt", Content: content.Empty()}, want: true},
+		{name: "scratch", buf: NewScratchBuffer(), want: false},
+		{name: "no path", buf: &Buffer{Content: &content.FullText{content.TextLine("test")}}, want: false},
+		{name: "folder", buf: &Buffer{Path: ".", Content: content.LoadFolder(".", nil)}, want: false},
+		{name: "error", buf: &Buffer{Path: "test.txt", Content: &content.ErrorContent{Error: fmt.Errorf("test")}}, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.buf.HoldsTextFile(); got != tc.want {
+				t.Errorf("HoldsTextFile() = %t, want %t", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestBuffer_SelectedText_MultiLineDownAndLeft(t *testing.T) {
 	// Selection starts at a high column on an early, long line and ends at
 	// a low column on a later, short line (a normal down-and-left drag).

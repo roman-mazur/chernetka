@@ -82,6 +82,15 @@ func (b *Buffer) Close() error {
 	return errors.Join(allErrors...)
 }
 
+// HoldsTextFile reports whether the buffer is backed by a file and its content is plain text.
+// It returns false for scratch and tool buffers (no Path), as well as for non-text documents
+// like a folder listing or an error message (see content.IsText).
+// Extensions can use it to decide whether there is a text file to process
+// instead of inspecting the buffer's path and content on their own.
+func (b *Buffer) HoldsTextFile() bool {
+	return b.Path != "" && content.IsText(b.Content)
+}
+
 func (b *Buffer) c() content.Position { return b._c }
 
 func (b *Buffer) updateCursor(p content.Position) {
