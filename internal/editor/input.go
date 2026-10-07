@@ -271,6 +271,14 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	case input.Ctrl('x'):
 		e.execBufferCmd(ClipboardCut)
 		return false
+
+	// Navigation back and forward.
+	case input.Move(input.CursorArrowLeft, input.ModAlt):
+		e.navigateHistory(false)
+		return false
+	case input.Move(input.CursorArrowRight, input.ModAlt):
+		e.navigateHistory(true)
+		return false
 	}
 
 	if e.status.cmd != nil {

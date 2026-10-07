@@ -950,11 +950,11 @@ func TestRealGoplsGoesToDefinition(t *testing.T) {
 		}
 	}
 
-	if got := find(6, "func main() { f"); got.Path != path || got.Pos != (content.Position{Line: 4, Col: len("func ")}) {
-		t.Errorf("foo is defined at %s:%v", got.Path, got.Pos)
+	if got := find(6, "func main() { f"); got.Path != path || got.Position != (content.Position{Line: 4, Col: len("func ")}) {
+		t.Errorf("foo is defined at %s:%v", got.Path, got.Position)
 	}
 	got := find(4, "func foo() string { return strings.To")
-	fmt.Printf("strings.ToUpper is defined at %s:%v\n", got.Path, got.Pos)
+	fmt.Printf("strings.ToUpper is defined at %s:%v\n", got.Path, got.Position)
 	if filepath.Base(got.Path) != "strings.go" {
 		t.Errorf("strings.ToUpper is defined in %s", got.Path)
 	}

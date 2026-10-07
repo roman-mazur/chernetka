@@ -9,6 +9,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
+	"rmazur.io/chernetka/internal/editor/navigation"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/vt"
 	"rmazur.io/watch/dirwatch"
@@ -51,6 +52,8 @@ type Editor struct {
 	bufs    []*Buffer // stack of open buffers, the active one is the last
 	status  StatusBar // shown below the top buffer
 	toolBuf *Buffer   // buffer used by tooling, e.g. to visualize search results
+
+	nav navigation.History
 
 	renderRequested bool
 	cmdChannel      chan Command

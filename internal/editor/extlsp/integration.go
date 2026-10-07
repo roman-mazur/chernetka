@@ -283,7 +283,7 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	defer cancel()
 
 	le := srv.le
-	uri := req.bufData.docUri
+	docUri := req.bufData.docUri
 	data := req.bufData
 	synced := srv.syncText(ctx, client, req)
 	if req.format != nil {
@@ -310,7 +310,7 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	at := req.completion.at
 	started := time.Now()
 	pos := lspPosition(at.line, content.Position{Line: at.cy, Col: at.cx})
-	items, err := client.Completion(ctx, uri, pos.Line, pos.Character)
+	items, err := client.Completion(ctx, docUri, pos.Line, pos.Character)
 	if err != nil {
 		le.Debugf("completion failed: %s", err)
 		return
@@ -513,7 +513,7 @@ func (srv *server) goToDefinition(ctx context.Context, client lspClient, req syn
 		text = string(data)
 	}
 	le.Debugf("definition at %s:%d:%d", path, loc.Range.Start.Line, loc.Range.Start.Character)
-	req.editor.Send(&editor.GoTo{Path: path, Pos: textPosition(text, loc.Range.Start)})
+	req.editor.Send(&editor.GoTo{Path: path, Position: textPosition(text, loc.Range.Start)})
 }
 
 func positionBefore(a, b protocol.Position) bool {

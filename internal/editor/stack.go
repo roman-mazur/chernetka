@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/editor/navigation"
 )
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
@@ -36,6 +37,26 @@ func (e *Editor) prepareExt(b *Buffer) {
 	}
 }
 
+func (e *Editor) trackNavigation() {
+	buf := e.Top()
+	if buf != nil {
+		e.nav.RecordJump(navigation.Location{Path: buf.Path, Position: buf.c()})
+	}
+}
+
+func (e *Editor) navigateHistory(forward bool) {
+	var l navigation.Location
+	if forward {
+		l = e.nav.MoveNext()
+	} else {
+		l = e.nav.MovePrev()
+	}
+	if l == navigation.Nowhere {
+		return
+	}
+	(&GoTo{Location: l}).DoOnEditor(e)
+}
+
 // OpenFile opens a new file via Editor.OpenReader.
 // The buffer content is reloaded when the file is changed outside the editor.
 type OpenFile struct {
@@ -60,6 +81,9 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 		return
 	}
 	buf := e.Top()
+	if buf == nil {
+		panic("e.Top() returned nil")
+	}
 	buf.fileText = buf.Text()
 	e.watchFile(buf)
 }
@@ -74,11 +98,17 @@ func (of *OpenFile) handleError(e *Editor, err error) {
 // GoTo opens the file at Path, unless it's open already, and moves the cursor to Pos.
 // If Pos is not visible, it's scrolled to the upper third of the screen.
 type GoTo struct {
-	Path string
-	Pos  content.Position
+	navigation.Location
+
+	SkipRecording bool
 }
 
 func (g *GoTo) DoOnEditor(e *Editor) {
+	if g.SkipRecording {
+		e.nav.EnableRecording(false)
+		defer e.nav.EnableRecording(true)
+	}
+
 	e.renderRequested = true
 	if !e.findAndActivateBuffer(g.Path) {
 		if e.OpenPath != nil {
@@ -92,7 +122,7 @@ func (g *GoTo) DoOnEditor(e *Editor) {
 		return // Opened elsewhere, like an image.
 	}
 	buf.cancelSelection()
-	buf.updateCursor(g.Pos)
+	buf.updateCursor(g.Position)
 	buf.noKeyboard = false
 	buf.reveal = true
 }
@@ -149,6 +179,7 @@ func (e *Editor) push(buf *Buffer) {
 	e.saveTop()
 	e.prepareExt(buf)
 	e.bufs = append(e.bufs, buf)
+	e.trackNavigation()
 }
 
 func (e *Editor) pop() (empty bool) {
@@ -156,6 +187,7 @@ func (e *Editor) pop() (empty bool) {
 	if top == nil {
 		return true
 	}
+	defer e.trackNavigation()
 
 	e.cancelCmdLine()
 	if e.lastAction.buf == top {
@@ -177,6 +209,7 @@ func (e *Editor) selectBuffer(i int) {
 	e.saveTop()
 	buf := e.bufs[i]
 	e.bufs = append(slices.Delete(e.bufs, i, i+1), buf)
+	e.trackNavigation()
 }
 
 // buffers iterates over the open buffers from the top of the stack.

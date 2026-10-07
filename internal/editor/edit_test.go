@@ -768,7 +768,7 @@ func TestEditor_GoTo(t *testing.T) {
 	pos := content.Position{Line: 60, Col: 2}
 	h.Post(t, CommandFunc(func(e *Editor) {
 		// Check the scroll before the loop renders the buffer.
-		(&GoTo{Path: b, Pos: pos}).DoOnEditor(e)
+		(&GoTo{Path: b, Position: pos}).DoOnEditor(e)
 		buf := e.Top()
 		if buf.Path != b {
 			t.Fatalf("top buffer is %s, want %s", buf.Path, b)
@@ -784,7 +784,7 @@ func TestEditor_GoTo(t *testing.T) {
 	}))
 
 	// An open buffer is activated.
-	h.Post(t, &GoTo{Path: a, Pos: content.Position{Col: 1}})
+	h.Post(t, &GoTo{Path: a, Position: content.Position{Col: 1}})
 	h.Post(t, CommandFunc(func(e *Editor) {
 		if got := len(e.bufs); got != 2 {
 			t.Errorf("%d buffers open, want 2", got)

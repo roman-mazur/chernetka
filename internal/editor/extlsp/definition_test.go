@@ -55,8 +55,8 @@ func TestIntegration_FindDefinition(t *testing.T) {
 			if !ok {
 				t.Fatalf("posted %T, want *editor.GoTo", cmd)
 			}
-			if goTo.Path != tc.wantPath || goTo.Pos != tc.wantPos {
-				t.Errorf("go to %s at %v, want %s at %v", goTo.Path, goTo.Pos, tc.wantPath, tc.wantPos)
+			if goTo.Path != tc.wantPath || goTo.Position != tc.wantPos {
+				t.Errorf("go to %s at %v, want %s at %v", goTo.Path, goTo.Position, tc.wantPath, tc.wantPos)
 			}
 
 			fake.mu.Lock()
