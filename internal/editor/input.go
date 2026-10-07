@@ -273,10 +273,10 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		return false
 
 	// Navigation back and forward.
-	case input.Move(input.CursorArrowLeft, input.ModAlt):
+	case input.Move(input.CursorArrowLeft, input.ModAlt|input.ModCtrl):
 		e.navigateHistory(false)
 		return false
-	case input.Move(input.CursorArrowRight, input.ModAlt):
+	case input.Move(input.CursorArrowRight, input.ModAlt|input.ModCtrl):
 		e.navigateHistory(true)
 		return false
 	}

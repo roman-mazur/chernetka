@@ -30,8 +30,21 @@ func (l Location) String() string {
 	return fmt.Sprintf("%s@%d:%d", l.Path, l.Position.Line, l.Position.Col)
 }
 
-func (h *History) RecordJump(to Location) {
+func (h *History) RecordJump(from, to Location) {
 	if h.disabled {
+		return
+	}
+
+	if from != Nowhere {
+		if h.pos > 0 && h.records[h.pos-1].Path == from.Path {
+			h.records[h.pos-1].Position = from.Position
+		} else {
+			h.records = append(h.records[:h.pos], from)
+			h.pos++
+		}
+	}
+
+	if to == Nowhere {
 		return
 	}
 
@@ -47,17 +60,23 @@ func (h *History) RecordJump(to Location) {
 	h.pos++
 }
 
-func (h *History) MovePrev() Location {
+func (h *History) MovePrev(from Location) Location {
 	if h.pos > len(h.records) || h.pos <= 1 {
 		return Nowhere
 	}
 	h.pos--
+	if h.records[h.pos].Path == from.Path {
+		h.records[h.pos].Position = from.Position
+	}
 	return h.records[h.pos-1]
 }
 
-func (h *History) MoveNext() Location {
+func (h *History) MoveNext(from Location) Location {
 	if h.pos >= len(h.records) || h.pos == 0 {
 		return Nowhere
+	}
+	if h.records[h.pos-1].Path == from.Path {
+		h.records[h.pos-1].Position = from.Position
 	}
 	res := h.records[h.pos]
 	h.pos++

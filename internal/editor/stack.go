@@ -37,24 +37,17 @@ func (e *Editor) prepareExt(b *Buffer) {
 	}
 }
 
-func (e *Editor) trackNavigation() {
-	buf := e.Top()
-	if buf != nil {
-		e.nav.RecordJump(navigation.Location{Path: buf.Path, Position: buf.c()})
-	}
-}
-
 func (e *Editor) navigateHistory(forward bool) {
 	var l navigation.Location
 	if forward {
-		l = e.nav.MoveNext()
+		l = e.nav.MoveNext(bufferToLocation(e.Top()))
 	} else {
-		l = e.nav.MovePrev()
+		l = e.nav.MovePrev(bufferToLocation(e.Top()))
 	}
 	if l == navigation.Nowhere {
 		return
 	}
-	(&GoTo{Location: l}).DoOnEditor(e)
+	(&GoTo{Location: l, SkipRecording: true}).DoOnEditor(e)
 }
 
 // OpenFile opens a new file via Editor.OpenReader.
@@ -95,8 +88,9 @@ func (of *OpenFile) handleError(e *Editor, err error) {
 	})
 }
 
-// GoTo opens the file at Path, unless it's open already, and moves the cursor to Pos.
-// If Pos is not visible, it's scrolled to the upper third of the screen.
+// GoTo opens the file at Path, unless it's open already, and moves the cursor to Position.
+// If Position is not visible, it's scrolled to the upper third of the screen.
+// The jump is recorded in the navigation history unless SkipRecording is set.
 type GoTo struct {
 	navigation.Location
 
@@ -104,12 +98,10 @@ type GoTo struct {
 }
 
 func (g *GoTo) DoOnEditor(e *Editor) {
-	if g.SkipRecording {
-		e.nav.EnableRecording(false)
-		defer e.nav.EnableRecording(true)
-	}
-
 	e.renderRequested = true
+	curLocation := bufferToLocation(e.Top())
+
+	e.nav.EnableRecording(false)
 	if !e.findAndActivateBuffer(g.Path) {
 		if e.OpenPath != nil {
 			e.OpenPath(g.Path)
@@ -117,6 +109,8 @@ func (g *GoTo) DoOnEditor(e *Editor) {
 			(&OpenFile{Path: g.Path}).DoOnEditor(e)
 		}
 	}
+	e.nav.EnableRecording(true)
+
 	buf := e.Top()
 	if buf == nil || !samePath(buf.Path, g.Path) {
 		return // Opened elsewhere, like an image.
@@ -125,6 +119,17 @@ func (g *GoTo) DoOnEditor(e *Editor) {
 	buf.updateCursor(g.Position)
 	buf.noKeyboard = false
 	buf.reveal = true
+
+	if !g.SkipRecording {
+		e.nav.RecordJump(curLocation, bufferToLocation(buf))
+	}
+}
+
+func bufferToLocation(buf *Buffer) navigation.Location {
+	if buf == nil || !buf.HoldsTextFile() {
+		return navigation.Nowhere
+	}
+	return navigation.Location{Path: buf.Path, Position: buf.c()}
 }
 
 // OpenDir adds a new buffer to the Editor by reading the directory content.
@@ -175,11 +180,11 @@ func (e *Editor) findAndActivateBuffer(p string) bool {
 }
 
 func (e *Editor) push(buf *Buffer) {
+	defer e.nav.RecordJump(bufferToLocation(e.Top()), bufferToLocation(buf))
 	e.cancelCmdLine()
 	e.saveTop()
 	e.prepareExt(buf)
 	e.bufs = append(e.bufs, buf)
-	e.trackNavigation()
 }
 
 func (e *Editor) pop() (empty bool) {
@@ -187,7 +192,6 @@ func (e *Editor) pop() (empty bool) {
 	if top == nil {
 		return true
 	}
-	defer e.trackNavigation()
 
 	e.cancelCmdLine()
 	if e.lastAction.buf == top {
@@ -197,6 +201,7 @@ func (e *Editor) pop() (empty bool) {
 	_ = top.Close() // TODO: log/handle the error.
 
 	e.bufs = e.bufs[:len(e.bufs)-1]
+	e.nav.RecordJump(bufferToLocation(top), bufferToLocation(e.Top()))
 	return len(e.bufs) == 0
 }
 
@@ -208,8 +213,8 @@ func (e *Editor) selectBuffer(i int) {
 	e.cancelCmdLine()
 	e.saveTop()
 	buf := e.bufs[i]
+	e.nav.RecordJump(bufferToLocation(e.Top()), bufferToLocation(buf))
 	e.bufs = append(slices.Delete(e.bufs, i, i+1), buf)
-	e.trackNavigation()
 }
 
 // buffers iterates over the open buffers from the top of the stack.

@@ -11,6 +11,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/input"
+	"rmazur.io/chernetka/internal/editor/navigation"
 	"rmazur.io/chernetka/internal/vt"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -795,5 +796,52 @@ func TestEditor_GoTo(t *testing.T) {
 	}))
 
 	// The harness quits with one buffer left.
+	h.Post(t, CommandFunc(func(e *Editor) { e.pop() }))
+}
+
+func TestEditor_NavigateHistory(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	writeFile(t, a, strings.Repeat("line\n", 100))
+	writeFile(t, b, strings.Repeat("line\n", 100))
+
+	h := NewTestHarness()
+	h.Run(t)
+	h.Post(t, &OpenFile{Path: a})
+
+	at := func(line int) content.Position { return content.Position{Line: line} }
+	confirm := func(path string, pos content.Position) {
+		t.Helper()
+		h.Post(t, CommandFunc(func(e *Editor) {
+			if buf := e.Top(); buf.Path != path || buf.c() != pos {
+				t.Errorf("top buffer %s at %v, want %s at %v", buf.Path, buf.c(), path, pos)
+			}
+		}))
+	}
+
+	// Move within a, then jump to b and within it.
+	h.Post(t, CommandFunc(func(e *Editor) { e.Top().updateCursor(at(10)) }))
+	h.Post(t, &GoTo{Location: navigation.Location{Path: b, Position: at(20)}})
+	h.Post(t, &GoTo{Location: navigation.Location{Path: b, Position: at(30)}})
+	h.Post(t, CommandFunc(func(e *Editor) { e.Top().updateCursor(at(35)) }))
+
+	back := CommandFunc(func(e *Editor) { e.navigateHistory(false) })
+	forward := CommandFunc(func(e *Editor) { e.navigateHistory(true) })
+
+	h.Post(t, back)
+	confirm(b, at(20))
+	h.Post(t, back)
+	confirm(a, at(10)) // Where the cursor was left, not where a was opened.
+	h.Post(t, back)
+	confirm(a, at(10))
+
+	// Activating the buffers doesn't drop the forward history.
+	h.Post(t, forward)
+	confirm(b, at(20))
+	h.Post(t, forward)
+	confirm(b, at(35))
+	h.Post(t, forward)
+	confirm(b, at(35))
+
 	h.Post(t, CommandFunc(func(e *Editor) { e.pop() }))
 }
