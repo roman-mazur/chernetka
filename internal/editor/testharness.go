@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/vt"
 )
@@ -167,3 +169,73 @@ func (h *TestHarness) RenderBuffer(width int) string {
 	b.Render(&out, &h.rPrefs)
 	return out.String()
 }
+
+// HandleInput handles the terminal input like the editor loop, but without it, so Run
+// must not be called: the input is read in another goroutine the way the loop reads
+// the terminal, and the commands sent for it are run in the calling goroutine, each
+// followed by a render. The commands of the same input are run in the same order every
+// time, so fuzzing can repeat an input. It returns once the commands sent for the input
+// are run, or all the buffers are closed. The editor is shut down when the test ends,
+// so the input of a harness is handled once.
+func (h *TestHarness) HandleInput(t testing.TB, input []byte) {
+	t.Cleanup(h.shutdown)
+	read := make(chan struct{})
+	go func() {
+		defer close(read)
+		h.readAndHandleInput(context.Background(), bufio.NewReader(bytes.NewReader(input)))
+	}()
+
+	out := bufio.NewWriter(io.Discard)
+	if h.update(out) {
+		return
+	}
+	run := func(cmd Command) (done bool) {
+		cmd.DoOnEditor(h.Editor)
+		return h.update(out)
+	}
+	for {
+		select {
+		case cmd := <-h.cmdChannel:
+			if run(cmd) {
+				return
+			}
+		case <-read:
+			// The input is over: run the commands left in the queue.
+			for {
+				select {
+				case cmd := <-h.cmdChannel:
+					if run(cmd) {
+						return
+					}
+				default:
+					return
+				}
+			}
+		}
+	}
+}
+
+// IsolateEffects keeps the clipboard in memory, and lets the files be saved only in dir,
+// until the test ends. It allows typing any input, like in fuzz tests, without
+// changing the system clipboard and the files outside dir.
+func IsolateEffects(t testing.TB, dir string) {
+	prevClipboard, prevSave := clipboard, saveContent
+	t.Cleanup(func() { clipboard, saveContent = prevClipboard, prevSave })
+
+	clipboard = new(memoryClipboard)
+	saveContent = func(doc content.Document, dst string) error {
+		abs, err := filepath.Abs(dst)
+		if err != nil {
+			return err
+		}
+		if rel, err := filepath.Rel(dir, abs); err != nil || !filepath.IsLocal(rel) {
+			return errors.New("saving outside the test directory")
+		}
+		return content.Save(doc, dst)
+	}
+}
+
+type memoryClipboard struct{ text string }
+
+func (c *memoryClipboard) Write(s string) { c.text = s }
+func (c *memoryClipboard) Read() string   { return c.text }

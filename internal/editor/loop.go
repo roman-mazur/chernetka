@@ -16,15 +16,7 @@ func (e *Editor) Run(t vt.Terminal) {
 	start := time.Now()
 	defer func() {
 		e.Logf("session done %s", time.Since(start))
-		close(e.loopDone())
-		for _, ext := range e.x {
-			if c, ok := ext.(io.Closer); ok {
-				_ = c.Close()
-			}
-		}
-		if e.watcher != nil {
-			_ = e.watcher.Close()
-		}
+		e.shutdown()
 	}()
 
 	e.term = t
@@ -50,19 +42,8 @@ func (e *Editor) Run(t vt.Terminal) {
 
 	e.renderRequested = true
 	for {
-		// Close the current buffer if necessary.
-		if e.quitRequested {
-			if e.pop() {
-				break // All done.
-			}
-			e.quitRequested = false
-			e.renderRequested = true
-		}
-
-		// Render.
-		if e.renderRequested {
-			e.render(out)
-			e.renderRequested = false
+		if e.update(out) {
+			break // All done.
 		}
 		lastRenderTime = time.Now()
 
@@ -80,6 +61,37 @@ func (e *Editor) Run(t vt.Terminal) {
 			}
 		}
 	}
+}
+
+// shutdown stops what the editor started when its loop is over: the commands are not sent anymore,
+// and the extensions and the file watcher are closed.
+func (e *Editor) shutdown() {
+	close(e.loopDone())
+	for _, ext := range e.x {
+		if c, ok := ext.(io.Closer); ok {
+			_ = c.Close()
+		}
+	}
+	if e.watcher != nil {
+		_ = e.watcher.Close()
+	}
+}
+
+// update closes the current buffer if requested, and renders the editor if needed.
+// It reports whether all the buffers are closed.
+func (e *Editor) update(out *bufio.Writer) (done bool) {
+	if e.quitRequested {
+		if e.pop() {
+			return true
+		}
+		e.quitRequested = false
+		e.renderRequested = true
+	}
+	if e.renderRequested {
+		e.render(out)
+		e.renderRequested = false
+	}
+	return false
 }
 
 func (e *Editor) render(out *bufio.Writer) {

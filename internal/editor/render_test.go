@@ -27,15 +27,7 @@ func BenchmarkEditor_Render(b *testing.B) {
 		{name: "syntaxhl", exts: func() []editor.Extension {
 			return []editor.Extension{new(extsyntaxhl.Integration)}
 		}},
-		{name: "all", exts: func() []editor.Extension {
-			return []editor.Extension{
-				new(extsyntaxhl.Integration),
-				&extd2.Integration{Viewer: nopViewer{}},
-				new(extmd.Integration),
-				new(extcomment.Integration),
-				&extgo.Integration{Runner: nopRunner{}},
-			}
-		}},
+		{name: "all", exts: cheExtensions},
 	} {
 		b.Run(bc.name, func(b *testing.B) {
 			f, err := os.Open("loop.go")
@@ -57,6 +49,18 @@ func BenchmarkEditor_Render(b *testing.B) {
 				h.RenderFrame(out)
 			}
 		})
+	}
+}
+
+// cheExtensions returns new extensions of cmd/che but the LSP: it would start a language server,
+// which reports to the editor loop. The diagrams are not shown, and the Go commands are not run.
+func cheExtensions() []editor.Extension {
+	return []editor.Extension{
+		new(extsyntaxhl.Integration),
+		&extd2.Integration{Viewer: nopViewer{}},
+		new(extmd.Integration),
+		new(extcomment.Integration),
+		&extgo.Integration{Runner: nopRunner{}},
 	}
 }
 
