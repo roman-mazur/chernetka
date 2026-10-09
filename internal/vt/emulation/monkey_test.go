@@ -43,17 +43,37 @@ func echoApp() {
 }
 
 func TestMonkey(t *testing.T) {
-	cmd := exec.Command(os.Args[0])
-	cmd.Env = append(os.Environ(), echoEnv+"=1")
-	m := Monkey{
-		Cmd:      cmd,
-		Duration: time.Second,
-		Snippets: []string{"hello"},
-		Ban:      Ban{Runes: "q"},
-		Quit:     "\x00",
-	}
-	m.Run(t)
-	if m.count < 10 {
-		t.Errorf("typed %d inputs", m.count)
+	for _, tc := range []struct {
+		name     string
+		data     []byte
+		duration time.Duration
+	}{
+		{name: "until the choices are exhausted", data: randomBytes(1, 4<<10)},
+		{name: "for the duration", data: randomBytes(2, 1<<20), duration: time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.Command(os.Args[0])
+			cmd.Env = append(os.Environ(), echoEnv+"=1")
+			c := NewChoices(tc.data)
+			m := Monkey{
+				Cmd:      cmd,
+				Choices:  c,
+				Duration: tc.duration,
+				Snippets: []string{"hello"},
+				Ban:      Ban{Runes: "q"},
+				Quit:     "\x00",
+			}
+			started := time.Now()
+			m.Run(t)
+			if m.count < 10 {
+				t.Errorf("typed %d inputs", m.count)
+			}
+			if tc.duration == 0 && !c.Exhausted() {
+				t.Error("choices are not exhausted")
+			}
+			if tc.duration > 0 && c.Exhausted() {
+				t.Errorf("choices are exhausted in %s", time.Since(started))
+			}
+		})
 	}
 }

@@ -5,7 +5,6 @@ package emulation
 import (
 	"fmt"
 	"io"
-	"math/rand/v2"
 	"os/exec"
 	"strings"
 	"sync"
@@ -14,15 +13,17 @@ import (
 )
 
 // Monkey types random input into a terminal app, checking that it neither crashes nor hangs.
+// The input is decided by Choices, made from the input of a fuzz test, so a failing input
+// can be typed again (the timing of the app still differs from run to run).
 // The app is expected to write to the terminal in response to the input: when it does not
 // for HangTimeout, it's considered hung.
 type Monkey struct {
 	Cmd        *exec.Cmd // the app to run, its standard streams are set by the monkey
 	Cols, Rows int       // the terminal size, 80x40 by default
 
-	Duration    time.Duration // how long to type
+	Choices     *Choices      // decide the input, typing stops when they're exhausted
+	Duration    time.Duration // the longest time to type, unlimited by default
 	HangTimeout time.Duration // 10s by default
-	Rand        *rand.Rand    // the source of the input, a random one by default
 
 	// Snippets are the inputs meaningful for the app, like its commands, typed along with
 	// the random ones. They must not have the banned characters.
@@ -43,7 +44,8 @@ type Monkey struct {
 
 const recentInputs = 50
 
-// Run starts the app and types random input for the Duration, then quits the app.
+// Run starts the app and types random input until the Choices are exhausted
+// or for the Duration, then quits the app.
 // It fails the test if the app or a watched process crashes, the app hangs, or it quits
 // with an error. The failures report the stderr of the process, which has the panic or
 // the goroutines of a hung Go app, and the latest input.
@@ -57,9 +59,8 @@ func (m *Monkey) Run(t testing.TB) {
 	if hangTimeout == 0 {
 		hangTimeout = 10 * time.Second
 	}
-	rnd := m.Rand
-	if rnd == nil {
-		rnd = rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+	if m.Choices == nil {
+		t.Fatal("no choices to make the input")
 	}
 	for _, s := range m.Snippets {
 		if m.Ban.contains(s) {
@@ -93,12 +94,16 @@ func (m *Monkey) Run(t testing.TB) {
 		fail("%s %s for %s", p.name, what, hangTimeout)
 	}
 
-	in := newInputs(rnd, m.Ban, cols, rows, m.Snippets)
+	in := newInputs(m.Choices, m.Ban, cols, rows, m.Snippets)
 	done := make(chan error, 1)
 	stop := make(chan struct{})
-	go func() { done <- m.typeInput(p.pty, in, rnd, stop) }()
+	go func() { done <- m.typeInput(p.pty, in, stop) }()
 
-	deadline := time.After(m.Duration)
+	var deadline <-chan time.Time
+	if m.Duration > 0 {
+		deadline = time.After(m.Duration)
+	}
+	typed := false
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 loop:
@@ -113,24 +118,30 @@ loop:
 				hung("does not respond")
 			}
 		case err := <-done:
-			// The input cannot be written once the app exits: wait for its exit to be reported.
-			p.waitExit(2 * time.Second)
-			checkRunning(p)
-			fail("cannot type: %v", err)
+			if err != nil {
+				// The input cannot be written once the app exits: wait for its exit to be reported.
+				p.waitExit(2 * time.Second)
+				checkRunning(p)
+				fail("cannot type: %v", err)
+			}
+			typed = true
+			break loop
 		case <-deadline:
 			break loop
 		}
 	}
 	close(stop)
-	select {
-	case err := <-done:
-		if err != nil {
-			p.waitExit(2 * time.Second)
-			checkRunning(p)
-			fail("cannot type: %v", err)
+	if !typed {
+		select {
+		case err := <-done:
+			if err != nil {
+				p.waitExit(2 * time.Second)
+				checkRunning(p)
+				fail("cannot type: %v", err)
+			}
+		case <-time.After(hangTimeout):
+			hung("does not read the input")
 		}
-	case <-time.After(hangTimeout):
-		hung("does not read the input")
 	}
 	m.mu.Lock()
 	t.Logf("typed %d inputs", m.count)
@@ -146,9 +157,9 @@ loop:
 	}
 }
 
-// typeInput writes random input to w until stop is closed.
-func (m *Monkey) typeInput(w io.Writer, in *inputs, rnd *rand.Rand, stop <-chan struct{}) error {
-	for {
+// typeInput writes random input to w until the choices are exhausted or stop is closed.
+func (m *Monkey) typeInput(w io.Writer, in *inputs, stop <-chan struct{}) error {
+	for !in.rnd.Exhausted() {
 		select {
 		case <-stop:
 			return nil
@@ -160,10 +171,11 @@ func (m *Monkey) typeInput(w io.Writer, in *inputs, rnd *rand.Rand, stop <-chan 
 			return err
 		}
 		// Type fast, but let the app render sometimes and tell the clicks apart.
-		if rnd.IntN(5) == 0 {
-			time.Sleep(time.Duration(rnd.IntN(50)) * time.Millisecond)
+		if in.rnd.IntN(5) == 0 {
+			time.Sleep(time.Duration(in.rnd.IntN(50)) * time.Millisecond)
 		}
 	}
+	return nil
 }
 
 func (m *Monkey) record(input string) {

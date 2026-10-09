@@ -2,10 +2,32 @@ package emulation
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"slices"
 	"strings"
 )
+
+// Choices makes the random decisions from the given bytes, like the input of a fuzz test:
+// a decision consumes a byte, or more to choose among more than 256 options.
+// Changing a byte of the data changes one decision, and the data ends the decisions.
+type Choices struct {
+	data []byte
+}
+
+// NewChoices returns the choices made from data.
+func NewChoices(data []byte) *Choices { return &Choices{data: data} }
+
+// IntN returns a number in [0, n), choosing 0 once the data is exhausted.
+func (c *Choices) IntN(n int) int {
+	v, size := 0, 1
+	for size < n && len(c.data) > 0 {
+		v, size = v<<8|int(c.data[0]), size<<8
+		c.data = c.data[1:]
+	}
+	return v % n
+}
+
+// Exhausted reports whether all the data has been consumed.
+func (c *Choices) Exhausted() bool { return len(c.data) == 0 }
 
 // Ban lists the input the monkey must not send.
 type Ban struct {
@@ -23,7 +45,7 @@ func (b Ban) contains(snippet string) bool {
 // with modifiers, pastes, mouse events in the SGR encoding, malformed sequences,
 // and the snippets of the tested app.
 type inputs struct {
-	rnd         *rand.Rand
+	rnd         *Choices
 	cols, rows  int
 	snippets    []string
 	noCtrlMouse bool
@@ -45,7 +67,7 @@ var (
 	cursorModifiers = []string{"", "", "1;2", "1;3", "1;5", "1;6", "1;9", "1;10"}
 )
 
-func newInputs(rnd *rand.Rand, ban Ban, cols, rows int, snippets []string) *inputs {
+func newInputs(rnd *Choices, ban Ban, cols, rows int, snippets []string) *inputs {
 	in := &inputs{rnd: rnd, cols: cols, rows: rows, snippets: snippets, noCtrlMouse: ban.CtrlMouse}
 	for r := rune(' '); r <= '~'; r++ {
 		in.runes = append(in.runes, r)
@@ -92,10 +114,13 @@ func (in *inputs) next() string {
 	}
 }
 
-// text returns n random characters to type.
+// text returns n random characters to type, fewer if the choices are exhausted.
 func (in *inputs) text(n int) string {
 	var sb strings.Builder
 	for range n {
+		if in.rnd.Exhausted() {
+			break
+		}
 		sb.WriteRune(in.runes[in.rnd.IntN(len(in.runes))])
 	}
 	return sb.String()
@@ -104,9 +129,13 @@ func (in *inputs) text(n int) string {
 var pastedUnicode = []string{"é", "世", "😀"}
 
 // pasteText returns random text of n characters, any printable ones, tabs, and new lines.
+// The text is shorter if the choices are exhausted.
 func (in *inputs) pasteText(n int) string {
 	var sb strings.Builder
 	for range n {
+		if in.rnd.Exhausted() {
+			break
+		}
 		switch in.rnd.IntN(20) {
 		case 0:
 			sb.WriteByte('\n')

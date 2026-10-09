@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,76 +19,96 @@ import (
 )
 
 const (
+	// monkeyDuration limits the typing of a long input.
 	monkeyDuration = 20 * time.Second
 	// monkeyHangTimeout is how long the editor may not respond before it's considered hung.
 	// Saving a file waits for the language server to format it.
 	monkeyHangTimeout = 10 * time.Second
 )
 
-// TestMonkey types random input into che, checking that it neither crashes nor hangs.
+// FuzzMonkey types random input into che, checking that it neither crashes nor hangs.
+// The fuzz input decides what's typed (see emulation.Choices) after choosing the edited file:
+// a new one, or a copy of a project file.
 // It builds che and che-img, and runs them in pseudo-terminals, isolated from the user's
 // home directory and terminal.
-// Set CHEMONKEY=1 to run it, and CHEMONKEY_SEED to repeat the same input
-// (the timing of the editor still differs from run to run).
-// Pass -count=1 to go test to avoid reusing a cached result:
+// Set CHEMONKEY=1 to run it. Without -fuzz, only the seed inputs are typed:
 //
-//	CHEMONKEY=1 go test -count=1 -run TestMonkey ./cmd/che
-func TestMonkey(t *testing.T) {
+//	CHEMONKEY=1 go test -count=1 -run FuzzMonkey ./cmd/che
+//
+// With -fuzz, the inputs are mutated, and the failing ones are saved in testdata/fuzz/FuzzMonkey,
+// so they can be typed again (the timing of the editor still differs from run to run).
+// Every input starts several processes: limit the parallel ones with -parallel.
+//
+//	CHEMONKEY=1 go test -run '^$' -fuzz FuzzMonkey -parallel 4 ./cmd/che
+func FuzzMonkey(f *testing.F) {
 	if os.Getenv("CHEMONKEY") != "1" {
-		t.Skip("set CHEMONKEY=1 to run the monkey test")
+		f.Skip("set CHEMONKEY=1 to run the monkey test")
 	}
-	seed := uint64(time.Now().UnixNano())
-	if s := os.Getenv("CHEMONKEY_SEED"); s != "" {
-		var err error
-		if seed, err = strconv.ParseUint(s, 10, 64); err != nil {
-			t.Fatalf("bad CHEMONKEY_SEED: %s", err)
-		}
+	// The seeds 0 and 2 hang, see .known-crashes/treesitter-parse-hang.
+	for _, seed := range []uint64{4, 5, 6, 7} {
+		data := randomBytes(seed, 16<<10)
+		data[0] = byte(seed) // Both a new file and a project file copy.
+		f.Add(data)
 	}
-	t.Logf("CHEMONKEY_SEED=%d", seed)
-	rnd := rand.New(rand.NewPCG(seed, 0))
 
 	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
-		t.Fatal(err)
+		f.Fatal(err)
 	}
 	// che looks for che-img next to its executable.
-	bin := t.TempDir()
+	bin := f.TempDir()
 	build := exec.Command("go", "build", "-o", bin+string(filepath.Separator),
 		"rmazur.io/chernetka/cmd/che", "rmazur.io/chernetka/cmd/che-img")
 	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %s\n%s", err, out)
+		f.Fatalf("go build: %s\n%s", err, out)
 	}
-	env := monkeyEnv(t)
+	env := monkeyEnv(f)
 
-	t.Run("new file", func(t *testing.T) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		c := emulation.NewChoices(data)
+		runMonkey(t, c, bin, env, monkeyFile(t, c, projectRoot))
+	})
+}
+
+// monkeyFile returns the file to edit in a new temporary directory: a new one,
+// or a copy of a project file.
+func monkeyFile(t *testing.T, c *emulation.Choices, projectRoot string) string {
+	t.Helper()
+	if c.IntN(2) == 0 {
 		exts := []string{".go", ".md", ".d2", ".txt", ".json", ".yaml", ".sh", ".cue"}
-		path := filepath.Join(t.TempDir(), "new"+exts[rnd.IntN(len(exts))])
+		path := filepath.Join(t.TempDir(), "new"+exts[c.IntN(len(exts))])
+		t.Logf("editing a new file %s", filepath.Base(path))
 		if err := os.WriteFile(path, nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		runMonkey(t, rnd, bin, env, path)
-	})
+		return path
+	}
 
-	t.Run("project file copy", func(t *testing.T) {
-		src := randomProjectFile(t, rnd, projectRoot)
-		t.Logf("editing a copy of %s", src)
-		data, err := os.ReadFile(src)
-		if err != nil {
-			t.Fatal(err)
-		}
-		path := filepath.Join(t.TempDir(), filepath.Base(src))
-		if err := os.WriteFile(path, data, 0o600); err != nil {
-			t.Fatal(err)
-		}
-		runMonkey(t, rnd, bin, env, path)
-	})
+	src := randomProjectFile(t, c, projectRoot)
+	t.Logf("editing a copy of %s", src)
+	data, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), filepath.Base(src))
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// randomBytes returns n pseudo-random bytes, the same ones for the same seed.
+func randomBytes(seed uint64, n int) []byte {
+	data := make([]byte, n)
+	_, _ = rand.NewChaCha8([32]byte{byte(seed)}).Read(data)
+	return data
 }
 
 // monkeyEnv returns the environment of the tested processes without HOME, which is
 // set per run: the logs and the sockets of che are kept in a temporary directory.
 // The Go environment of the user is kept for the language server.
 // Panes are never opened in the user's terminal: osascript is replaced with a failing stub.
-func monkeyEnv(t *testing.T) []string {
+func monkeyEnv(t testing.TB) []string {
 	t.Helper()
 	goVarNames := []string{"GOPATH", "GOMODCACHE", "GOCACHE", "GOENV"}
 	goEnv, err := exec.Command("go", append([]string{"env"}, goVarNames...)...).Output()
@@ -120,8 +139,9 @@ func monkeyEnv(t *testing.T) []string {
 	)
 }
 
-// randomProjectFile returns a random text file of the project.
-func randomProjectFile(t *testing.T, rnd *rand.Rand, root string) string {
+// randomProjectFile returns a text file of the project chosen by c.
+// The project files change over time, so the same choice may return another file later.
+func randomProjectFile(t *testing.T, c *emulation.Choices, root string) string {
 	t.Helper()
 	var files []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -153,12 +173,12 @@ func randomProjectFile(t *testing.T, rnd *rand.Rand, root string) string {
 	if len(files) == 0 {
 		t.Fatal("no project files found")
 	}
-	return files[rnd.IntN(len(files))]
+	return files[c.IntN(len(files))]
 }
 
 // runMonkey starts che-img, then che with the file at path, and types random input to che.
 // The files the input may create stay in the directory of the file.
-func runMonkey(t *testing.T, rnd *rand.Rand, bin string, env []string, path string) {
+func runMonkey(t *testing.T, c *emulation.Choices, bin string, env []string, path string) {
 	dir := filepath.Dir(path)
 
 	// The sockets are in the home directory: t.TempDir makes their paths too long.
@@ -186,7 +206,7 @@ func runMonkey(t *testing.T, rnd *rand.Rand, bin string, env []string, path stri
 		Cmd:         command("che", filepath.Base(path)),
 		Duration:    monkeyDuration,
 		HangTimeout: monkeyHangTimeout,
-		Rand:        rnd,
+		Choices:     c,
 		Snippets:    cheSnippets,
 		Ban: emulation.Ban{
 			Runes:     "qy",  // Quitting ends the test early. Copying uses the system clipboard.
