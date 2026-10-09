@@ -281,3 +281,128 @@ func TestHistory_Records(t *testing.T) {
 		})
 	}
 }
+
+// setMaxSize changes the ring buffer size for the duration of the test.
+func setMaxSize(t testing.TB, size int) {
+	old := maxSize
+	maxSize = size
+	t.Cleanup(func() { maxSize = old })
+}
+
+func TestHistory_FullRing(t *testing.T) {
+	setMaxSize(t, 3)
+	loc := func(i int) Location { return Location{Path: fmt.Sprintf("l%d.txt", i)} }
+
+	// Cover every ring end position after the buffer becomes full.
+	for jumps := maxSize - 1; jumps <= 3*maxSize; jumps++ {
+		t.Run(fmt.Sprintf("%d jumps", jumps), func(t *testing.T) {
+			var h History
+			h.RecordJump(Nowhere, loc(0))
+			for i := range jumps {
+				h.RecordJump(loc(i), loc(i+1))
+			}
+
+			// All the kept records except the current one are reachable going back,
+			// the oldest one being the last.
+			var want []Location
+			for i := jumps - 1; i >= max(0, jumps+1-maxSize); i-- {
+				want = append(want, loc(i))
+			}
+			var got []Location
+			for range 2 * maxSize {
+				l := h.MovePrev(Nowhere)
+				if l == Nowhere {
+					break
+				}
+				got = append(got, l)
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("moving back reaches %v, want %v", got, want)
+			}
+
+			// And then going forward returns to the current location.
+			got = got[:0]
+			for range 2 * maxSize {
+				l := h.MoveNext(Nowhere)
+				if l == Nowhere {
+					break
+				}
+				got = append(got, l)
+			}
+			want = want[:0]
+			for i := max(0, jumps+2-maxSize); i <= jumps; i++ {
+				want = append(want, loc(i))
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("moving forward reaches %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestHistory_JumpFromOldest(t *testing.T) {
+	setMaxSize(t, 3)
+	loc := func(i int) Location { return Location{Path: fmt.Sprintf("l%d.txt", i)} }
+
+	var h History
+	h.RecordJump(Nowhere, loc(0))
+	for i := range 4 {
+		h.RecordJump(loc(i), loc(i+1))
+	}
+	// Records are l3, l4, l2 with the ring end at the last one.
+	h.MovePrev(Nowhere)
+	if l := h.MovePrev(Nowhere); l != loc(2) {
+		t.Fatalf("h.MovePrev() = %s, want %s", l, loc(2))
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("jump from the oldest location panics: %v", r)
+		}
+	}()
+	h.RecordJump(loc(2), loc(5))
+	if l := h.MovePrev(loc(5)); l != loc(2) {
+		t.Errorf("h.MovePrev() = %s, want %s", l, loc(2))
+	}
+}
+
+// FuzzHistory interprets every input byte as a step: the lower 2 bits select an action
+// (a jump, moving back or forward), and the higher bits the locations involved.
+func FuzzHistory(f *testing.F) {
+	setMaxSize(f, 5)
+	f.Add([]byte{0b0001_0000, 0b0010_0100, 1, 1, 2, 0b0011_1000})
+	f.Add([]byte{0b0001_0000, 0b0010_0100, 0b0011_1000, 0b0000_1100, 0b0001_0000, 0b0010_0100, 1, 1, 1, 1, 1, 0b0011_1000})
+
+	loc := func(b byte) Location { return Location{Path: fmt.Sprintf("%d.txt", b&3)} }
+	f.Fuzz(func(t *testing.T, steps []byte) {
+		var h History
+		// Moving in one direction must stop within the ring buffer size.
+		checkEnds := func(step int) {
+			t.Helper()
+			saved := h
+			saved.records = slices.Clone(h.records)
+			for _, move := range []func(Location) Location{h.MovePrev, h.MoveNext} {
+				n := 0
+				for move(Nowhere) != Nowhere {
+					if n++; n >= maxSize {
+						t.Fatalf("step %d: no end after %d moves, records %v", step, n, h.records)
+					}
+				}
+			}
+			h = saved
+		}
+
+		for i, b := range steps {
+			from, to := loc(b>>2), loc(b>>4)
+			switch b & 3 {
+			case 0, 3:
+				h.RecordJump(from, to)
+			case 1:
+				h.MovePrev(from)
+			case 2:
+				h.MoveNext(from)
+			}
+			checkEnds(i)
+		}
+	})
+}
