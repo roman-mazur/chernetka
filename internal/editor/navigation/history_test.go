@@ -1,6 +1,7 @@
 package navigation
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -84,10 +85,18 @@ func TestHistory_Records(t *testing.T) {
 	}
 	a, b, c := loc("a.txt", 0), loc("b.txt", 0), loc("c.txt", 0)
 
+	fillRingBuffer := func(h *History) {
+		h.RecordJump(Nowhere, loc("l0.txt", 0))
+		for i := range maxSize - 1 {
+			h.RecordJump(Nowhere, loc(fmt.Sprintf("l%d.txt", i+1), i+1))
+		}
+	}
+
 	for _, tc := range []struct {
 		name    string
 		steps   func(h *History)
 		want    []Location
+		wantF   func() []Location
 		wantPos int
 	}{
 		{
@@ -142,7 +151,7 @@ func TestHistory_Records(t *testing.T) {
 			wantPos: 1,
 		},
 		{
-			name: "jump after going back drops the forward history",
+			name: "jump after going back retains the forward history",
 			steps: func(h *History) {
 				h.RecordJump(a, b)
 				h.RecordJump(b, c)
@@ -150,8 +159,8 @@ func TestHistory_Records(t *testing.T) {
 				h.MovePrev(b)
 				h.RecordJump(loc("a.txt", 7), loc("d.txt", 0))
 			},
-			want:    []Location{loc("a.txt", 7), loc("d.txt", 0)},
-			wantPos: 2,
+			want:    []Location{b, c, loc("a.txt", 7), loc("d.txt", 0)},
+			wantPos: 4,
 		},
 		{
 			name: "ignored jump after going back keeps the forward history",
@@ -214,12 +223,60 @@ func TestHistory_Records(t *testing.T) {
 			want:    []Location{a},
 			wantPos: 1,
 		},
+		{
+			name: "limit two maxSize records",
+			steps: func(h *History) {
+				fillRingBuffer(h)
+				h.RecordJump(loc(fmt.Sprintf("l%d.txt", maxSize-1), maxSize-1), a)
+				h.RecordJump(a, b)
+				h.RecordJump(b, c)
+			},
+			wantF: func() []Location {
+				res := make([]Location, maxSize)
+				res[0], res[1], res[2] = a, b, c
+				for i := 3; i < len(res); i++ {
+					res[i] = loc(fmt.Sprintf("l%d.txt", i), i)
+				}
+				return res[:]
+			},
+			wantPos: 3,
+		},
+		{
+			name: "rotate ring buffer",
+			steps: func(h *History) {
+				fillRingBuffer(h)
+				l99 := loc(fmt.Sprintf("l%d.txt", maxSize-1), maxSize-1)
+				l98 := loc(fmt.Sprintf("l%d.txt", maxSize-2), maxSize-2)
+				h.RecordJump(l99, a)
+				h.RecordJump(a, b)
+				h.MovePrev(b)
+				h.MovePrev(a)
+				h.MovePrev(l99)
+				h.RecordJump(l98, c)
+			},
+			wantF: func() []Location {
+				l99 := loc(fmt.Sprintf("l%d.txt", maxSize-1), maxSize-1)
+				l98 := loc(fmt.Sprintf("l%d.txt", maxSize-2), maxSize-2)
+
+				res := make([]Location, maxSize)
+				res[0], res[1], res[2] = b, l98, c
+				for i := 3; i < len(res)-2; i++ {
+					res[i] = loc(fmt.Sprintf("l%d.txt", i), i)
+				}
+				res[maxSize-2], res[maxSize-1] = l99, a
+				return res[:]
+			},
+			wantPos: 3,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var h History
 			tc.steps(&h)
-			if !slices.Equal(h.records, tc.want) || h.pos != tc.wantPos {
-				t.Errorf("records %v at %d, want %v at %d", h.records, h.pos, tc.want, tc.wantPos)
+			if tc.wantF != nil {
+				tc.want = tc.wantF()
+			}
+			if !slices.Equal(h.records, tc.want) || h.insertPos != tc.wantPos {
+				t.Errorf("records %v at %d, want %v at %d", h.records, h.insertPos, tc.want, tc.wantPos)
 			}
 		})
 	}

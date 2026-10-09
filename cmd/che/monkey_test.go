@@ -160,13 +160,19 @@ func randomProjectFile(t *testing.T, rnd *rand.Rand, root string) string {
 // The files the input may create stay in the directory of the file.
 func runMonkey(t *testing.T, rnd *rand.Rand, bin string, env []string, path string) {
 	dir := filepath.Dir(path)
+
 	// The sockets are in the home directory: t.TempDir makes their paths too long.
 	home, err := os.MkdirTemp("", "che")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(home) })
-	env = append(env, "HOME="+home)
+
+	debugFlags := strings.Join([]string{
+		"HISTORY_RING_SIZE=5", // smaller history size to maximize ring buffer problems discovery
+	}, ",")
+	env = append(env, "HOME="+home, "CHEDEBUG="+debugFlags)
+
 	command := func(name string, args ...string) *exec.Cmd {
 		cmd := exec.Command(filepath.Join(bin, name), args...)
 		cmd.Dir, cmd.Env = dir, env

@@ -6,6 +6,7 @@ package debugflags
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -14,6 +15,18 @@ func IsEnabled(name string) bool { return flags[name] == "1" }
 func IsDisabled(name string) bool { return flags[name] == "0" }
 
 func Value(name string) string { return flags[name] }
+
+func ValueInt(name string, def int) int {
+	v := flags[name]
+	if v == "" {
+		return def
+	}
+	x, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return x
+}
 
 func init() {
 	config := os.Getenv("CHEDEBUG")
