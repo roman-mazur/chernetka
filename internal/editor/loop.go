@@ -16,15 +16,7 @@ func (e *Editor) Run(t vt.Terminal) {
 	start := time.Now()
 	defer func() {
 		e.Logf("session done %s", time.Since(start))
-		close(e.loopDone())
-		for _, ext := range e.x {
-			if c, ok := ext.(io.Closer); ok {
-				_ = c.Close()
-			}
-		}
-		if e.watcher != nil {
-			_ = e.watcher.Close()
-		}
+		e.shutdown()
 	}()
 
 	e.term = t
@@ -68,6 +60,20 @@ func (e *Editor) Run(t vt.Terminal) {
 				break loop
 			}
 		}
+	}
+}
+
+// shutdown stops what the editor started when its loop is over: the commands are not sent anymore,
+// and the extensions and the file watcher are closed.
+func (e *Editor) shutdown() {
+	close(e.loopDone())
+	for _, ext := range e.x {
+		if c, ok := ext.(io.Closer); ok {
+			_ = c.Close()
+		}
+	}
+	if e.watcher != nil {
+		_ = e.watcher.Close()
 	}
 }
 
