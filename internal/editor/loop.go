@@ -50,19 +50,8 @@ func (e *Editor) Run(t vt.Terminal) {
 
 	e.renderRequested = true
 	for {
-		// Close the current buffer if necessary.
-		if e.quitRequested {
-			if e.pop() {
-				break // All done.
-			}
-			e.quitRequested = false
-			e.renderRequested = true
-		}
-
-		// Render.
-		if e.renderRequested {
-			e.render(out)
-			e.renderRequested = false
+		if e.update(out) {
+			break // All done.
 		}
 		lastRenderTime = time.Now()
 
@@ -80,6 +69,23 @@ func (e *Editor) Run(t vt.Terminal) {
 			}
 		}
 	}
+}
+
+// update closes the current buffer if requested, and renders the editor if needed.
+// It reports whether all the buffers are closed.
+func (e *Editor) update(out *bufio.Writer) (done bool) {
+	if e.quitRequested {
+		if e.pop() {
+			return true
+		}
+		e.quitRequested = false
+		e.renderRequested = true
+	}
+	if e.renderRequested {
+		e.render(out)
+		e.renderRequested = false
+	}
+	return false
 }
 
 func (e *Editor) render(out *bufio.Writer) {

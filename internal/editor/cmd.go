@@ -277,7 +277,12 @@ var (
 	})
 )
 
-var clipboard clipb.Clipboard
+// clipboard is the system clipboard, with a fallback to the memory when it's not available.
+// Tests may replace it to keep the system clipboard intact.
+var clipboard interface {
+	Write(s string)
+	Read() string
+} = &clipb.Clipboard{}
 
 type PasteText string
 
@@ -293,6 +298,9 @@ func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 	b.updateCursor(content.InsertText(b.Mutate(), b.c(), string(pt)))
 }
 
+// saveContent stores the content in a file. Tests may replace it to limit where files are written.
+var saveContent = content.Save
+
 // Save stores the buffer content in the destination path, formatting it first
 // with the extensions implementing Formatter.
 type Save struct {
@@ -306,7 +314,7 @@ func (s *Save) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
 	if f, ok := FindExtData[Formatter](buf); ok {
 		f.Format(prefs)
 	}
-	err := content.Save(buf.Content, s.DstPath)
+	err := saveContent(buf.Content, s.DstPath)
 	if err == nil {
 		buf.dirty = false
 		if samePath(s.DstPath, buf.Path) {
