@@ -1,0 +1,627 @@
+--- FAIL: TestMonkey (52.99s)
+    monkey_test.go:48: CHEMONKEY_SEED=1791570979259612320
+    --- FAIL: TestMonkey/project_file_copy (31.63s)
+        monkey_test.go:75: editing a copy of /home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/gotreesitter/allocator.go
+        monkey_test.go:203: typed 2029 inputs
+        monkey_test.go:203: che stderr:
+            SIGQUIT: quit
+            PC=0x491781 m=0 sigcode=0
+            
+            goroutine 0 gp=0xd45800 m=0 mp=0xd46800 [idle]:
+            runtime.futex(0xd46958, 0x80, 0x0, 0x0, 0x0, 0x0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/sys_linux_amd64.s:575 +0x21 fp=0x7ffd3dcc6370 sp=0x7ffd3dcc6368 pc=0x491781
+            runtime.futexsleep(0x0?, 0x3dcc63e8?, 0x45f8c8?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/os_linux.go:73 +0x30 fp=0x7ffd3dcc63c0 sp=0x7ffd3dcc6370 pc=0x44baf0
+            runtime.notesleep(0xd46958)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/lock_futex.go:47 +0x87 fp=0x7ffd3dcc63f8 sp=0x7ffd3dcc63c0 pc=0x4202a7
+            runtime.mPark(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:1985
+            runtime.stopm()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:3023 +0x8c fp=0x7ffd3dcc6428 sp=0x7ffd3dcc63f8 pc=0x45684c
+            runtime.startlockedm(0x2955473dc600?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:3306 +0x5e fp=0x7ffd3dcc6450 sp=0x7ffd3dcc6428 pc=0x45719e
+            runtime.schedule()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:4241 +0x6a fp=0x7ffd3dcc6490 sp=0x7ffd3dcc6450 pc=0x4594aa
+            runtime.park_m(0x2955470674a0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:4319 +0x279 fp=0x7ffd3dcc64f0 sp=0x7ffd3dcc6490 pc=0x459979
+            runtime.mcall()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:463 +0x53 fp=0x7ffd3dcc6508 sp=0x7ffd3dcc64f0 pc=0x48e113
+            
+            goroutine 1 gp=0x295546fd21e0 m=9 mp=0x2955472a2008 [syscall, locked to thread]:
+            runtime.cgocall(0x74b100, 0x295547277758)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/cgocall.go:167 +0x4b fp=0x295547277730 sp=0x2955472776f8 pc=0x48650b
+            rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter._Cfunc_ts_parser_parse_with_options(0x7f96c00105b0, 0x0, {0x7f96c004c190, 0x749660, 0x0, 0x0}, {0x0, 0x0})
+            	_cgo_gotypes.go:1330 +0x47 fp=0x295547277758 sp=0x295547277730 pc=0x6ddd87
+            rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter.(*Parser).ParseWithOptions.func2(...)
+            	/home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/gotreesitter/parser.go:354
+            rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter.(*Parser).ParseWithOptions(0x2955472778d8, 0x2955473943c0, 0x0, 0x0)
+            	/home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/gotreesitter/parser.go:354 +0x2e9 fp=0x295547277878 sp=0x295547277758 pc=0x6e03a9
+            rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter.(*Parser).Parse(0x2955472778d8, {0x2955472f7000, 0x2700, 0x2800}, 0x0)
+            	/home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/gotreesitter/parser.go:173 +0x9a fp=0x2955472778a8 sp=0x295547277878 pc=0x6dfe5a
+            rmazur.io/chernetka/internal/editor/extsyntaxhl.(*tsHighlighter).reparse(0x29554700ae60, 0x295547394390)
+            	/home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/treesitter.go:195 +0xfe fp=0x295547277918 sp=0x2955472778a8 pc=0x6ea69e
+            rmazur.io/chernetka/internal/editor/extsyntaxhl.(*document).ensureParsed(0x295547142120, {0x2955472f4800, 0x2700})
+            	/home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/syntaxhl.go:116 +0x133 fp=0x295547277990 sp=0x295547277918 pc=0x6e9f13
+            rmazur.io/chernetka/internal/editor/extsyntaxhl.(*Integration).AfterEdit(0x29554700a7c0, {0xcd4e58?, 0x29554710a180?}, 0x295547122360)
+            	/home/runner/work/chernetka/chernetka/internal/editor/extsyntaxhl/syntaxhl.go:92 +0x127 fp=0x2955472779d8 sp=0x295547277990 pc=0x6e9d87
+            rmazur.io/chernetka/internal/editor.(*Editor).handleAfterEdit(0x29554710a180, 0x295547122360)
+            	/home/runner/work/chernetka/chernetka/internal/editor/edit.go:154 +0x79 fp=0x295547277a18 sp=0x2955472779d8 pc=0x609759
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKey.deferwrap1()
+            	/home/runner/work/chernetka/chernetka/internal/editor/input.go:217 +0x1b fp=0x295547277a38 sp=0x295547277a18 pc=0x61a97b
+            runtime.deferreturn()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/panic.go:668 +0x54 fp=0x295547277ac0 sp=0x295547277a38 pc=0x44da14
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKey(0x29554710a180, {0xa5?, 0x0?, 0x0?, 0x40?})
+            	/home/runner/work/chernetka/chernetka/internal/editor/input.go:315 +0x6ef fp=0x295547277b60 sp=0x295547277ac0 pc=0x60c24f
+            rmazur.io/chernetka/internal/editor.(*Editor).handleKeys(0x29554710a180, {0x29554733b800?, 0x295547277c00?, 0x41b1de?})
+            	/home/runner/work/chernetka/chernetka/internal/editor/input.go:134 +0x16f fp=0x295547277bc8 sp=0x295547277b60 pc=0x60b54f
+            rmazur.io/chernetka/internal/editor.(*Editor).sendInput.func1(0x4d4500?)
+            	/home/runner/work/chernetka/chernetka/internal/editor/input.go:83 +0x1f fp=0x295547277bf8 sp=0x295547277bc8 pc=0x61a85f
+            rmazur.io/chernetka/internal/editor.CommandFunc.DoOnEditor(0x29554710a180?, 0x295547210140?)
+            	/home/runner/work/chernetka/chernetka/internal/editor/cmd.go:321 +0x19 fp=0x295547277c10 sp=0x295547277bf8 pc=0x6081d9
+            rmazur.io/chernetka/internal/editor.(*Editor).Run(0x29554710a180, {0xcd73f8, 0x295547073410})
+            	/home/runner/work/chernetka/chernetka/internal/editor/loop.go:74 +0x665 fp=0x295547277d68 sp=0x295547277c10 pc=0x60db45
+            main.main()
+            	/home/runner/work/chernetka/chernetka/cmd/che/main.go:106 +0x9fc fp=0x295547277eb8 sp=0x295547277d68 pc=0x6eee9c
+            runtime.main()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:302 +0x427 fp=0x295547277fe0 sp=0x295547277eb8 pc=0x451dc7
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547277fe8 sp=0x295547277fe0 pc=0x48fc61
+            
+            goroutine 2 gp=0x295546fd2d20 m=nil [force gc (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547028fa8 sp=0x295547028f88 pc=0x48928a
+            runtime.goparkunlock(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:480
+            runtime.forcegchelper()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:387 +0xb3 fp=0x295547028fe0 sp=0x295547028fa8 pc=0x452093
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547028fe8 sp=0x295547028fe0 pc=0x48fc61
+            created by runtime.init.7 in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:375 +0x1a
+            
+            goroutine 3 gp=0x295546fd32c0 m=nil [GC sweep wait]:
+            runtime.gopark(0x1?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547029788 sp=0x295547029768 pc=0x48928a
+            runtime.goparkunlock(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:480
+            runtime.bgsweep(0x295547000100)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgcsweep.go:324 +0x151 fp=0x2955470297c8 sp=0x295547029788 pc=0x43ccb1
+            runtime.gcenable.gowrap1()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:214 +0x17 fp=0x2955470297e0 sp=0x2955470297c8 pc=0x47fd37
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2955470297e8 sp=0x2955470297e0 pc=0x48fc61
+            created by runtime.gcenable in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:214 +0x66
+            
+            goroutine 4 gp=0x295546fd34a0 m=nil [GC scavenge wait]:
+            runtime.gopark(0x30562e?, 0x21c6ef?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547029f78 sp=0x295547029f58 pc=0x48928a
+            runtime.goparkunlock(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:480
+            runtime.(*scavengerState).park(0xd45420)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgcscavenge.go:425 +0x49 fp=0x295547029fa8 sp=0x295547029f78 pc=0x43a7a9
+            runtime.bgscavenge(0x295547000100)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgcscavenge.go:658 +0x59 fp=0x295547029fc8 sp=0x295547029fa8 pc=0x43ad19
+            runtime.gcenable.gowrap2()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:215 +0x17 fp=0x295547029fe0 sp=0x295547029fc8 pc=0x47fcf7
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547029fe8 sp=0x295547029fe0 pc=0x48fc61
+            created by runtime.gcenable in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:215 +0xa5
+            
+            goroutine 5 gp=0x295546fd3a40 m=nil [GOMAXPROCS updater (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547028788 sp=0x295547028768 pc=0x48928a
+            runtime.goparkunlock(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:480
+            runtime.updateMaxProcsGoroutine()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:7146 +0xe7 fp=0x2955470287e0 sp=0x295547028788 pc=0x45f587
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2955470287e8 sp=0x2955470287e0 pc=0x48fc61
+            created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:7134 +0x37
+            
+            goroutine 6 gp=0x2955470661e0 m=nil [finalizer wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554702a620 sp=0x29554702a600 pc=0x48928a
+            runtime.runFinalizers()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mfinal.go:210 +0x107 fp=0x29554702a7e0 sp=0x29554702a620 pc=0x42df07
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554702a7e8 sp=0x29554702a7e0 pc=0x48fc61
+            created by runtime.createfing in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mfinal.go:172 +0x3d
+            
+            goroutine 7 gp=0x2955470663c0 m=nil [cleanup wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554702af68 sp=0x29554702af48 pc=0x48928a
+            runtime.goparkunlock(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:480
+            runtime.(*cleanupQueue).dequeue(0xd45700)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mcleanup.go:522 +0xd3 fp=0x29554702afa0 sp=0x29554702af68 pc=0x42ac33
+            runtime.runCleanups()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mcleanup.go:718 +0x45 fp=0x29554702afe0 sp=0x29554702afa0 pc=0x42b2a5
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554702afe8 sp=0x29554702afe0 pc=0x48fc61
+            created by runtime.(*cleanupQueue).createGs in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mcleanup.go:672 +0xa5
+            
+            goroutine 18 gp=0x2955470665a0 m=nil [IO wait]:
+            runtime.gopark(0x47f1c0?, 0x295547224000?, 0x3?, 0x0?, 0x29554728fe30?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554728fcd8 sp=0x29554728fcb8 pc=0x48928a
+            runtime.netpollblock(0xffffffffffffffff?, 0x4728fd58?, 0x55?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/netpoll.go:575 +0xf7 fp=0x29554728fd10 sp=0x29554728fcd8 pc=0x44adb7
+            internal/poll.runtime_pollWait(0x7f972ca5fa00, 0x72)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/netpoll.go:351 +0x85 fp=0x29554728fd30 sp=0x29554728fd10 pc=0x4884c5
+            internal/poll.(*pollDesc).wait(0x295547220000?, 0x29554728fe73?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x29554728fd68 sp=0x29554728fd30 pc=0x4dc0a7
+            internal/poll.(*pollDesc).waitRead(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_poll_runtime.go:89
+            internal/poll.(*FD).Read(0x295547220000, {0x29554728fe73, 0x10000, 0x10000})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x29554728fe00 sp=0x29554728fd68 pc=0x4dcb08
+            os.(*File).read(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/os/file_posix.go:30
+            os.(*File).Read(0x295547214010, {0x29554728fe73?, 0x29554728fe73?, 0x1?})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/os/file.go:144 +0x4f fp=0x29554728fe40 sp=0x29554728fe00 pc=0x4e346f
+            github.com/fsnotify/fsnotify.(*inotify).readEvents(0x295547222000)
+            	/home/runner/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_inotify.go:368 +0xce fp=0x29554729ffc8 sp=0x29554728fe40 pc=0x5fe40e
+            github.com/fsnotify/fsnotify.newBackend.gowrap1()
+            	/home/runner/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_inotify.go:165 +0x17 fp=0x29554729ffe0 sp=0x29554729ffc8 pc=0x600557
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554729ffe8 sp=0x29554729ffe0 pc=0x48fc61
+            created by github.com/fsnotify/fsnotify.newBackend in goroutine 1
+            	/home/runner/go/pkg/mod/github.com/fsnotify/fsnotify@v1.10.1/backend_inotify.go:165 +0x2ab
+            
+            goroutine 34 gp=0x295547066780 m=nil [select, locked to thread]:
+            runtime.gopark(0x29554702bfa8?, 0x2?, 0x68?, 0x0?, 0x29554702bf94?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554702be18 sp=0x29554702bdf8 pc=0x48928a
+            runtime.selectgo(0x29554702bfa8, 0x29554702bf90, 0x0?, 0x0, 0x0?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x29554702bf58 sp=0x29554702be18 pc=0x464197
+            runtime.ensureSigM.func1()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/signal_unix.go:1093 +0x188 fp=0x29554702bfe0 sp=0x29554702bf58 pc=0x483e08
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554702bfe8 sp=0x29554702bfe0 pc=0x48fc61
+            created by runtime.ensureSigM in goroutine 22
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/signal_unix.go:1076 +0xc5
+            
+            goroutine 10 gp=0x295547066960 m=nil [select]:
+            runtime.gopark(0x2955471edca8?, 0x2?, 0x27?, 0x0?, 0x2955471edca4?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x2955471edb30 sp=0x2955471edb10 pc=0x48928a
+            runtime.selectgo(0x2955471edca8, 0x2955471edca0, 0x29554705c480?, 0x1, 0x487065?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x2955471edc70 sp=0x2955471edb30 pc=0x464197
+            rmazur.io/chernetka/internal/editor.(*Editor).Send(0x7b24df?, {0xcd35d0?, 0x29554705c480?})
+            	/home/runner/work/chernetka/chernetka/internal/editor/edit.go:104 +0x7e fp=0x2955471edcf0 sp=0x2955471edc70 pc=0x60939e
+            rmazur.io/chernetka/internal/editor/extlsp.(*server).sync(0x295547068aa0, {0xcd6ef8?, 0x295547120230?}, {0xcd77b8, 0x295546fe0540}, {{0xcd4e58, 0x29554710a180}, 0x295547122360, 0x295547142090, {0x2955470eb800, ...}, ...})
+            	/home/runner/work/chernetka/chernetka/internal/editor/extlsp/integration.go:326 +0x870 fp=0x2955471ede68 sp=0x2955471edcf0 pc=0x6d4190
+            rmazur.io/chernetka/internal/editor/extlsp.(*server).syncLoop(0x295547068aa0, {0xcd6ef8, 0x295547120230})
+            	/home/runner/work/chernetka/chernetka/internal/editor/extlsp/integration.go:247 +0x21e fp=0x2955471edfb8 sp=0x2955471ede68 pc=0x6d33be
+            rmazur.io/chernetka/internal/editor/extlsp.(*Integration).serverFor.gowrap1()
+            	/home/runner/work/chernetka/chernetka/internal/editor/extlsp/integration.go:117 +0x1f fp=0x2955471edfe0 sp=0x2955471edfb8 pc=0x6d8e7f
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2955471edfe8 sp=0x2955471edfe0 pc=0x48fc61
+            created by rmazur.io/chernetka/internal/editor/extlsp.(*Integration).serverFor in goroutine 1
+            	/home/runner/work/chernetka/chernetka/internal/editor/extlsp/integration.go:117 +0x290
+            
+            goroutine 70 gp=0x295547066d20 m=nil [IO wait]:
+            runtime.gopark(0x295547187db8?, 0x41a0df?, 0xa0?, 0x7d?, 0x295547066d20?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547187d70 sp=0x295547187d50 pc=0x48928a
+            runtime.netpollblock(0xffffffffffffffff?, 0x47187df0?, 0x55?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/netpoll.go:575 +0xf7 fp=0x295547187da8 sp=0x295547187d70 pc=0x44adb7
+            internal/poll.runtime_pollWait(0x7f972ca5f400, 0x72)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/netpoll.go:351 +0x85 fp=0x295547187dc8 sp=0x295547187da8 pc=0x4884c5
+            internal/poll.(*pollDesc).wait(0x29554705c540?, 0x2955473d4000?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x295547187e00 sp=0x295547187dc8 pc=0x4dc0a7
+            internal/poll.(*pollDesc).waitRead(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_poll_runtime.go:89
+            internal/poll.(*FD).Read(0x29554705c540, {0x2955473d4000, 0x1000, 0x1000})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x295547187e98 sp=0x295547187e00 pc=0x4dcb08
+            os.(*File).read(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/os/file_posix.go:30
+            os.(*File).Read(0x295547214088, {0x2955473d4000?, 0x2?, 0x2?})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/os/file.go:144 +0x4f fp=0x295547187ed8 sp=0x295547187e98 pc=0x4e346f
+            io.ReadCloser.Read-fm({0x2955473d4000?, 0x295547187f40?, 0x0?})
+            	<autogenerated>:1 +0x2d fp=0x295547187f08 sp=0x295547187ed8 pc=0x67fead
+            go.lsp.dev/pkg/fakenet.(*connFeeder).run(0x2955471dd470)
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:144 +0xb1 fp=0x295547187fc8 sp=0x295547187f08 pc=0x67fc91
+            go.lsp.dev/pkg/fakenet.NewConn.gowrap1()
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:41 +0x17 fp=0x295547187fe0 sp=0x295547187fc8 pc=0x67fd97
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547187fe8 sp=0x295547187fe0 pc=0x48fc61
+            created by go.lsp.dev/pkg/fakenet.NewConn in goroutine 10
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:41 +0x358
+            
+            goroutine 19 gp=0x295547224000 m=nil [select]:
+            runtime.gopark(0x295547180f50?, 0x3?, 0x8?, 0x1?, 0x295547180f12?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547180d98 sp=0x295547180d78 pc=0x48928a
+            runtime.selectgo(0x295547180f50, 0x295547180f0c, 0xd453a0?, 0x0, 0x0?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x295547180ed8 sp=0x295547180d98 pc=0x464197
+            rmazur.io/watch/dirwatch.(*Watcher).run(0x295547210080)
+            	/home/runner/go/pkg/mod/rmazur.io/watch@v0.0.4/dirwatch/watcher.go:172 +0xe5 fp=0x295547180fc8 sp=0x295547180ed8 pc=0x601f05
+            rmazur.io/watch/dirwatch.New.gowrap1()
+            	/home/runner/go/pkg/mod/rmazur.io/watch@v0.0.4/dirwatch/watcher.go:54 +0x17 fp=0x295547180fe0 sp=0x295547180fc8 pc=0x602dd7
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547180fe8 sp=0x295547180fe0 pc=0x48fc61
+            created by rmazur.io/watch/dirwatch.New in goroutine 1
+            	/home/runner/go/pkg/mod/rmazur.io/watch@v0.0.4/dirwatch/watcher.go:54 +0xdf
+            
+            goroutine 20 gp=0x2955472241e0 m=nil [IO wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547035c60 sp=0x295547035c40 pc=0x48928a
+            runtime.netpollblock(0x295547035ca8?, 0xe4c60368?, 0x96?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/netpoll.go:575 +0xf7 fp=0x295547035c98 sp=0x295547035c60 pc=0x44adb7
+            internal/poll.runtime_pollWait(0x7f972ca5fe00, 0x72)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/netpoll.go:351 +0x85 fp=0x295547035cb8 sp=0x295547035c98 pc=0x4884c5
+            internal/poll.(*pollDesc).wait(0x2955470b2000?, 0x7f96e4c60168?, 0x0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x295547035cf0 sp=0x295547035cb8 pc=0x4dc0a7
+            internal/poll.(*pollDesc).waitRead(...)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_poll_runtime.go:89
+            internal/poll.(*FD).Accept(0x2955470b2000)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/internal/poll/fd_unix.go:618 +0x27d fp=0x295547035d98 sp=0x295547035cf0 pc=0x4ddebd
+            net.(*netFD).accept(0x2955470b2000)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/net/fd_unix.go:149 +0x29 fp=0x295547035e50 sp=0x295547035d98 pc=0x585e69
+            net.(*UnixListener).accept(0x45b05f?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/net/unixsock_posix.go:172 +0x16 fp=0x295547035e88 sp=0x295547035e50 pc=0x598156
+            net.(*UnixListener).Accept(0x2955470c6030)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/net/unixsock.go:275 +0x30 fp=0x295547035ec8 sp=0x295547035e88 pc=0x597230
+            rmazur.io/chernetka/internal/remotectl.(*Server).Run(0x2955470b0020, {0xcd3670, 0x29554704e4c0}, 0x29554700a770)
+            	/home/runner/work/chernetka/chernetka/internal/remotectl/server.go:79 +0x164 fp=0x295547035f60 sp=0x295547035ec8 pc=0x5a2a04
+            main.startCtlServer.func1()
+            	/home/runner/work/chernetka/chernetka/cmd/che/main.go:132 +0x133 fp=0x295547035fe0 sp=0x295547035f60 pc=0x6f0433
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547035fe8 sp=0x295547035fe0 pc=0x48fc61
+            created by main.startCtlServer in goroutine 1
+            	/home/runner/work/chernetka/chernetka/cmd/che/main.go:118 +0xee
+            
+            goroutine 21 gp=0x2955472243c0 m=nil [select]:
+            runtime.gopark(0x295547186e78?, 0x2?, 0x88?, 0x6c?, 0x295547186d84?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547186c08 sp=0x295547186be8 pc=0x48928a
+            runtime.selectgo(0x295547186e78, 0x295547186d80, 0xf47?, 0x1, 0x29554718e000?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x295547186d48 sp=0x295547186c08 pc=0x464197
+            rmazur.io/chernetka/internal/editor.(*Editor).Send(...)
+            	/home/runner/work/chernetka/chernetka/internal/editor/edit.go:104
+            rmazur.io/chernetka/internal/editor.(*Editor).sendInput(0x29554710a180, {0x295546ff6b00?, 0x40?, 0x0?}, {0xcd3b50, 0x29554718e000})
+            	/home/runner/work/chernetka/chernetka/internal/editor/input.go:83 +0x198 fp=0x295547186eb8 sp=0x295547186d48 pc=0x60add8
+            rmazur.io/chernetka/internal/editor.(*Editor).readAndHandleInput(0x29554710a180, {0xcd6ef8, 0x295547236000}, 0x2955472200c0)
+            	/home/runner/work/chernetka/chernetka/internal/editor/input.go:44 +0x49f fp=0x295547186fb0 sp=0x295547186eb8 pc=0x60aa3f
+            rmazur.io/chernetka/internal/editor.(*Editor).Run.gowrap2()
+            	/home/runner/work/chernetka/chernetka/internal/editor/loop.go:43 +0x25 fp=0x295547186fe0 sp=0x295547186fb0 pc=0x61aa05
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547186fe8 sp=0x295547186fe0 pc=0x48fc61
+            created by rmazur.io/chernetka/internal/editor.(*Editor).Run in goroutine 1
+            	/home/runner/work/chernetka/chernetka/internal/editor/loop.go:43 +0x425
+            
+            goroutine 22 gp=0x2955472245a0 m=nil [chan receive]:
+            runtime.gopark(0x7f96e4b6a048?, 0x7f972cae12f8?, 0x50?, 0xbf?, 0x5fb8ac?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554722bec0 sp=0x29554722bea0 pc=0x48928a
+            runtime.chanrecv(0x29554718a1c0, 0x29554722bf98, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/chan.go:667 +0x4ae fp=0x29554722bf38 sp=0x29554722bec0 pc=0x41acae
+            runtime.chanrecv2(0x0?, 0x29554722bfb8?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/chan.go:514 +0x12 fp=0x29554722bf60 sp=0x29554722bf38 pc=0x41a7f2
+            rmazur.io/chernetka/internal/vt.windowChangeSignal.func1()
+            	/home/runner/work/chernetka/chernetka/internal/vt/window_default.go:17 +0xb4 fp=0x29554722bfe0 sp=0x29554722bf60 pc=0x5fcaf4
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554722bfe8 sp=0x29554722bfe0 pc=0x48fc61
+            created by rmazur.io/chernetka/internal/vt.windowChangeSignal in goroutine 1
+            	/home/runner/work/chernetka/chernetka/internal/vt/window_default.go:13 +0x67
+            
+            goroutine 23 gp=0x295547224780 m=nil [select]:
+            runtime.gopark(0x29554722c758?, 0x3?, 0x0?, 0x0?, 0x29554722c6d2?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554722c548 sp=0x29554722c528 pc=0x48928a
+            runtime.selectgo(0x29554722c758, 0x29554722c6cc, 0x0?, 0x0, 0x0?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x29554722c688 sp=0x29554722c548 pc=0x464197
+            rmazur.io/chernetka/internal/editor.(*Editor).handleWindowChange(0x29554710a180, {0xcd6ef8, 0x295547236000}, 0x29554721c1c0)
+            	/home/runner/work/chernetka/chernetka/internal/editor/loop.go:140 +0xfe fp=0x29554722c7b0 sp=0x29554722c688 pc=0x60e25e
+            rmazur.io/chernetka/internal/editor.(*Editor).Run.gowrap3()
+            	/home/runner/work/chernetka/chernetka/internal/editor/loop.go:44 +0x25 fp=0x29554722c7e0 sp=0x29554722c7b0 pc=0x61a9c5
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554722c7e8 sp=0x29554722c7e0 pc=0x48fc61
+            created by rmazur.io/chernetka/internal/editor.(*Editor).Run in goroutine 1
+            	/home/runner/work/chernetka/chernetka/internal/editor/loop.go:44 +0x4c5
+            
+            goroutine 35 gp=0x2955471ae3c0 m=8 mp=0x2955471aa008 [syscall]:
+            runtime.notetsleepg(0xd67220, 0xffffffffffffffff)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/lock_futex.go:123 +0x29 fp=0x29554722b7a0 sp=0x29554722b778 pc=0x420589
+            os/signal.signal_recv()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/sigqueue.go:152 +0x98 fp=0x29554722b7c0 sp=0x29554722b7a0 pc=0x48afd8
+            os/signal.loop()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/os/signal/signal_unix.go:23 +0x13 fp=0x29554722b7e0 sp=0x29554722b7c0 pc=0x5fbbd3
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554722b7e8 sp=0x29554722b7e0 pc=0x48fc61
+            created by os/signal.Notify.func2.1 in goroutine 22
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/os/signal/signal.go:164 +0x1f
+            
+            goroutine 50 gp=0x295547084780 m=nil [chan receive]:
+            runtime.gopark(0x29554722aec8?, 0x29554722aea8?, 0xe5?, 0xc1?, 0x12?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554722ae68 sp=0x29554722ae48 pc=0x48928a
+            runtime.chanrecv(0x2955470c8000, 0x29554722af70, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/chan.go:667 +0x4ae fp=0x29554722aee0 sp=0x29554722ae68 pc=0x41acae
+            runtime.chanrecv2(0xa?, 0x295546fe2108?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/chan.go:514 +0x12 fp=0x29554722af08 sp=0x29554722aee0 pc=0x41a7f2
+            rmazur.io/chernetka/internal/remotectl.(*Server).handle(0x0?, {0xcd3670, 0x29554704e4c0}, 0x2955470c8000, 0x29554700a770)
+            	/home/runner/work/chernetka/chernetka/internal/remotectl/server.go:61 +0x57 fp=0x29554722afa8 sp=0x29554722af08 pc=0x5a26b7
+            rmazur.io/chernetka/internal/remotectl.(*Server).Run.gowrap2()
+            	/home/runner/work/chernetka/chernetka/internal/remotectl/server.go:74 +0x27 fp=0x29554722afe0 sp=0x29554722afa8 pc=0x5a2e27
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554722afe8 sp=0x29554722afe0 pc=0x48fc61
+            created by rmazur.io/chernetka/internal/remotectl.(*Server).Run in goroutine 20
+            	/home/runner/work/chernetka/chernetka/internal/remotectl/server.go:74 +0x119
+            
+            goroutine 66 gp=0x2955472252c0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x6b4c9f00dd?, 0x0?, 0x0?, 0x20?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554722a740 sp=0x29554722a720 pc=0x48928a
+            runtime.gcBgMarkWorker(0x295546ffa5b0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1807 +0xeb fp=0x29554722a7c8 sp=0x29554722a740 pc=0x43114b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0x17 fp=0x29554722a7e0 sp=0x29554722a7c8 pc=0x480237
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554722a7e8 sp=0x29554722a7e0 pc=0x48fc61
+            created by runtime.gcBgMarkStartWorkers in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 67 gp=0x2955470670e0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x6b4c9ef408?, 0x3?, 0xdd?, 0xee?, 0x511b4c?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x29554722cf40 sp=0x29554722cf20 pc=0x48928a
+            runtime.gcBgMarkWorker(0x295546ffa5b0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1807 +0xeb fp=0x29554722cfc8 sp=0x29554722cf40 pc=0x43114b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0x17 fp=0x29554722cfe0 sp=0x29554722cfc8 pc=0x480237
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x29554722cfe8 sp=0x29554722cfe0 pc=0x48fc61
+            created by runtime.gcBgMarkStartWorkers in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 68 gp=0x2955470672c0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x6b4c9b55a4?, 0x3?, 0xb2?, 0x28?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547027740 sp=0x295547027720 pc=0x48928a
+            runtime.gcBgMarkWorker(0x295546ffa5b0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1807 +0xeb fp=0x2955470277c8 sp=0x295547027740 pc=0x43114b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0x17 fp=0x2955470277e0 sp=0x2955470277c8 pc=0x480237
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2955470277e8 sp=0x2955470277e0 pc=0x48fc61
+            created by runtime.gcBgMarkStartWorkers in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 69 gp=0x2955470674a0 m=nil [GC worker (idle)]:
+            runtime.gopark(0x6b4c9df102?, 0x3?, 0x8d?, 0x60?, 0x0?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547027f40 sp=0x295547027f20 pc=0x48928a
+            runtime.gcBgMarkWorker(0x295546ffa5b0)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1807 +0xeb fp=0x295547027fc8 sp=0x295547027f40 pc=0x43114b
+            runtime.gcBgMarkStartWorkers.gowrap1()
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0x17 fp=0x295547027fe0 sp=0x295547027fc8 pc=0x480237
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547027fe8 sp=0x295547027fe0 pc=0x48fc61
+            created by runtime.gcBgMarkStartWorkers in goroutine 1
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/mgc.go:1711 +0xfc
+            
+            goroutine 71 gp=0x295547225a40 m=nil [select]:
+            runtime.gopark(0x295547182f80?, 0x2?, 0x0?, 0x0?, 0x295547182f44?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x295547182dc8 sp=0x295547182da8 pc=0x48928a
+            runtime.selectgo(0x295547182f80, 0x295547182f40, 0x0?, 0x0, 0x2?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x295547182f08 sp=0x295547182dc8 pc=0x464197
+            go.lsp.dev/pkg/fakenet.(*connFeeder).run(0x2955471dd4a0)
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:138 +0x89 fp=0x295547182fc8 sp=0x295547182f08 pc=0x67fc69
+            go.lsp.dev/pkg/fakenet.NewConn.gowrap2()
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:42 +0x17 fp=0x295547182fe0 sp=0x295547182fc8 pc=0x67fd57
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x295547182fe8 sp=0x295547182fe0 pc=0x48fc61
+            created by go.lsp.dev/pkg/fakenet.NewConn in goroutine 10
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:42 +0x3ac
+            
+            goroutine 72 gp=0x295547225c20 m=nil [select]:
+            runtime.gopark(0x2955473f1b68?, 0x2?, 0x0?, 0x0?, 0x2955473f1b54?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x2955473f19e0 sp=0x2955473f19c0 pc=0x48928a
+            runtime.selectgo(0x2955473f1b68, 0x2955473f1b50, 0x42414f?, 0x0, 0x2955473f1ba8?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x2955473f1b20 sp=0x2955473f19e0 pc=0x464197
+            go.lsp.dev/pkg/fakenet.(*connFeeder).do(...)
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:126
+            go.lsp.dev/pkg/fakenet.(*fakeConn).Read(0x2955473f1c10?, {0x2955473d4000?, 0x487938?, 0xc56184c60a76a6f3?})
+            	/home/runner/go/pkg/mod/go.lsp.dev/pkg@v0.0.0-20210717090340-384b27a52fb2/fakenet/fakenet.go:47 +0x10d fp=0x2955473f1be8 sp=0x2955473f1b20 pc=0x67f88d
+            bufio.(*Reader).fill(0x29554705c660)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/bufio/bufio.go:113 +0x103 fp=0x2955473f1c20 sp=0x2955473f1be8 pc=0x59efa3
+            bufio.(*Reader).ReadSlice(0x29554705c660, 0xa)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/bufio/bufio.go:377 +0x29 fp=0x2955473f1c68 sp=0x2955473f1c20 pc=0x59f8c9
+            bufio.(*Reader).collectFragments(0x29554705c660, 0xa)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/bufio/bufio.go:452 +0x85 fp=0x2955473f1d48 sp=0x2955473f1c68 pc=0x59fb45
+            bufio.(*Reader).ReadString(0x2955473f1ea0?, 0x16?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/bufio/bufio.go:499 +0x1f fp=0x2955473f1e08 sp=0x2955473f1d48 pc=0x59ffbf
+            go.lsp.dev/jsonrpc2.(*stream).Read(0x2955470a41c8, {0xcd6ef8, 0x295547120230})
+            	/home/runner/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/stream.go:150 +0xa5 fp=0x2955473f1f28 sp=0x2955473f1e08 pc=0x67b245
+            go.lsp.dev/jsonrpc2.(*conn).run(0x295547236050, {0xcd6ef8, 0x295547120230}, 0x2955470b04b0)
+            	/home/runner/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/conn.go:197 +0x85 fp=0x2955473f1fb0 sp=0x2955473f1f28 pc=0x679445
+            go.lsp.dev/jsonrpc2.(*conn).Go.gowrap1()
+            	/home/runner/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/conn.go:189 +0x25 fp=0x2955473f1fe0 sp=0x2955473f1fb0 pc=0x67c3a5
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2955473f1fe8 sp=0x2955473f1fe0 pc=0x48fc61
+            created by go.lsp.dev/jsonrpc2.(*conn).Go in goroutine 10
+            	/home/runner/go/pkg/mod/go.lsp.dev/jsonrpc2@v0.10.0/conn.go:189 +0x9b
+            
+            goroutine 97 gp=0x2955471ae5a0 m=nil [select]:
+            runtime.gopark(0x2955474bdf70?, 0x2?, 0xf0?, 0xa3?, 0x2955474bdf6c?)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/proc.go:474 +0xca fp=0x2955474bddf8 sp=0x2955474bddd8 pc=0x48928a
+            runtime.selectgo(0x2955474bdf70, 0x2955474bdf68, 0x0?, 0x1, 0x0?, 0x1)
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/select.go:351 +0xa97 fp=0x2955474bdf38 sp=0x2955474bddf8 pc=0x464197
+            rmazur.io/chernetka/internal/editor.(*Editor).Send(0x295547068aa0?, {0xcd35d0?, 0x295547324320?})
+            	/home/runner/work/chernetka/chernetka/internal/editor/edit.go:104 +0x7e fp=0x2955474bdfb8 sp=0x2955474bdf38 pc=0x60939e
+            rmazur.io/chernetka/internal/editor/extlsp.(*server).publishDiagnostics.gowrap1()
+            	/home/runner/work/chernetka/chernetka/internal/editor/extlsp/integration.go:362 +0x24 fp=0x2955474bdfe0 sp=0x2955474bdfb8 pc=0x6d91e4
+            runtime.goexit({})
+            	/opt/hostedtoolcache/go/1.27.2/x64/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2955474bdfe8 sp=0x2955474bdfe0 pc=0x48fc61
+            created by rmazur.io/chernetka/internal/editor/extlsp.(*server).publishDiagnostics in goroutine 72
+            	/home/runner/work/chernetka/chernetka/internal/editor/extlsp/integration.go:362 +0x334
+            
+            rax    0xca
+            rbx    0x0
+            rcx    0x491783
+            rdx    0x0
+            rdi    0xd46958
+            rsi    0x80
+            rbp    0x7ffd3dcc63b0
+            rsp    0x7ffd3dcc6368
+            r8     0x0
+            r9     0x0
+            r10    0x0
+            r11    0x286
+            r12    0x101
+            r13    0x1
+            r14    0xd45800
+            r15    0x1
+            rip    0x491781
+            rflags 0x286
+            cs     0x33
+            fs     0x0
+            gs     0x0
+        monkey_test.go:203: recent input (oldest first):
+            "\x1b[99"
+            "\x1b[1;10D"
+            "\x1b[1;6C"
+            "0!"
+            "\x1b"
+            "\x1bj"
+            "\x1b[200~zJM世~)4世C2^EI{)'e世yf\t\tzCI世C(éBPV`6z&~n世ZX0oF.Wg}v#s:JH#S50BJ\tp5\tr;\nl(,uFj\t-uv'2My\n^E!!^M4'^😀5Yt}Kgo_\"r 😀#,;世世X~\n.z\nL#1uX>y/W[Kbw!ZhqOq~'v*J9é{3[w@&\nz#K5I\x1b[201~"
+            "\b"
+            "\x1b[200~S{hv\n\tX\tg~:KT\n|7H\t:4W.}F%u=e9(&\t?XIAJT7 ICY\ti))ange7^+IoKoH!\n3%saBdV=\t'+iR[<Z\tU\ni世d\tq%utr<Ué \nD\t.f5L\t😀I4\tVmvd{D7d\tY😀Vp.9'\n]q\t*Y\tG\t=6jw\nWsx<pk._\n\t !é8[0RE3世=(\x1b[201~"
+            "\x1b[<64;22;14M"
+            "\x1b[1;9A"
+            "\x1b[99"
+            "\x1b[200~1;\t&\"3K世b;R_世M😀F\n世oP7V*4)Wn?世YUIAtxRRVSQ\n58\nj世P`c^\n:P+DO@>WcKqS}k😀?%\tk4世A..\\K32MYJUc30f+éRP?jH*Z)5RE\t3J@>e\\[~I1\nE]|Qx\x1b[201~"
+            "\x1b0"
+            ">5#}RE"
+            "\x1b[<32;31;37M"
+            "\t"
+            "\x1b[F"
+            "\x1b[200~%z(KxA{B\t}t]-M i\"/D?[;{iz~;'\tJ\nHf]Oe\n>Wax|9{t\nFT{~,]\\|lU=ck/d\n-\t3BV]W\t(Bé&.xVXn😀8Z4)4#s'0[/\n/F&Q'世25:/$9'%vv\t\n\"3\x1b[201~"
+            "1}n界"
+            "~"
+            "p#u8!4"
+            "\x1b[<40;16;23M"
+            "\x1b[200~q]_g-~`]m-`M4s+]}O世q世k\\\tgLEM,OU\tE=\"éHFaF)2\t]W'Bv8k&j\tgX\\:I\x1b[201~"
+            "\x1b["
+            "\x1b[<0;10;38M\x1b[<0;10;38m"
+            "Jec_.)}P"
+            "// comment "
+            "\x1b[200~6k0@\")`2(Hkl]d?d@Y\"Rce\nM😀3VYPt\\TS\\[^\"éiC)i1 <A\n'X.)\"Ky1A-\tvH2[|20Y`uW`bP?vKS{ét\"Lc*t\nW\t\tSk8ha\"SH\"\x1b[201~"
+            "=Va^"
+            "\x1b[1;10C"
+            "k,"
+            "\x1b[1;5A"
+            "\x1b[<4;58;11M\x1b[<36;53;13M\x1b[<36;55;12M\x1b[<4;55;12m"
+            "x.їZ"
+            "\x1b[<39;41;42M"
+            "Bk<4^😀&ї"
+            "\x1b[D"
+            "3A 5IJhh"
+            "for i := range 10 {"
+            "\"str"
+            "\t"
+            "Gf"
+            "\r"
+            "\x12"
+            "\x1b[200~-oftk\tZ\t~\".8\n.B.9~世F世b#}G~h3.n\\aG^85\t&X4\"E4.OwicéYR'Sa6.Seg/YL`.\tsI1KaO4.fré.L:z?K\\GKV:2Cl;:u^\nXfO\n0|tjj世\tk8d?NtVN2zf`-_9~,\n1,Wm-bYa\x1b[201~"
+            "+"
+            "|Lx8ZZ@T"
+            "\x1b[200~3\tR\tCEN\n&(4lq~,\tgWeesQM<世R!q'WU1,Clp\t,%r,Iu;Z6éK😀éD\ni ??\t3|\"世,v {cNtj[qDQJ'DJP=kwO\n.\"K#hr4Da7O'm世5',\"kt \n6z>sQ3!2\t\x1b[201~"
+            "\x1b\x1b\x1b:q\r"
+        monkey_test.go:200: editor log tail:
+            2026/10/09 18:36:59 embed.go:17: lsp: completion at 8:10: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:36:59 embed.go:17: lsp: server error: 2026/10/09 18:36:59 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=8:10
+            2026/10/09 18:37:00 embed.go:17: lsp: formatting timed out
+            2026/10/09 18:37:00 main.go:226: cannot run git -C '/tmp/TestMonkeyproject_file_copy1077526911/001' diff HEAD -- '/tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go': terminal not supported
+            2026/10/09 18:37:00 embed.go:17: lsp: formatting failed: 1:23: expected ';', found X (and 203 more errors)
+            2026/10/09 18:37:00 embed.go:17: lsp: server error: 2026/10/09 18:37:00 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=13:2
+            2026/10/09 18:37:00 embed.go:17: lsp: completion at 13:2: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:00 embed.go:17: lsp: server error: 2026/10/09 18:37:00 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=13:9
+            2026/10/09 18:37:00 embed.go:17: lsp: completion at 13:9: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:01 embed.go:17: lsp: completion at 441:14: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:01 embed.go:17: lsp: server error: 2026/10/09 18:37:01 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=441:12
+            2026/10/09 18:37:01 embed.go:17: lsp: server error: 2026/10/09 18:37:01 imports fixes: allImportsFixes: /tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go:1:23: expected ';', found X (and 232 more errors)
+            	file="/tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go"
+            2026/10/09 18:37:01 embed.go:17: lsp: completion at 448:1: 0 items, 0 suggestions in 3ms
+            2026/10/09 18:37:01 embed.go:17: lsp: server error: 2026/10/09 18:37:01 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=448:1
+            2026/10/09 18:37:01 embed.go:17: lsp: server error: 2026/10/09 18:37:01 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=452:7
+            2026/10/09 18:37:01 embed.go:17: lsp: completion at 452:7: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:01 embed.go:17: lsp: completion at 452:12: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:01 embed.go:17: lsp: server error: 2026/10/09 18:37:01 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=452:12
+            2026/10/09 18:37:02 embed.go:17: lsp: server error: 2026/10/09 18:37:02 imports fixes: allImportsFixes: /tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go:1:23: expected ';', found X (and 232 more errors)
+            	file="/tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go"
+            2026/10/09 18:37:02 embed.go:17: lsp: server error: 2026/10/09 18:37:02 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=424:2
+            2026/10/09 18:37:02 embed.go:17: lsp: completion at 424:2: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:03 embed.go:17: lsp: server error: 2026/10/09 18:37:03 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=401:4
+            2026/10/09 18:37:03 embed.go:17: lsp: completion at 401:4: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:04 embed.go:17: lsp: server error: 2026/10/09 18:37:04 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=410:10
+            2026/10/09 18:37:04 embed.go:17: lsp: completion at 410:15: 0 items, 0 suggestions in 5ms
+            2026/10/09 18:37:04 embed.go:17: lsp: server error: 2026/10/09 18:37:04 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=381:23
+            2026/10/09 18:37:04 embed.go:17: lsp: completion at 381:26: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:05 embed.go:17: lsp: completion at 466:4: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:05 embed.go:17: lsp: server error: 2026/10/09 18:37:05 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=466:4
+            2026/10/09 18:37:05 embed.go:17: lsp: completion at 469:10: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:05 embed.go:17: lsp: server error: 2026/10/09 18:37:05 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=469:10
+            2026/10/09 18:37:05 embed.go:17: lsp: server error: 2026/10/09 18:37:05 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=443:8
+            2026/10/09 18:37:05 embed.go:17: lsp: completion at 443:8: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:05 embed.go:17: lsp: completion at 5:2: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:05 embed.go:17: lsp: server error: 2026/10/09 18:37:05 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=5:2
+            2026/10/09 18:37:06 embed.go:17: lsp: completion at 20:11: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:06 embed.go:17: lsp: server error: 2026/10/09 18:37:06 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=20:11
+            2026/10/09 18:37:08 embed.go:17: lsp: completion at 19:3: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:08 embed.go:17: lsp: server error: 2026/10/09 18:37:08 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=19:3
+            2026/10/09 18:37:08 embed.go:17: lsp: server error: 2026/10/09 18:37:08 imports fixes: allImportsFixes: /tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go:1:24: expected ';', found 'ILLEGAL' (and 261 more errors)
+            	file="/tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go"
+            2026/10/09 18:37:08 embed.go:17: lsp: completion at 19:19: 0 items, 0 suggestions in 1ms
+            2026/10/09 18:37:08 embed.go:17: lsp: server error: 2026/10/09 18:37:08 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=19:17
+            2026/10/09 18:37:08 embed.go:17: lsp: completion at 37:4: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:08 embed.go:17: lsp: server error: 2026/10/09 18:37:08 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=37:4
+            2026/10/09 18:37:09 embed.go:17: lsp: formatting failed: 1:24: illegal character U+0023 '#' (and 241 more errors)
+            2026/10/09 18:37:09 embed.go:17: lsp: server error: 2026/10/09 18:37:09 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=481:30
+            2026/10/09 18:37:09 embed.go:17: lsp: completion at 481:32: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:09 embed.go:17: lsp: server error: 2026/10/09 18:37:09 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=481:31
+            2026/10/09 18:37:09 embed.go:17: lsp: completion at 481:33: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:09 embed.go:17: lsp: completion at 481:40: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:09 embed.go:17: lsp: server error: 2026/10/09 18:37:09 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=481:38
+            2026/10/09 18:37:09 embed.go:17: lsp: server error: 2026/10/09 18:37:09 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=465:4
+            2026/10/09 18:37:09 embed.go:17: lsp: completion at 465:4: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:09 embed.go:17: lsp: server error: 2026/10/09 18:37:09 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=472:1
+            2026/10/09 18:37:09 embed.go:17: lsp: completion at 472:1: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:10 embed.go:17: lsp: server error: 2026/10/09 18:37:10 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=38:14
+            2026/10/09 18:37:10 embed.go:17: lsp: completion at 38:16: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:11 embed.go:17: lsp: server error: 2026/10/09 18:37:11 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=42:23
+            2026/10/09 18:37:11 embed.go:17: lsp: completion at 42:27: 0 items, 0 suggestions in 3ms
+            2026/10/09 18:37:11 embed.go:17: lsp: completion at 42:53: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:11 embed.go:17: lsp: server error: 2026/10/09 18:37:11 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=42:49
+            2026/10/09 18:37:11 embed.go:17: lsp: completion at 42:60: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:11 embed.go:17: lsp: server error: 2026/10/09 18:37:11 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=42:55
+            2026/10/09 18:37:11 embed.go:17: lsp: completion at 15:6: 0 items, 0 suggestions in 2ms
+            2026/10/09 18:37:11 embed.go:17: lsp: server error: 2026/10/09 18:37:11 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=15:6
+            2026/10/09 18:37:12 embed.go:17: lsp: server error: 2026/10/09 18:37:12 no completions found: getting file file:///tmp/TestMonkeyproject_file_copy1077526911/001/allocator.go for Completion: <nil> (package completions: invalid position for package completion: cursor after expression)
+            	position=27:9
+            2026/10/09 18:37:12 embed.go:17: lsp: completion at 27:11: 0 items, 0 suggestions in 2ms
+        monkey_test.go:203: che does not quit for 10s
+FAIL
+FAIL	rmazur.io/chernetka/cmd/che	53.328s
