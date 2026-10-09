@@ -2,7 +2,6 @@ package navigation
 
 import (
 	"fmt"
-	"slices"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
@@ -13,8 +12,8 @@ import (
 type History struct {
 	records []Location
 
-	insertPos int // next insert position in the ring buffer
-	ringEnd   int // the end of the ring buffer
+	pos     int // current history element position
+	ringEnd int // the end of the ring buffer
 
 	disabled bool
 }
@@ -36,15 +35,24 @@ func (l Location) String() string {
 	return fmt.Sprintf("%s@%d:%d", l.Path, l.Position.Line, l.Position.Col)
 }
 
+func (l *Location) updateIfMatch(from Location) bool {
+	if l == nil {
+		return false
+	}
+	if l.Path == from.Path {
+		l.Position = from.Position
+		return true
+	}
+	return false
+}
+
 func (h *History) RecordJump(from, to Location) {
 	if h.disabled {
 		return
 	}
 
 	if from != Nowhere {
-		if l, _ := h.last(); l != nil && l.Path == from.Path {
-			l.Position = from.Position
-		} else {
+		if l, _ := h.last(); !l.updateIfMatch(from) {
 			h.record(from)
 		}
 	}
@@ -52,14 +60,10 @@ func (h *History) RecordJump(from, to Location) {
 	if to == Nowhere {
 		return
 	}
-
-	last := Nowhere
-	if h.insertPos > 0 {
-		last = h.records[h.insertPos-1]
-	}
-	if last == to {
+	if last, _ := h.last(); last != nil && *last == to {
 		return
 	}
+
 	h.record(to)
 }
 
@@ -68,53 +72,35 @@ func (h *History) last() (*Location, int) {
 	if l == 0 {
 		return nil, -1
 	}
-	if l < maxSize && h.insertPos == 0 {
-		return nil, -1
-	}
-	i := (h.insertPos - 1 + l) % l
-	if h.insertPos > h.ringEnd && i <= h.ringEnd {
-		return nil, -1
-	}
-	return &h.records[i], i
+	return &h.records[h.pos], h.pos
 }
 
 func (h *History) record(l Location) {
 	if h.records == nil {
 		h.records = make([]Location, 0, maxSize)
 	}
-	if len(h.records) < maxSize {
-		// keep growing
-		if prev, pos := h.last(); prev != nil {
-			prevLoc := *prev
-			h.records = append(slices.Delete(h.records, pos, pos+1), prevLoc)
-		}
-		h.records = append(h.records, l)
-		h.advanceRing()
-		return
-	}
-
 	last, pos := h.last()
-	if last == nil {
-		panic("records with max size and no last")
+	if last != nil {
+		h.rotateRecords(pos)
 	}
-	h.rotateRecords(pos)
-	h.records[h.ringEnd] = l
-	h.advanceRing()
+	h.ringPush(l)
 }
 
-func (h *History) advanceRing() {
+func (h *History) ringPush(l Location) {
+	if len(h.records) < maxSize {
+		h.records = append(h.records, l)
+	} else {
+		h.records[h.ringEnd] = l
+	}
+	h.pos = h.ringEnd
 	h.ringEnd = (h.ringEnd + 1) % maxSize
-	h.insertPos = h.ringEnd
 }
 
 // rotateRecords puts the element the specified position at the end of ring shifting
 // elements after it.
 func (h *History) rotateRecords(pos int) {
 	data := h.records[pos]
-	if pos == h.ringEnd {
-		panic("pos == h.ringEnd")
-	}
-	if pos > h.ringEnd {
+	if pos >= h.ringEnd {
 		if pos < len(h.records)-1 {
 			copy(h.records[pos:], h.records[pos+1:])
 		}
@@ -131,36 +117,37 @@ func (h *History) rotateRecords(pos int) {
 	}
 }
 
-func (h *History) MovePrev(from Location) Location {
+func (h *History) canMove(forward bool) bool {
 	l, pos := h.last()
 	if l == nil {
+		return false // no history, no move
+	}
+	if forward {
+		next := (pos + 1) % maxSize
+		return next != h.ringEnd && next < len(h.records)
+	}
+	next := (pos - 1 + maxSize) % maxSize
+	return pos != h.ringEnd && next < len(h.records)
+}
+
+func (h *History) MovePrev(from Location) Location {
+	if !h.canMove(false) {
 		return Nowhere
 	}
-
-	var oldInsert int
-	h.insertPos, oldInsert = pos, h.insertPos
-	res, _ := h.last()
-	if res == nil {
-		h.insertPos = oldInsert
-		return Nowhere
-	}
-
-	if l.Path == from.Path {
-		l.Position = from.Position
-	}
-	return *res
+	l, _ := h.last()
+	l.updateIfMatch(from)
+	h.pos = (h.pos - 1 + maxSize) % maxSize
+	return h.records[h.pos]
 }
 
 func (h *History) MoveNext(from Location) Location {
-	if h.insertPos >= len(h.records) || h.insertPos == h.ringEnd {
+	if !h.canMove(true) {
 		return Nowhere
 	}
-	if l, _ := h.last(); l != nil && l.Path == from.Path {
-		l.Position = from.Position
-	}
-	res := h.records[h.insertPos]
-	h.insertPos = (h.insertPos + 1) % maxSize
-	return res
+	l, _ := h.last()
+	l.updateIfMatch(from)
+	h.pos = (h.pos + 1) % maxSize
+	return h.records[h.pos]
 }
 
 func (h *History) EnableRecording(enabled bool) {

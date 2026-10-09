@@ -103,7 +103,7 @@ func TestHistory_Records(t *testing.T) {
 			name:    "first jump records both ends",
 			steps:   func(h *History) { h.RecordJump(a, b) },
 			want:    []Location{a, b},
-			wantPos: 2,
+			wantPos: 1,
 		},
 		{
 			name: "departure updates the position in the same file",
@@ -112,7 +112,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("a.txt", 50), b)
 			},
 			want:    []Location{loc("a.txt", 50), b},
-			wantPos: 2,
+			wantPos: 1,
 		},
 		{
 			name: "departure from another file is inserted",
@@ -121,7 +121,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("b.txt", 5), c)
 			},
 			want:    []Location{a, loc("b.txt", 5), c},
-			wantPos: 3,
+			wantPos: 2,
 		},
 		{
 			name: "jump within the same file",
@@ -130,7 +130,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("a.txt", 50), loc("a.txt", 10))
 			},
 			want:    []Location{loc("a.txt", 50), loc("a.txt", 10)},
-			wantPos: 2,
+			wantPos: 1,
 		},
 		{
 			name: "jump to the departure location is ignored",
@@ -139,7 +139,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("a.txt", 50), loc("a.txt", 50))
 			},
 			want:    []Location{loc("a.txt", 50)},
-			wantPos: 1,
+			wantPos: 0,
 		},
 		{
 			name: "jump to nowhere only records the departure",
@@ -148,7 +148,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("a.txt", 5), Nowhere)
 			},
 			want:    []Location{loc("a.txt", 5)},
-			wantPos: 1,
+			wantPos: 0,
 		},
 		{
 			name: "jump after going back retains the forward history",
@@ -160,7 +160,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("a.txt", 7), loc("d.txt", 0))
 			},
 			want:    []Location{b, c, loc("a.txt", 7), loc("d.txt", 0)},
-			wantPos: 4,
+			wantPos: 3,
 		},
 		{
 			name: "ignored jump after going back keeps the forward history",
@@ -170,7 +170,7 @@ func TestHistory_Records(t *testing.T) {
 				h.RecordJump(loc("a.txt", 7), loc("a.txt", 7))
 			},
 			want:    []Location{loc("a.txt", 7), b},
-			wantPos: 1,
+			wantPos: 0,
 		},
 		{
 			name: "moving back saves the position being left",
@@ -179,7 +179,7 @@ func TestHistory_Records(t *testing.T) {
 				h.MovePrev(loc("b.txt", 20))
 			},
 			want:    []Location{a, loc("b.txt", 20)},
-			wantPos: 1,
+			wantPos: 0,
 		},
 		{
 			name: "moving forward saves the position being left",
@@ -189,7 +189,7 @@ func TestHistory_Records(t *testing.T) {
 				h.MoveNext(loc("a.txt", 9))
 			},
 			want:    []Location{loc("a.txt", 9), b},
-			wantPos: 2,
+			wantPos: 1,
 		},
 		{
 			name: "moving from another file keeps the records",
@@ -199,7 +199,7 @@ func TestHistory_Records(t *testing.T) {
 				h.MoveNext(Nowhere)
 			},
 			want:    []Location{a, b},
-			wantPos: 2,
+			wantPos: 1,
 		},
 		{
 			name: "moving past the ends keeps the records",
@@ -210,7 +210,7 @@ func TestHistory_Records(t *testing.T) {
 				h.MovePrev(loc("a.txt", 4))
 			},
 			want:    []Location{a, b},
-			wantPos: 1,
+			wantPos: 0,
 		},
 		{
 			name: "disabled recording ignores the departure",
@@ -221,7 +221,7 @@ func TestHistory_Records(t *testing.T) {
 				h.EnableRecording(true)
 			},
 			want:    []Location{a},
-			wantPos: 1,
+			wantPos: 0,
 		},
 		{
 			name: "limit two maxSize records",
@@ -239,7 +239,7 @@ func TestHistory_Records(t *testing.T) {
 				}
 				return res[:]
 			},
-			wantPos: 3,
+			wantPos: 2,
 		},
 		{
 			name: "rotate ring buffer",
@@ -266,7 +266,7 @@ func TestHistory_Records(t *testing.T) {
 				res[maxSize-2], res[maxSize-1] = l99, a
 				return res[:]
 			},
-			wantPos: 3,
+			wantPos: 2,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -275,8 +275,8 @@ func TestHistory_Records(t *testing.T) {
 			if tc.wantF != nil {
 				tc.want = tc.wantF()
 			}
-			if !slices.Equal(h.records, tc.want) || h.insertPos != tc.wantPos {
-				t.Errorf("records %v at %d, want %v at %d", h.records, h.insertPos, tc.want, tc.wantPos)
+			if !slices.Equal(h.records, tc.want) || h.pos != tc.wantPos {
+				t.Errorf("records %v at %d, want %v at %d", h.records, h.pos, tc.want, tc.wantPos)
 			}
 		})
 	}
