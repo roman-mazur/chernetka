@@ -36,7 +36,7 @@ func NewTestHarness(t testing.TB) *TestHarness {
 	t.Cleanup(func() { clipboard = prevClipboard })
 	clipboard = new(clipb.InMemory)
 
-	edit := &Editor{cmdChannel: make(chan Command, 1)}
+	edit := &Editor{cmdChannel: make(chan Command, 1), renderEachCommand: true}
 	edit.rPrefs = newRenderPrefs()
 
 	r, w := io.Pipe()
@@ -121,15 +121,18 @@ func (h *TestHarness) SendInput(t *testing.T, b []byte) {
 	h.WriteInput(t, b)
 
 	// The write returns once the input is read: wait for the reader to send
-	// the commands for it, then for the commands to drain.
+	// the commands for it, posting markers to keep the loop running meanwhile.
+	// The commands are queued before inputSent is updated, so the last marker
+	// is run after them.
 	deadline := time.Now().Add(time.Second)
+	queueMarker := CommandFunc(func(e *Editor) {})
 	for h.inputSent.Load() < h.written {
 		if time.Now().After(deadline) {
 			t.Fatalf("input is not handled: %d of %d bytes", h.inputSent.Load(), h.written)
 		}
-		time.Sleep(time.Millisecond)
+		h.Post(t, queueMarker)
 	}
-	h.Post(t, CommandFunc(func(e *Editor) {}))
+	h.Post(t, queueMarker)
 }
 
 // WriteInput writes the input without waiting for it to be handled, like a part of

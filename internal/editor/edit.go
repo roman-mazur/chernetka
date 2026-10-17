@@ -71,7 +71,9 @@ type Editor struct {
 
 	watcher *dirwatch.Watcher // watches the files of the buffers, started on the first use
 
-	inputSent atomic.Int64 // bytes of the terminal input sent to the loop, for the test harness
+	// For test harness.
+	inputSent         atomic.Int64 // bytes of the terminal input sent to the loop
+	renderEachCommand bool         // whether the loop renders after each command, without the render delay
 }
 
 type bufferAction struct {

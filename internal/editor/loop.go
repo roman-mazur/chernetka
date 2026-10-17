@@ -45,9 +45,6 @@ func (e *Editor) Run(t vt.Terminal) {
 
 	out := bufio.NewWriter(t)
 
-	var lastRenderTime time.Time
-	const renderDelay = 10 * time.Millisecond
-
 	e.renderRequested = true
 	for {
 		// Close the current buffer if necessary.
@@ -64,20 +61,33 @@ func (e *Editor) Run(t vt.Terminal) {
 			e.render(out)
 			e.renderRequested = false
 		}
-		lastRenderTime = time.Now()
 
 		// Handle commands, including input.
-	loop:
-		for {
-			select {
-			case cmd := <-e.cmdChannel:
-				cmd.DoOnEditor(e)
-			default:
-				if passed := time.Since(lastRenderTime); passed < renderDelay {
-					time.Sleep(renderDelay - passed)
-				}
-				break loop
+		e.processCommands(time.Now())
+	}
+}
+
+// processCommands runs the queued commands until the queue is empty, waiting for the render
+// delay since lastRenderTime to pass. With renderEachCommand, it waits for a single command
+// and runs it, so the loop renders after each command in the same order every time.
+func (e *Editor) processCommands(lastRenderTime time.Time) {
+	if e.renderEachCommand {
+		(<-e.cmdChannel).DoOnEditor(e)
+		return
+	}
+
+	const renderDelay = 10 * time.Millisecond
+
+loop:
+	for {
+		select {
+		case cmd := <-e.cmdChannel:
+			cmd.DoOnEditor(e)
+		default:
+			if passed := time.Since(lastRenderTime); passed < renderDelay {
+				time.Sleep(renderDelay - passed)
 			}
+			break loop
 		}
 	}
 }
@@ -87,7 +97,7 @@ func (e *Editor) render(out *bufio.Writer) {
 	if topBuf == nil {
 		return
 	}
-	defer out.Flush()
+	defer func() { _ = out.Flush() }()
 
 	resetSyncOutput := escape.SyncOutput(out)
 	defer resetSyncOutput.Undo()
