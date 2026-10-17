@@ -40,6 +40,7 @@ jobs:
     if: needs.check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
+      actions: read # to download the corpus of the previous runs
       contents: write
       pull-requests: write
     env:
@@ -53,6 +54,25 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: '1.27'
+
+      # The interesting inputs the fuzzing generates are kept in the fuzz cache of GOCACHE.
+      # setup-go doesn't keep them: its cache is saved only when go.sum changes. They are kept
+      # as an artifact instead: the actions cache is evicted when unused for 7 days,
+      # which a weekly run, skipped when main doesn't change, would hit.
+      - name: Restore the corpus
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="$(go env GOCACHE)/fuzz"
+          echo "FUZZCACHE=$dir" >> "$GITHUB_ENV"
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=fuzz-corpus&per_page=1" \
+            --jq '.artifacts[] | select(.expired | not) | .workflow_run.id')
+          if [ -z "$run" ]; then
+            echo "no corpus of the previous runs, starting from the seeds"
+            exit 0
+          fi
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" --name fuzz-corpus --dir "$dir"
+          echo "restored $(find "$dir" -type f | wc -l) inputs from run $run"
 
       - name: Fuzz
         id: fuzz
@@ -76,6 +96,16 @@ jobs:
         with:
           name: fuzz-log
           path: fuzz.log
+
+      # Kept on a failure too: the inputs found before it are still interesting.
+      - name: Save the corpus
+        if: always() && steps.fuzz.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus
+          path: ${{ env.FUZZCACHE }}
+          retention-days: 90
+          if-no-files-found: ignore
 
       - name: Commit the failing input
         if: steps.fuzz.outputs.found == 'true'
