@@ -37,3 +37,18 @@ switch buffers often, so the monkey hits it since it presses them.
 
 Possible fixes: don't wait for the formatting when switching buffers (format on explicit
 saves only, or apply the edits when they arrive), or save without formatting there.
+
+## Input handled at the render rate
+
+`1792242574554793138.log`: on a new file, the main goroutine sleeps in `Editor.processCommands`,
+and the input reader waits in `Editor.Send` to queue the next command.
+
+The loop runs the queued commands, then sleeps until the render delay (10ms) since the last
+render passes, and renders. The queue has a single slot, and the reader sends a command for
+every read of keys and for every mouse event: the queue is empty soon after the loop takes
+a command, and the loop sleeps instead of waiting for the next one. The loop of `che` handles
+about 190 commands per second, whatever the commands are: 500 mouse motion events take 2.6s.
+The monkey sends more, a mouse drag being several events, and the quit is written every 10ms.
+
+Possible fix: wait for the commands until the render delay passes, selecting on the queue
+and a timer, instead of sleeping once the queue is empty.
