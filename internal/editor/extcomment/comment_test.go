@@ -108,7 +108,7 @@ func TestToggle(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			h := editor.NewTestHarness()
+			h := editor.NewTestHarness(t)
 			h.Extend(new(Integration))
 			if err := h.OpenReader(tc.path, strings.NewReader(tc.text)); err != nil {
 				t.Fatal(err)
@@ -125,7 +125,7 @@ func TestToggle(t *testing.T) {
 }
 
 func TestToggle_CursorAndSelection(t *testing.T) {
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(new(Integration))
 	if err := h.OpenReader("a.go", strings.NewReader("\tx := 1\n\ty := 2")); err != nil {
 		t.Fatal(err)

@@ -176,7 +176,7 @@ func TestIntegration_SavesBeforeRun(t *testing.T) {
 		data, _ := os.ReadFile(path)
 		saved = append(saved, string(data))
 	})}
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(ext)
 	(&editor.OpenFile{Path: path}).DoOnEditor(h.Editor)
 	h.Run(t)
@@ -208,7 +208,7 @@ func TestIntegration_RerunFromAnotherFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	ext, runner := newIntegration(t)
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(ext)
 	(&editor.OpenFile{Path: testPath}).DoOnEditor(h.Editor)
 	h.Run(t)

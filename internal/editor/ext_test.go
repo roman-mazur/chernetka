@@ -62,7 +62,7 @@ func (stubExtData) TextSuggestion() code.Suggestion { return code.Suggestion{} }
 // build its per-buffer data whenever a buffer is opened.
 func TestEditor_MakeBufferDataOnOpen(t *testing.T) {
 	ext := initRecordingExt("rec", false)
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(ext)
 
 	if err := h.OpenReader("a.txt", strings.NewReader("hi")); err != nil {
@@ -113,7 +113,7 @@ func TestEditor_InputHandle(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ext := initRecordingExt("rec", tc.handled)
-			h := editor.NewTestHarness()
+			h := editor.NewTestHarness(t)
 			h.Extend(ext)
 			if err := h.OpenReader("a.txt", strings.NewReader("hi")); err != nil {
 				t.Fatalf("OpenReader: %v", err)
@@ -178,7 +178,7 @@ func checkData[T comparable](t *testing.T, ch chan T) T {
 // notify the extensions like the typed ones do, while copying text does not.
 func TestEditor_AfterEditOnClipboard(t *testing.T) {
 	ext := initRecordingExt("rec", false)
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(ext)
 	if err := h.OpenReader("a.txt", strings.NewReader("first\nsecond")); err != nil {
 		t.Fatalf("OpenReader: %v", err)
@@ -260,7 +260,7 @@ func (s suggestingExt) TextSuggestion() code.Suggestion                         
 // when several extensions implement the same interface.
 func TestFindExtData_Order(t *testing.T) {
 	for range 20 { // Iterating over a map would pick a random one.
-		h := editor.NewTestHarness()
+		h := editor.NewTestHarness(t)
 		h.Extend(suggestingExt("first"))
 		h.Extend(suggestingExt("second"))
 		if err := h.OpenReader("a.txt", strings.NewReader("hi")); err != nil {

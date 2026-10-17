@@ -32,7 +32,7 @@ func TestVisual(t *testing.T) {
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
-			h := editor.NewTestHarness()
+			h := editor.NewTestHarness(t)
 			h.Extend(new(Integration))
 			if err := h.OpenReader(tc.path, strings.NewReader(tc.text)); err != nil {
 				t.Fatal(err)

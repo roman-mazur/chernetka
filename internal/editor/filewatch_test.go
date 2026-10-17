@@ -14,7 +14,7 @@ func TestEditor_WatchFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	writeFile(t, path, "first")
 
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Run(t)
 	h.Post(t, &OpenFile{Path: path})
 
@@ -50,7 +50,7 @@ func TestEditor_WatchFile_OwnSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a.txt")
 	writeFile(t, path, "first")
 
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Run(t)
 	h.Post(t, &OpenFile{Path: path})
 
@@ -123,7 +123,7 @@ func TestEditor_WatchDir(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "a.txt"), "a")
 
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Run(t)
 	h.Post(t, CommandFunc(func(e *Editor) { e.OpenDir(dir, nil) }))
 

@@ -621,7 +621,7 @@ func TestRealGopls(t *testing.T) {
 	_ = os.WriteFile(path, []byte(src), 0o644)
 
 	var le Integration
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
@@ -683,7 +683,7 @@ func TestRealGoplsRepoFile(t *testing.T) {
 			})
 		}
 	}
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(t.Logf)
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(string(src))); err != nil {
@@ -843,7 +843,7 @@ func TestRealGoplsAddsImports(t *testing.T) {
 	_ = os.WriteFile(path, []byte(src), 0o644)
 
 	var le Integration
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
@@ -888,7 +888,7 @@ func TestRealGoplsFormatsOnSave(t *testing.T) {
 	_ = os.WriteFile(path, []byte(src), 0o644)
 
 	var le Integration
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
@@ -929,7 +929,7 @@ func TestRealGoplsGoesToDefinition(t *testing.T) {
 	_ = os.WriteFile(path, []byte(src), 0o644)
 
 	var le Integration
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {
@@ -971,7 +971,7 @@ func TestRealGoplsDiagnostics(t *testing.T) {
 	_ = os.WriteFile(path, []byte(src), 0o644)
 
 	var le Integration
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {

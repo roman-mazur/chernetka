@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"rmazur.io/chernetka/internal/editor/clipb"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/vt"
 )
@@ -28,7 +29,13 @@ type TestHarness struct {
 
 // NewTestHarness returns a harness around a fresh editor with an initialized
 // command queue, so Post never blocks even without a running event loop.
-func NewTestHarness() *TestHarness {
+// The clipboard is kept in memory until the test ends.
+func NewTestHarness(t testing.TB) *TestHarness {
+	// Registered before the cleanups of Run, so that it's restored once the loop is over.
+	prevClipboard := clipboard
+	t.Cleanup(func() { clipboard = prevClipboard })
+	clipboard = new(clipb.InMemory)
+
 	edit := &Editor{cmdChannel: make(chan Command, 1)}
 	edit.rPrefs = newRenderPrefs()
 

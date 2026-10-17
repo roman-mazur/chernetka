@@ -114,7 +114,7 @@ func TestEditor_Run(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = src.Close() })
 
-	te := NewTestHarness()
+	te := NewTestHarness(t)
 	if err := te.OpenReader("test.txt", src); err != nil {
 		t.Fatalf("OpenReader: %s", err)
 	}
@@ -239,7 +239,7 @@ func TestEditor_Run(t *testing.T) {
 // is not taken for the Esc key followed by text. Taking a paste for the typed keys
 // in the normal mode would run them as commands, quitting the editor on q.
 func TestEditor_Run_EscAtReadEnd(t *testing.T) {
-	te := NewTestHarness()
+	te := NewTestHarness(t)
 	if err := te.OpenReader("test.txt", strings.NewReader("one")); err != nil {
 		t.Fatalf("OpenReader: %s", err)
 	}
@@ -529,7 +529,7 @@ func (noopExt) AfterEdit(Sender, *Buffer) {}
 func TestEditor_RerunAction(t *testing.T) {
 	const ctrlR = 0x12
 	first, second := new(countingAction), new(countingAction)
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Extend(&actionsExt{actions: testActionsExt{0: first, 2: second}})
 	if err := h.OpenReader("a.txt", strings.NewReader("action\ntext\naction")); err != nil {
 		t.Fatal(err)
@@ -575,7 +575,7 @@ func TestEditor_RerunAction(t *testing.T) {
 func TestEditor_RerunAction_CloseBuffer(t *testing.T) {
 	const ctrlR = 0x12
 	a, b := new(countingAction), new(countingAction)
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Extend(&pathActionsExt{actions: map[string]*countingAction{"a.txt": a, "b.txt": b}})
 	for _, path := range []string{"a.txt", "b.txt"} {
 		if err := h.OpenReader(path, strings.NewReader("action")); err != nil {
@@ -652,7 +652,7 @@ func (se *singleShotExt) LineAction(lineNumber int) content.LineAction {
 func TestEditor_RerunAction_SkipsSingleShot(t *testing.T) {
 	const ctrlR = 0x12
 	rerun, single := new(countingAction), new(singleShotAction)
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Extend(&singleShotExt{rerun: rerun, single: single})
 	if err := h.OpenReader("a.txt", strings.NewReader("action\nsingle")); err != nil {
 		t.Fatal(err)
@@ -712,7 +712,7 @@ func (df definitionFinder) FindDefinition(_ Sender, pos content.Position) {
 
 func TestEditor_CtrlClickFindsDefinition(t *testing.T) {
 	var ext definitionExt
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Extend(&ext)
 	if err := h.OpenReader("a.go", strings.NewReader("package a\n\nfunc foo() {}\n\nvar x = foo()\n")); err != nil {
 		t.Fatal(err)
@@ -762,7 +762,7 @@ func TestEditor_GoTo(t *testing.T) {
 	writeFile(t, a, "a\n")
 	writeFile(t, b, strings.Repeat("line\n", 100))
 
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Run(t)
 	h.Post(t, &OpenFile{Path: a})
 
@@ -805,7 +805,7 @@ func TestEditor_NavigateHistory(t *testing.T) {
 	writeFile(t, a, strings.Repeat("line\n", 100))
 	writeFile(t, b, strings.Repeat("line\n", 100))
 
-	h := NewTestHarness()
+	h := NewTestHarness(t)
 	h.Run(t)
 	h.Post(t, &OpenFile{Path: a})
 

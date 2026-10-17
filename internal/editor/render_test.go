@@ -44,7 +44,7 @@ func BenchmarkEditor_Render(b *testing.B) {
 			}
 			b.Cleanup(func() { _ = f.Close() })
 
-			h := editor.NewTestHarness()
+			h := editor.NewTestHarness(b)
 			for _, ext := range bc.exts() {
 				h.Extend(ext)
 			}

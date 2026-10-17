@@ -122,7 +122,7 @@ func TestIntegration_HandleInsertKey_NoBufferData(t *testing.T) {
 		return nil, nil
 	}
 
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(&le)
 	if err := h.OpenReader("notes.txt", strings.NewReader("hello")); err != nil {
 		t.Fatalf("OpenReader: %v", err)

@@ -233,7 +233,7 @@ func newBuffer(t *testing.T, le *Integration, fake *fakeLSP, path, text string) 
 		le.Starter = func(context.Context, string, string) (lspClient, error) { return fake, nil }
 	}
 
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	// Set before the extension starts logging from its goroutine.
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(le)

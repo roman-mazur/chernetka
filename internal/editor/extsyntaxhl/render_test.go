@@ -59,7 +59,7 @@ func TestRenderDrivesRealEditor(t *testing.T) {
 		}, "\n"),
 	}} {
 		t.Run(tc.path, func(t *testing.T) {
-			h := editor.NewTestHarness()
+			h := editor.NewTestHarness(t)
 			h.Extend(new(Integration))
 			if err := h.OpenReader(tc.path, strings.NewReader(tc.text)); err != nil {
 				t.Fatal(err)

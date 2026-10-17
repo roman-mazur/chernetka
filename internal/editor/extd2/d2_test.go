@@ -202,7 +202,7 @@ func TestNoActions(t *testing.T) {
 // TestEngageWithEnter checks the wiring with the editor: Enter in normal mode engages the action.
 func TestEngageWithEnter(t *testing.T) {
 	ext, viewer := newIntegration(t)
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(new(extsyntaxhl.Integration))
 	h.Extend(ext)
 	if err := h.OpenReader("a.md", strings.NewReader("text\n```d2\na -> b\n```")); err != nil {

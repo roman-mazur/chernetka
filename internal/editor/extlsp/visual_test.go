@@ -76,7 +76,7 @@ func TestVisual(t *testing.T) {
 			le.Starter = func(context.Context, string, string) (lspClient, error) { return &fakeLSP{}, nil }
 			t.Cleanup(func() { _ = le.Close() })
 
-			h := editor.NewTestHarness()
+			h := editor.NewTestHarness(t)
 			h.Extend(&le)
 			h.Extend(new(extsyntaxhl.Integration))
 			line := tc.typed + tc.after

@@ -137,7 +137,7 @@ func TestIntegration_ServerPerLanguage(t *testing.T) {
 		}
 		return nil, exec.ErrNotFound // Like cue not installed.
 	}
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	t.Cleanup(func() { _ = le.Close() })
@@ -186,7 +186,7 @@ func TestRealCUE(t *testing.T) {
 	}
 
 	var le Integration
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.LogEmbed = logger.Embed(logger.Prefix(t.Logf, "editor: "))
 	h.Extend(&le)
 	if err := h.OpenReader(path, strings.NewReader(src)); err != nil {

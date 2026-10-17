@@ -277,7 +277,7 @@ var (
 	})
 )
 
-var clipboard clipb.Clipboard
+var clipboard clipb.Clipboard = new(clipb.System)
 
 type PasteText string
 

@@ -108,7 +108,7 @@ func TestRerunWithCtrlR(t *testing.T) {
 	const ctrlR = 0x12
 	t.Chdir(t.TempDir()) // The edited file is saved before the action runs.
 	ext, viewer := newIntegration(t)
-	h := editor.NewTestHarness()
+	h := editor.NewTestHarness(t)
 	h.Extend(new(extsyntaxhl.Integration))
 	h.Extend(ext)
 	if err := h.OpenReader("a.md", strings.NewReader("```d2\na -> b\n```")); err != nil {
