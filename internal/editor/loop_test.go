@@ -3,7 +3,6 @@ package editor
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -134,8 +133,7 @@ func setupBenchmarkEditor(b *testing.B) *Editor {
 
 func TestEditor_HandleWindowChange(t *testing.T) {
 	e := &Editor{cmdChannel: make(chan Command, 4)}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	changes := make(chan struct{})
 	go e.handleWindowChange(ctx, changes)
 

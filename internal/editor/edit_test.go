@@ -11,7 +11,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/input"
-	"rmazur.io/chernetka/internal/editor/navigation"
 	"rmazur.io/chernetka/internal/vt"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -844,8 +843,8 @@ func TestEditor_NavigateHistory(t *testing.T) {
 
 	// Move within a, then jump to b and within it.
 	h.Post(t, CommandFunc(func(e *Editor) { e.Top().updateCursor(at(10)) }))
-	h.Post(t, &GoTo{Location: navigation.Location{Path: b, Position: at(20)}})
-	h.Post(t, &GoTo{Location: navigation.Location{Path: b, Position: at(30)}})
+	h.Post(t, &GoTo{Path: b, Position: at(20)})
+	h.Post(t, &GoTo{Path: b, Position: at(30)})
 	h.Post(t, CommandFunc(func(e *Editor) { e.Top().updateCursor(at(35)) }))
 
 	back := CommandFunc(func(e *Editor) { e.navigateHistory(false) })
