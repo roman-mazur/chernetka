@@ -72,84 +72,84 @@ func TestSave(t *testing.T) {
 			t.Errorf("content size mismatch: got %d, want 0", out.Len())
 		}
 	})
-}
 
-// TestSave_SameNameConcurrently checks that the files of the same name saved at the same time,
-// like by the editors of different projects, keep their own content.
-func TestSave_SameNameConcurrently(t *testing.T) {
-	const saves = 8
-	dsts := make([]string, saves)
-	errs := make(chan error, saves)
-	for i := range saves {
-		dsts[i] = filepath.Join(t.TempDir(), "out.txt")
-		go func() {
-			content, err := LoadFullText(strings.NewReader(fmt.Sprintf("content %d", i)))
-			if err == nil {
-				err = Save(&content, dsts[i])
-			}
-			errs <- err
-		}()
-	}
-	for range saves {
-		if err := <-errs; err != nil {
-			t.Error(err)
+	// The files of the same name saved at the same time,
+	// like by the editors of different projects, keep their own content.
+	t.Run("same-name-concurrently", func(t *testing.T) {
+		const saves = 8
+		dsts := make([]string, saves)
+		errs := make(chan error, saves)
+		for i := range saves {
+			dsts[i] = filepath.Join(t.TempDir(), "out.txt")
+			go func() {
+				content, err := LoadFullText(strings.NewReader(fmt.Sprintf("content %d", i)))
+				if err == nil {
+					err = Save(&content, dsts[i])
+				}
+				errs <- err
+			}()
 		}
-	}
-	for i, dst := range dsts {
-		data, err := os.ReadFile(dst)
-		if want := fmt.Sprintf("content %d", i); err != nil || string(data) != want {
-			t.Errorf("%s has %q (%v), want %q", dst, data, err, want)
+		for range saves {
+			if err := <-errs; err != nil {
+				t.Error(err)
+			}
 		}
-	}
-}
-
-func TestSave_Mode(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the permissions are not kept on Windows")
-	}
-	content, err := LoadFullText(strings.NewReader("#!/bin/sh"))
-	must(t, err)
-	dir := t.TempDir()
-
-	for _, tc := range []struct {
-		name     string
-		existing os.FileMode // 0 for a new file
-		want     os.FileMode
-	}{
-		{name: "new file", want: newFileMode},
-		{name: "executable", existing: 0o755, want: 0o755},
-		{name: "private", existing: 0o600, want: 0o600},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			dst := filepath.Join(dir, strings.ReplaceAll(tc.name, " ", "-"))
-			if tc.existing != 0 {
-				must(t, os.WriteFile(dst, nil, tc.existing))
-				must(t, os.Chmod(dst, tc.existing)) // Not limited by the umask.
+		for i, dst := range dsts {
+			data, err := os.ReadFile(dst)
+			if want := fmt.Sprintf("content %d", i); err != nil || string(data) != want {
+				t.Errorf("%s has %q (%v), want %q", dst, data, err, want)
 			}
-			must(t, Save(&content, dst))
-			info, err := os.Stat(dst)
-			must(t, err)
-			if got := info.Mode().Perm(); got != tc.want {
-				t.Errorf("mode %v, want %v", got, tc.want)
-			}
-		})
-	}
-	assertNoTempFiles(t, dir)
-}
+		}
+	})
 
-func TestSave_Error(t *testing.T) {
-	content, err := LoadFullText(strings.NewReader("text"))
-	must(t, err)
-	dir := t.TempDir()
-	// Renaming a file over a directory fails.
-	dst := filepath.Join(dir, "dir")
-	must(t, os.Mkdir(dst, 0o700))
-	must(t, os.WriteFile(filepath.Join(dst, "file"), nil, 0o600))
+	t.Run("mode", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("the permissions are not kept on Windows")
+		}
+		content, err := LoadFullText(strings.NewReader("#!/bin/sh"))
+		must(t, err)
+		dir := t.TempDir()
 
-	if err := Save(&content, dst); err == nil {
-		t.Error("saved over a directory")
-	}
-	assertNoTempFiles(t, dir)
+		for _, tc := range []struct {
+			name     string
+			existing os.FileMode // 0 for a new file
+			want     os.FileMode
+		}{
+			{name: "new-file", want: newFileMode},
+			{name: "executable", existing: 0o755, want: 0o755},
+			{name: "private", existing: 0o600, want: 0o600},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				dst := filepath.Join(dir, tc.name)
+				if tc.existing != 0 {
+					must(t, os.WriteFile(dst, nil, tc.existing))
+					must(t, os.Chmod(dst, tc.existing)) // Not limited by the umask.
+				}
+				must(t, Save(&content, dst))
+				info, err := os.Stat(dst)
+				must(t, err)
+				if got := info.Mode().Perm(); got != tc.want {
+					t.Errorf("mode %v, want %v", got, tc.want)
+				}
+			})
+		}
+		assertNoTempFiles(t, dir)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		content, err := LoadFullText(strings.NewReader("text"))
+		must(t, err)
+		dir := t.TempDir()
+		// Renaming a file over a directory fails.
+		dst := filepath.Join(dir, "dir")
+		must(t, os.Mkdir(dst, 0o700))
+		must(t, os.WriteFile(filepath.Join(dst, "file"), nil, 0o600))
+
+		if err := Save(&content, dst); err == nil {
+			t.Error("saved over a directory")
+		}
+		assertNoTempFiles(t, dir)
+	})
 }
 
 // assertNoTempFiles checks that only the saved files are in dir.
