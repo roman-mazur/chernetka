@@ -323,6 +323,14 @@ func (f CommandFunc) DoOnEditor(e *Editor) { f(e) }
 var (
 	commandQuit          = CommandFunc(func(e *Editor) { e.quitRequested = true })
 	commandRequestRender = CommandFunc(func(e *Editor) { e.renderRequested = true })
+
+	// commandQuitAll closes all the buffers, ending the loop.
+	commandQuitAll = CommandFunc(func(e *Editor) {
+		for len(e.bufs) > 1 {
+			e.pop()
+		}
+		e.quitRequested = true
+	})
 )
 
 type SwitchMode Mode

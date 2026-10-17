@@ -107,6 +107,29 @@ func assertBufferCount(t *testing.T, e *Editor, want int) {
 	}
 }
 
+// TestEditor_Run_InputEndClosesAllBuffers checks that the loop ends with the terminal input,
+// whatever the number of open buffers.
+func TestEditor_Run_InputEndClosesAllBuffers(t *testing.T) {
+	h := NewTestHarness(t)
+	for _, path := range []string{"a.txt", "b.txt"} {
+		if err := h.OpenReader(path, strings.NewReader(path)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.Run(t)
+
+	_ = h.pipeWriter.CloseWithError(io.EOF)
+	select {
+	case <-h.loopDone():
+	case <-time.After(time.Second):
+		t.Error("the loop is not over after the input ended")
+		// Close the buffers left for the test cleanup to finish.
+		for range 2 {
+			h.Send(commandQuit)
+		}
+	}
+}
+
 func TestEditor_Run(t *testing.T) {
 	src, err := os.Open("edit.go")
 	if err != nil {

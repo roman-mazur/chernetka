@@ -119,7 +119,7 @@ func (e *Editor) sendInput(data []byte, in io.Reader) (rest []byte, err error) {
 
 func (e *Editor) handleInputError(err error) {
 	e.Logf("input error, quitting: %s", err)
-	e.Send(commandQuit)
+	e.Send(commandQuitAll)
 }
 
 // handleKeys handles the keys read at once. The keys after the one quitting the buffer are ignored.
