@@ -6,17 +6,28 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 )
 
-// Save writes the content to the destination path.
-func Save(content Document, dst string) error {
-	tmpPath := filepath.Join(tmpDir(), fmt.Sprintf("%s-%d", filepath.Base(dst), time.Now().Unix()))
-	f, err := os.Create(tmpPath)
+// Save writes the content to the destination path. The content is written to a temporary file
+// in the destination directory first, which then replaces the destination, so the destination
+// is never left half written. An existing destination keeps its permissions, and a new one
+// gets newFileMode.
+func Save(content Document, dst string) (err error) {
+	mode := os.FileMode(newFileMode)
+	if info, err := os.Stat(dst); err == nil {
+		mode = info.Mode().Perm()
+	}
+
+	f, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".*.tmp")
 	if err != nil {
 		return fmt.Errorf("could not create temporary file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err != nil {
+			_ = f.Close()
+			_ = os.Remove(f.Name())
+		}
+	}()
 
 	w := bufio.NewWriter(f)
 	if err := SaveToWriter(content, w); err != nil {
@@ -25,12 +36,17 @@ func Save(content Document, dst string) error {
 	if err := w.Flush(); err != nil {
 		return err
 	}
+	if err := f.Chmod(mode); err != nil {
+		return err
+	}
 	if err := f.Close(); err != nil {
 		return err
 	}
-
-	return os.Rename(tmpPath, dst)
+	return os.Rename(f.Name(), dst)
 }
+
+// newFileMode is the permissions of the files created by Save.
+const newFileMode = 0o644
 
 func SaveToWriter(content Document, out io.Writer) error {
 	if content == nil {
@@ -47,10 +63,4 @@ func SaveToWriter(content Document, out io.Writer) error {
 		}
 	}
 	return nil
-}
-
-func tmpDir() string {
-	dir := filepath.Join(os.TempDir(), "edit")
-	_ = os.MkdirAll(dir, 0700)
-	return dir
 }
