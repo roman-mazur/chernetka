@@ -3,12 +3,14 @@ package editor
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"rmazur.io/chernetka/internal/content"
 )
@@ -128,4 +130,26 @@ func setupBenchmarkEditor(b *testing.B) *Editor {
 		b.Fatal(err)
 	}
 	return &edit
+}
+
+func TestEditor_HandleWindowChange(t *testing.T) {
+	e := &Editor{cmdChannel: make(chan Command, 4)}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	changes := make(chan struct{})
+	go e.handleWindowChange(ctx, changes)
+
+	// The second change of every burst comes too soon and is sent by the timer:
+	// the first burst creates the timer, the second one resets it.
+	for burst := range 2 {
+		changes <- struct{}{}
+		changes <- struct{}{}
+		for i := range 2 {
+			select {
+			case <-e.cmdChannel:
+			case <-time.After(time.Second):
+				t.Fatalf("burst %d: render request %d is not sent", burst, i)
+			}
+		}
+	}
 }
