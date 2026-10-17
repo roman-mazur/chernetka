@@ -1,0 +1,79 @@
+name: Fuzz
+
+# Fuzzes the editor weekly. A failing input is committed to a new branch with a draft PR,
+# rather than to main: the seed corpus runs with go test, so it fails the tests until fixed.
+on:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: 'How long to fuzz, as -fuzztime'
+        default: '30m'
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      FUZZTIME: ${{ inputs.fuzztime || '30m' }}
+      CORPUS: internal/editor/testdata/fuzz/FuzzEditor
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.27'
+
+      - name: Fuzz
+        id: fuzz
+        run: |
+          # -timeout is above the fuzzing time: the default 10m would stop a longer run.
+          set +e
+          go test -run '^$' -fuzz FuzzEditor -fuzztime "$FUZZTIME" -timeout 2h ./internal/editor 2>&1 | tee fuzz.log
+          code=${PIPESTATUS[0]}
+          set -e
+          new=$(git status --porcelain --untracked-files=all -- "$CORPUS")
+          if [ -n "$new" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          elif [ "$code" -ne 0 ]; then
+            echo "fuzzing failed without a new input" >&2
+            exit "$code"
+          fi
+
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-log
+          path: fuzz.log
+
+      - name: Commit the failing input
+        if: steps.fuzz.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="fuzz/${{ github.run_id }}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add -- "$CORPUS"
+          git commit -m "internal/editor: add the failing input found by fuzzing" \
+            -m "Found by the weekly fuzz run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+          git push origin "$branch"
+          {
+            echo "The weekly fuzzing found a failing input, committed to \`$CORPUS\`."
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo '```'
+            grep -A40 -m1 -e '--- FAIL' fuzz.log || tail -n 60 fuzz.log
+            echo '```'
+          } > pr-body.md
+          gh pr create --draft --base main --head "$branch" \
+            --title "internal/editor: fuzzing failure from run ${{ github.run_id }}" \
+            --body-file pr-body.md
