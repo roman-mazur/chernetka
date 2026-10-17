@@ -12,7 +12,7 @@ to 60s, `seed2` passes: che quits about 13s after the typing ends.
 
 ## Full reparse after every key
 
-`1791570979259612320.log`: the main goroutine is in `ts_parser_parse_with_options`, under
+`1791570979259612320.log`, `1792257309433320087.log`: the main goroutine is in `ts_parser_parse_with_options`, under
 `extsyntaxhl.(*Integration).AfterEdit` → `document.ensureParsed` → `tsHighlighter.reparse`.
 
 `handleKey` notifies the extensions after every key, and the syntax highlighting reparses
