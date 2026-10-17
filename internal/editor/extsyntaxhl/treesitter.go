@@ -17,6 +17,8 @@ import (
 )
 
 func init() {
+	// Before the grammar is prepared: the allocator is not switched safely while the core runs.
+	treesitter.UseLibcAllocator()
 	go goGrammar.prepare()
 }
 

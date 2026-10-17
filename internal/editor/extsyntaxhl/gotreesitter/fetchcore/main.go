@@ -43,7 +43,7 @@ func main() {
 }
 
 // ownFiles are the files of the package that are not copied from upstream.
-var ownFiles = map[string]bool{"doc.go": true}
+var ownFiles = map[string]bool{"doc.go": true, "libc_allocator.go": true}
 
 // fetch copies the bindings and the core into dir, which holds the Go package pkg.
 func fetch(bindingsRev, coreRev, dir, pkg string) error {
