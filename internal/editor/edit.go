@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/debugflags"
@@ -58,6 +59,7 @@ type Editor struct {
 	renderRequested bool
 	cmdChannel      chan Command
 	quitRequested   bool
+	renderTimer     *time.Timer // fires when the loop stops waiting for the commands to render, see processCommands
 
 	doneOnce sync.Once
 	done     chan struct{} // closed when the loop is over, see loopDone

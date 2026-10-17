@@ -153,3 +153,57 @@ func TestEditor_HandleWindowChange(t *testing.T) {
 		}
 	}
 }
+
+func TestEditor_ProcessCommands(t *testing.T) {
+	t.Run("waits for commands until the render delay", func(t *testing.T) {
+		e := &Editor{cmdChannel: make(chan Command, 1)}
+		var handled []string
+		go func() {
+			for _, name := range []string{"a", "b", "c"} {
+				time.Sleep(time.Millisecond)
+				e.Send(CommandFunc(func(*Editor) { handled = append(handled, name) }))
+			}
+		}()
+
+		// The render was 100ms ahead: the queue gets empty between the commands.
+		const ahead = 100 * time.Millisecond
+		start := time.Now()
+		e.processCommands(start.Add(ahead))
+		if got := strings.Join(handled, ""); got != "abc" {
+			t.Errorf("handled %q, want all the commands", got)
+		}
+		if passed := time.Since(start); passed < ahead {
+			t.Errorf("returned in %s, before the render delay", passed)
+		}
+	})
+
+	t.Run("returns on quit", func(t *testing.T) {
+		e := &Editor{cmdChannel: make(chan Command, 1)}
+		go func() {
+			time.Sleep(time.Millisecond)
+			e.Send(commandQuit)
+		}()
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			e.processCommands(time.Now().Add(time.Hour))
+		}()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("not returned after the quit")
+		}
+		if !e.quitRequested {
+			t.Error("quit is not requested")
+		}
+	})
+
+	t.Run("reuses the timer", func(t *testing.T) {
+		e := &Editor{cmdChannel: make(chan Command, 1)}
+		e.processCommands(time.Time{})
+		if allocs := testing.AllocsPerRun(100, func() { e.processCommands(time.Time{}) }); allocs != 0 {
+			t.Errorf("%v allocations per call", allocs)
+		}
+	})
+}

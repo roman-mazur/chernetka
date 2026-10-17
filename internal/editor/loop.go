@@ -67,8 +67,8 @@ func (e *Editor) Run(t vt.Terminal) {
 	}
 }
 
-// processCommands runs the queued commands until the queue is empty, waiting for the render
-// delay since lastRenderTime to pass. With renderEachCommand, it waits for a single command
+// processCommands runs the commands as they come until the render delay since lastRenderTime
+// passes, or until a quit is requested. With renderEachCommand, it waits for a single command
 // and runs it, so the loop renders after each command in the same order every time.
 func (e *Editor) processCommands(lastRenderTime time.Time) {
 	if e.renderEachCommand {
@@ -78,16 +78,21 @@ func (e *Editor) processCommands(lastRenderTime time.Time) {
 
 	const renderDelay = 10 * time.Millisecond
 
-loop:
-	for {
+	// Waiting for the commands instead of sleeping keeps the input flowing: the queue has
+	// a single slot, and the input reader blocks until the loop takes the queued command.
+	// The timer is reused, so the loop does not allocate a new one for every render.
+	delay := renderDelay - time.Since(lastRenderTime)
+	if e.renderTimer == nil {
+		e.renderTimer = time.NewTimer(delay)
+	} else {
+		e.renderTimer.Reset(delay)
+	}
+	for !e.quitRequested {
 		select {
 		case cmd := <-e.cmdChannel:
 			cmd.DoOnEditor(e)
-		default:
-			if passed := time.Since(lastRenderTime); passed < renderDelay {
-				time.Sleep(renderDelay - passed)
-			}
-			break loop
+		case <-e.renderTimer.C:
+			return
 		}
 	}
 }
