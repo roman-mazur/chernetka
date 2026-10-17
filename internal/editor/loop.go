@@ -144,7 +144,7 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 	var (
 		lastTime  time.Time
 		timerChan <-chan time.Time
-		timer     time.Timer
+		timer     *time.Timer // created on the first use: Reset panics on a zero Timer
 	)
 	for {
 		select {
@@ -156,7 +156,11 @@ func (e *Editor) handleWindowChange(ctx context.Context, s <-chan struct{}) {
 				lastTime = time.Now()
 				e.Send(commandRequestRender)
 			} else if timerChan == nil {
-				timer.Reset(maxFrequency)
+				if timer == nil {
+					timer = time.NewTimer(maxFrequency)
+				} else {
+					timer.Reset(maxFrequency)
+				}
 				timerChan = timer.C
 			}
 
