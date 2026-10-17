@@ -1,9 +1,9 @@
 package input
 
 import (
-	"bufio"
 	"bytes"
 	"io"
+	"slices"
 )
 
 // ConsumeClipboardPaste reads the bracketed paste starting b until its end, reading the rest
@@ -13,35 +13,34 @@ func ConsumeClipboardPaste(b []byte, in io.Reader) (content string, rest []byte,
 		return
 	}
 	detected = true
-	var (
-		input     = bufio.NewReader(io.MultiReader(bytes.NewReader(b[clipboardPasteCmdLen:]), in))
-		markerBuf [clipboardPasteCmdLen - 1]byte
-		data      []byte
-		res       bytes.Buffer
-	)
+	// The paste is read into one buffer, which is searched for the end marker as it grows.
+	// The marker may be split between the reads: the search resumes before the bytes
+	// that can start it.
+	data := append(make([]byte, 0, pasteReadSize), b[clipboardPasteCmdLen:]...)
+	searched := 0
 	for {
-		data, err = input.ReadBytes(escByte)
+		if i := bytes.Index(data[searched:], []byte(pasteEnd)); i >= 0 {
+			i += searched
+			return string(data[:i]), data[i+len(pasteEnd):], true, nil
+		}
 		if err != nil {
-			return
+			return "", nil, true, err
 		}
-		res.Write(data[:len(data)-1]) // omit Escape
-		clear(markerBuf[:])
-		if _, err = io.ReadFull(input, markerBuf[:]); err != nil {
-			return
+		searched = max(searched, len(data)-len(pasteEnd)+1)
+		if len(data) == cap(data) {
+			data = slices.Grow(data, len(data))
 		}
-		if string(markerBuf[:]) == "[201~" {
-			break
-		}
-		// Not the end-of-paste marker: the Escape and the probed bytes
-		// are part of the pasted content, keep them.
-		res.WriteByte(escByte)
-		res.Write(markerBuf[:])
+		var n int
+		n, err = in.Read(data[len(data):cap(data)])
+		data = data[:len(data)+n]
 	}
-
-	content = res.String()
-	rest, _ = input.Peek(input.Buffered())
-	return
 }
+
+const (
+	pasteEnd = "\x1b[201~"
+	// pasteReadSize is the initial size of the paste buffer, which is doubled for bigger pastes.
+	pasteReadSize = 4096
+)
 
 const clipboardPasteCmdLen = 6
 

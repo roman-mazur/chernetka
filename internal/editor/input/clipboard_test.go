@@ -91,6 +91,13 @@ func TestConsumeClipboardPaste(t *testing.T) {
 			want: "hello",
 			left: "left",
 		},
+		{
+			name: "content bigger than the read buffer",
+			b:    []byte("\x1b[200~"),
+			rest: strings.Repeat("ab\x1b[", pasteReadSize/2) + "\x1b[201~left",
+			want: strings.Repeat("ab\x1b[", pasteReadSize/2),
+			left: "left",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// iotest.OneByteReader forces every Read to return at most one
@@ -162,5 +169,19 @@ func TestCheckClipboardPaste(t *testing.T) {
 				t.Errorf("checkClipboardPaste(%q, %q) = %v, want %v", tc.b, tc.marker, got, tc.want)
 			}
 		})
+	}
+}
+
+// BenchmarkConsumeClipboardPaste measures a paste of many lines arriving in multiple reads.
+func BenchmarkConsumeClipboardPaste(b *testing.B) {
+	pasted := strings.Repeat("\tfmt.Println(\"a pasted line\", x)\n", 20000)
+	stream := pasted + "\x1b[201~"
+	start := []byte("\x1b[200~")
+	b.SetBytes(int64(len(pasted)))
+	for b.Loop() {
+		content, _, _, err := ConsumeClipboardPaste(start, iotest.HalfReader(strings.NewReader(stream)))
+		if err != nil || len(content) != len(pasted) {
+			b.Fatal(err, len(content))
+		}
 	}
 }
