@@ -7,11 +7,11 @@ import (
 	"sync"
 
 	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
-	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	bashsitter "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	jsonsitter "github.com/tree-sitter/tree-sitter-json/bindings/go"
 	"rmazur.io/chernetka/internal/content/code"
+	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	cuesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
 	nixsitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
 )
