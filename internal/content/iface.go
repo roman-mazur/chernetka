@@ -31,7 +31,8 @@ type Line interface {
 type Mutable interface {
 	Document
 
-	Insert(pos int, line Line)
+	// Insert puts the lines at pos, shifting the lines starting there.
+	Insert(pos int, lines ...Line)
 	Update(pos int, line Line)
 	Delete(pos int)
 }

@@ -1,6 +1,7 @@
 package content
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -85,6 +86,22 @@ func TestInsertText(t *testing.T) {
 			want:  []string{"ab", "c", "de"},
 			wantP: Position{Col: 1, Line: 2},
 		},
+		{
+			name:  "lines before and after",
+			lines: []string{"0", "ae", "2", "3"},
+			pos:   Position{Col: 1, Line: 1},
+			text:  "b\nc\nd",
+			want:  []string{"0", "ab", "c", "de", "2", "3"},
+			wantP: Position{Col: 1, Line: 3},
+		},
+		{
+			name:  "trailing new line",
+			lines: []string{"ab", "c"},
+			pos:   Position{Col: 1, Line: 0},
+			text:  "x\ny\n",
+			want:  []string{"ax", "y", "b", "c"},
+			wantP: Position{Col: 0, Line: 2},
+		},
 	}
 
 	for _, tt := range tests {
@@ -100,6 +117,20 @@ func TestInsertText(t *testing.T) {
 			}
 			assertLines(t, &ft, tt.want)
 		})
+	}
+}
+
+// BenchmarkInsertText measures a paste of many lines in the middle of a big document.
+func BenchmarkInsertText(b *testing.B) {
+	pasted := strings.Repeat("\tfmt.Println(\"a pasted line\", x)\n", 20000)
+	base := make(FullText, 10000)
+	for i := range base {
+		base[i] = TextLine("an existing line")
+	}
+	b.SetBytes(int64(len(pasted)))
+	for b.Loop() {
+		ft := slices.Clone(base)
+		InsertText(&ft, Position{Line: len(base) / 2}, pasted)
 	}
 }
 
