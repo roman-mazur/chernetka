@@ -37,12 +37,16 @@ func InsertText(m Mutable, pos Position, text string) Position {
 		return Position{Col: pos.Col + len(parts[0]), Line: pos.Line}
 	}
 
-	m.Update(pos.Line, TextLine(before+parts[0]))
-	for i := 1; i < len(parts)-1; i++ {
-		m.Insert(pos.Line+i, TextLine(parts[i]))
-	}
+	// The new lines are inserted at once: inserting them one by one shifts the lines
+	// after them for every pasted line.
 	last := len(parts) - 1
-	m.Insert(pos.Line+last, TextLine(parts[last]+after))
+	lines := make([]Line, last)
+	for i := 1; i < last; i++ {
+		lines[i-1] = TextLine(parts[i])
+	}
+	lines[last-1] = TextLine(parts[last] + after)
+	m.Update(pos.Line, TextLine(before+parts[0]))
+	m.Insert(pos.Line+1, lines...)
 
 	return Position{Col: len(parts[last]), Line: pos.Line + last}
 }

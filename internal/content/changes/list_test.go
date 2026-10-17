@@ -22,9 +22,10 @@ func TestHistory_Track(t *testing.T) {
 	m.Delete(0)
 	m.Update(0, content.TextLine("update line 2 v2"))
 	m.Update(0, content.TextLine("update line 2 v3")) // modifies the last change
+	m.Insert(0, content.TextLine("line 0"), content.TextLine("line 1"))
 
-	if editsLen := len(h[0].Items); editsLen != 5 {
-		t.Errorf("expected history of 5 items, got %d", editsLen)
+	if editsLen := len(h[0].Items); editsLen != 7 {
+		t.Errorf("expected history of 7 items, got %d", editsLen)
 	}
 
 	var out bytes.Buffer

@@ -62,18 +62,22 @@ type tracker struct {
 	content.Mutable
 }
 
-func (t *tracker) Insert(pos int, line content.Line) {
-	t.Mutable.Insert(pos, line)
+func (t *tracker) Insert(pos int, lines ...content.Line) {
+	t.Mutable.Insert(pos, lines...)
 
-	t.list.Items = append(t.list.Items, EditItem{
-		Time: time.Now(),
-		Span: content.Span{
-			Start: content.Position{Line: pos},
-			End:   content.Position{Line: pos, Col: line.Len()},
-		},
-		Line:   content.CopyLine(line),
-		Insert: true,
-	})
+	// Every line is a change: replaying them one by one puts them at the same positions.
+	now := time.Now()
+	for i, line := range lines {
+		t.list.Items = append(t.list.Items, EditItem{
+			Time: now,
+			Span: content.Span{
+				Start: content.Position{Line: pos + i},
+				End:   content.Position{Line: pos + i, Col: line.Len()},
+			},
+			Line:   content.CopyLine(line),
+			Insert: true,
+		})
+	}
 }
 
 func (t *tracker) Update(pos int, line content.Line) {

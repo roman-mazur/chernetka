@@ -49,8 +49,8 @@ func (ft *FullText) copy() Document {
 	return &res
 }
 
-func (ft *FullText) Insert(pos int, line Line) {
-	*ft = slices.Insert(*ft, pos, line)
+func (ft *FullText) Insert(pos int, lines ...Line) {
+	*ft = slices.Insert(*ft, pos, lines...)
 }
 func (ft *FullText) Update(pos int, line Line) {
 	(*ft)[pos] = line

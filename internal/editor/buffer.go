@@ -440,11 +440,11 @@ type bufMutator struct {
 	*Buffer
 }
 
-func (bm bufMutator) Insert(pos int, line content.Line) {
+func (bm bufMutator) Insert(pos int, lines ...content.Line) {
 	if bm.Mutable == nil {
 		return
 	}
-	bm.Mutable.Insert(pos, line)
+	bm.Mutable.Insert(pos, lines...)
 	bm.setMutated()
 }
 func (bm bufMutator) Update(pos int, line content.Line) {
