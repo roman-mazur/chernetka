@@ -21,10 +21,9 @@ import (
 type TestHarness struct {
 	*Editor
 
-	runFinished chan struct{}
-	pipeReader  *io.PipeReader
-	pipeWriter  *io.PipeWriter
-	written     int64 // bytes written to the editor input
+	pipeReader *io.PipeReader
+	pipeWriter *io.PipeWriter
+	written    int64 // bytes written to the editor input
 }
 
 // NewTestHarness returns a harness around a fresh editor with an initialized
@@ -71,6 +70,8 @@ func (h *TestHarness) Run(t *testing.T) {
 	go func() {
 		defer close(runFinished)
 		h.Editor.Run(term)
+		// The input is not read anymore: fail the writes instead of blocking them.
+		_ = h.pipeReader.CloseWithError(io.ErrClosedPipe)
 	}()
 }
 
@@ -140,9 +141,22 @@ func (h *TestHarness) SendInput(t *testing.T, b []byte) {
 func (h *TestHarness) WriteInput(t *testing.T, b []byte) {
 	t.Helper()
 	if _, err := h.pipeWriter.Write(b); err != nil {
+		select {
+		case <-h.loopDone():
+			return // The input closed the last buffer before this write.
+		default:
+		}
 		t.Fatal(err)
 	}
 	h.written += int64(len(b))
+}
+
+// CloseInput ends the input, like closing the terminal, and waits for the loop to close
+// the buffers and end. Unlike SendInput, it lets the input end anyhow, like in the middle
+// of a paste the editor waits the rest of.
+func (h *TestHarness) CloseInput() {
+	_ = h.pipeWriter.CloseWithError(io.EOF)
+	<-h.loopDone()
 }
 
 // SendInputSequence sends each byte of the string as a dedicated input.
