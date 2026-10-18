@@ -1,8 +1,12 @@
 package ci
 
-import "list"
+import (
+	"list"
 
-workflows: test: #Workflow & {
+	"cue.dev/x/githubactions"
+)
+
+workflows: test: githubactions.#Workflow & {
 	name: "Test"
 	on: {
 		push: branches: ["main"]

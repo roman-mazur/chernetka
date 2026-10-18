@@ -1,8 +1,12 @@
 package ci
 
-import "list"
+import (
+	"list"
 
-workflows: release: #Workflow & {
+	"cue.dev/x/githubactions"
+)
+
+workflows: release: githubactions.#Workflow & {
 	name: "Release Binaries"
 	on: {
 		workflow_dispatch: {}
