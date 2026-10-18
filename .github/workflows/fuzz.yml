@@ -21,7 +21,11 @@ jobs:
         id: last
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |-
+        run: |
+          #!/usr/bin/env bash
+          # Tells if main has changed since the last successful fuzz run: a scheduled run is skipped otherwise.
+          # The manual runs always fuzz.
+
           last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow fuzz.yml --branch main \
             --status success --limit 1 --json headSha --jq '.[0].headSha // ""')
           echo "last fuzzed: ${last:-none}, main: $GITHUB_SHA"
@@ -51,7 +55,10 @@ jobs:
       - name: Restore the corpus
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |-
+        run: |
+          #!/usr/bin/env bash
+          # Restores the fuzz cache of GOCACHE from the fuzz-corpus artifact of the latest run that saved it.
+
           dir="$(go env GOCACHE)/fuzz"
           echo "FUZZCACHE=$dir" >> "$GITHUB_ENV"
           run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=fuzz-corpus&per_page=1" \
@@ -64,7 +71,10 @@ jobs:
           echo "restored $(find "$dir" -type f | wc -l) inputs from run $run"
       - name: Fuzz
         id: fuzz
-        run: |-
+        run: |
+          #!/usr/bin/env bash
+          # Fuzzes the editor for $FUZZTIME, and outputs found=true if a failing input is saved to $CORPUS.
+
           # -timeout is above the fuzzing time: the default 10m would stop a longer run.
           set +e
           go test -run '^$' -fuzz FuzzEditor -fuzztime "$FUZZTIME" -timeout 2h ./internal/editor 2>&1 | tee fuzz.log
@@ -95,24 +105,28 @@ jobs:
         if: steps.fuzz.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |-
-          branch="fuzz/${{ github.run_id }}"
+        run: |
+          #!/usr/bin/env bash
+          # Commits the failing input found in $CORPUS to a new branch, and opens a draft PR showing the failure.
+
+          branch="fuzz/$GITHUB_RUN_ID"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch -c "$branch"
           git add -- "$CORPUS"
           git commit -m "internal/editor: add the failing input found by fuzzing" \
-            -m "Found by the weekly fuzz run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+            -m "Found by the weekly fuzz run $run_url."
           git push origin "$branch"
           {
             echo "The weekly fuzzing found a failing input, committed to \`$CORPUS\`."
             echo
-            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "Run: $run_url"
             echo
             echo '```'
             grep -A40 -m1 -e '--- FAIL' fuzz.log || tail -n 60 fuzz.log
             echo '```'
           } > pr-body.md
           gh pr create --draft --base main --head "$branch" \
-            --title "internal/editor: fuzzing failure from run ${{ github.run_id }}" \
+            --title "internal/editor: fuzzing failure from run $GITHUB_RUN_ID" \
             --body-file pr-body.md
