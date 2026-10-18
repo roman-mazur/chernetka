@@ -1,10 +1,14 @@
 package ci
 
-import "list"
+import (
+	"list"
+
+	"cue.dev/x/githubactions"
+)
 
 // The fuzz workflow fuzzes the editor weekly. A failing input is committed to a new branch with
 // a draft PR, rather than to main: the seed corpus runs with go test, so it fails the tests until fixed.
-workflows: fuzz: #Workflow & {
+workflows: fuzz: githubactions.#Workflow & {
 	name: "Fuzz"
 	on: {
 		schedule: [{cron: "17 1 * * 6"}] // the night between Friday and Saturday, 01:17 UTC
