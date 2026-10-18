@@ -1,19 +1,15 @@
-name: Fuzz
+# Code generated from internal/ci with go generate; DO NOT EDIT.
 
-# Fuzzes the editor weekly. A failing input is committed to a new branch with a draft PR,
-# rather than to main: the seed corpus runs with go test, so it fails the tests until fixed.
-on:
+name: Fuzz
+"on":
   schedule:
-    - cron: '17 3 * * 1' # Mondays, 03:17 UTC
+    - cron: 17 3 * * 1
   workflow_dispatch:
     inputs:
       fuzztime:
-        description: 'How long to fuzz, as -fuzztime'
-        default: '30m'
-
+        description: How long to fuzz, as -fuzztime
+        default: 30m
 jobs:
-  # A scheduled run is skipped when main has not changed since the last successful run.
-  # The manual runs always fuzz.
   check:
     runs-on: ubuntu-latest
     permissions:
@@ -25,7 +21,7 @@ jobs:
         id: last
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        run: |-
           last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow fuzz.yml --branch main \
             --status success --limit 1 --json headSha --jq '.[0].headSha // ""')
           echo "last fuzzed: ${last:-none}, main: $GITHUB_SHA"
@@ -34,13 +30,12 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
   fuzz:
+    runs-on: ubuntu-latest
     needs: check
     if: needs.check.outputs.changed == 'true'
-    runs-on: ubuntu-latest
     permissions:
-      actions: read # to download the corpus of the previous runs
+      actions: read
       contents: write
       pull-requests: write
     env:
@@ -49,20 +44,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27'
-
-      # The interesting inputs the fuzzing generates are kept in the fuzz cache of GOCACHE.
-      # setup-go doesn't keep them: its cache is saved only when go.sum changes. They are kept
-      # as an artifact instead: the actions cache is evicted when unused for 7 days,
-      # which a weekly run, skipped when main doesn't change, would hit.
+          go-version: "1.27"
       - name: Restore the corpus
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        run: |-
           dir="$(go env GOCACHE)/fuzz"
           echo "FUZZCACHE=$dir" >> "$GITHUB_ENV"
           run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=fuzz-corpus&per_page=1" \
@@ -73,10 +62,9 @@ jobs:
           fi
           gh run download "$run" --repo "$GITHUB_REPOSITORY" --name fuzz-corpus --dir "$dir"
           echo "restored $(find "$dir" -type f | wc -l) inputs from run $run"
-
       - name: Fuzz
         id: fuzz
-        run: |
+        run: |-
           # -timeout is above the fuzzing time: the default 10m would stop a longer run.
           set +e
           go test -run '^$' -fuzz FuzzEditor -fuzztime "$FUZZTIME" -timeout 2h ./internal/editor 2>&1 | tee fuzz.log
@@ -89,15 +77,12 @@ jobs:
             echo "fuzzing failed without a new input" >&2
             exit "$code"
           fi
-
       - name: Upload the log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fuzz-log
           path: fuzz.log
-
-      # Kept on a failure too: the inputs found before it are still interesting.
       - name: Save the corpus
         if: always() && steps.fuzz.outcome != 'skipped'
         uses: actions/upload-artifact@v4
@@ -106,12 +91,11 @@ jobs:
           path: ${{ env.FUZZCACHE }}
           retention-days: 90
           if-no-files-found: ignore
-
       - name: Commit the failing input
         if: steps.fuzz.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        run: |-
           branch="fuzz/${{ github.run_id }}"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
