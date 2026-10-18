@@ -1,7 +1,9 @@
 package markdown
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"rmazur.io/chernetka/internal/content/code"
 )
@@ -55,5 +57,20 @@ func TestScan_TaskCheckboxConsistent(t *testing.T) {
 	})
 	if len(boxes) != 3 || boxes[0] != 0 || boxes[1] != 1 || boxes[2] != 3 {
 		t.Errorf("checkboxes on lines %v, want [0 1 3]", boxes)
+	}
+}
+
+func TestScan_LongDelimiterRun(t *testing.T) {
+	// A run longer than three is not emphasis, and is scanned once. When each of its
+	// suffixes is scanned again, a run as long as this one takes many seconds.
+	line := "a " + strings.Repeat("*", 300_000) + " b*"
+	start := time.Now()
+	Scan([]string{line}, func(s Span) {
+		if s.Token == code.TtEmphasis || s.Token == code.TtStrong {
+			t.Errorf("emphasis at %d-%d", s.Start, s.End)
+		}
+	})
+	if d := time.Since(start); d > time.Second {
+		t.Errorf("scanning a run of %d stars takes %v", len(line)-6, d)
 	}
 }
