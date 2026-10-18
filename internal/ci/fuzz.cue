@@ -1,3 +1,5 @@
+@extern(embed)
+
 package ci
 
 import (
@@ -8,6 +10,7 @@ import (
 
 // The fuzz workflow fuzzes the editor weekly. A failing input is committed to a new branch with
 // a draft PR, rather than to main: the seed corpus runs with go test, so it fails the tests until fixed.
+// The scripts of the steps are in the fuzz directory.
 workflows: fuzz: githubactions.#Workflow & {
 	name: "Fuzz"
 	on: {
@@ -28,16 +31,7 @@ workflows: fuzz: githubactions.#Workflow & {
 			name: "Compare with the last run"
 			id:   "last"
 			env: GH_TOKEN: "${{ github.token }}"
-			run: #"""
-				last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow fuzz.yml --branch main \
-				  --status success --limit 1 --json headSha --jq '.[0].headSha // ""')
-				echo "last fuzzed: ${last:-none}, main: $GITHUB_SHA"
-				if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$last" = "$GITHUB_SHA" ]; then
-				  echo "changed=false" >> "$GITHUB_OUTPUT"
-				else
-				  echo "changed=true" >> "$GITHUB_OUTPUT"
-				fi
-				"""#
+			run: _ @embed(file=fuzz/check.sh, type=text)
 		}]
 	}
 
@@ -62,36 +56,12 @@ workflows: fuzz: githubactions.#Workflow & {
 			{
 				name: "Restore the corpus"
 				env: GH_TOKEN: "${{ github.token }}"
-				run: #"""
-					dir="$(go env GOCACHE)/fuzz"
-					echo "FUZZCACHE=$dir" >> "$GITHUB_ENV"
-					run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=fuzz-corpus&per_page=1" \
-					  --jq '.artifacts[] | select(.expired | not) | .workflow_run.id')
-					if [ -z "$run" ]; then
-					  echo "no corpus of the previous runs, starting from the seeds"
-					  exit 0
-					fi
-					gh run download "$run" --repo "$GITHUB_REPOSITORY" --name fuzz-corpus --dir "$dir"
-					echo "restored $(find "$dir" -type f | wc -l) inputs from run $run"
-					"""#
+				run: _ @embed(file=fuzz/restore-corpus.sh, type=text)
 			},
 			{
 				name: "Fuzz"
 				id:   "fuzz"
-				run: #"""
-					# -timeout is above the fuzzing time: the default 10m would stop a longer run.
-					set +e
-					go test -run '^$' -fuzz FuzzEditor -fuzztime "$FUZZTIME" -timeout 2h ./internal/editor 2>&1 | tee fuzz.log
-					code=${PIPESTATUS[0]}
-					set -e
-					new=$(git status --porcelain --untracked-files=all -- "$CORPUS")
-					if [ -n "$new" ]; then
-					  echo "found=true" >> "$GITHUB_OUTPUT"
-					elif [ "$code" -ne 0 ]; then
-					  echo "fuzzing failed without a new input" >&2
-					  exit "$code"
-					fi
-					"""#
+				run:  _ @embed(file=fuzz/fuzz.sh, type=text)
 			},
 			{
 				name: "Upload the log"
@@ -118,28 +88,7 @@ workflows: fuzz: githubactions.#Workflow & {
 				name: "Commit the failing input"
 				if:   "steps.fuzz.outputs.found == 'true'"
 				env: GH_TOKEN: "${{ github.token }}"
-				run: #"""
-					branch="fuzz/${{ github.run_id }}"
-					git config user.name 'github-actions[bot]'
-					git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-					git switch -c "$branch"
-					git add -- "$CORPUS"
-					git commit -m "internal/editor: add the failing input found by fuzzing" \
-					  -m "Found by the weekly fuzz run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}."
-					git push origin "$branch"
-					{
-					  echo "The weekly fuzzing found a failing input, committed to \`$CORPUS\`."
-					  echo
-					  echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-					  echo
-					  echo '```'
-					  grep -A40 -m1 -e '--- FAIL' fuzz.log || tail -n 60 fuzz.log
-					  echo '```'
-					} > pr-body.md
-					gh pr create --draft --base main --head "$branch" \
-					  --title "internal/editor: fuzzing failure from run ${{ github.run_id }}" \
-					  --body-file pr-body.md
-					"""#
+				run: _ @embed(file=fuzz/commit-failure.sh, type=text)
 			},
 		]])
 	}
