@@ -1,0 +1,54 @@
+package ci
+
+import "list"
+
+workflows: release: #Workflow & {
+	name: "Release Binaries"
+	on: {
+		workflow_dispatch: {}
+		release: types: ["created"]
+	}
+	jobs: "build-and-upload": {
+		"runs-on": "ubuntu-latest"
+		permissions: {
+			"id-token": "write"
+			contents:   "write"
+		}
+		steps: list.Concat([#goSetup, [
+			{
+				name: "Print go env"
+				run: """
+					go version
+					go env
+					"""
+			},
+			{
+				name: "Download modules"
+				run:  "go mod download"
+			},
+			{
+				name: "Build"
+				env: {
+					GOOS:        "linux"
+					GOARCH:      "amd64"
+					CGO_ENABLED: "1"
+				}
+				run: """
+					mkdir -p ./out
+					go build -trimpath -tags=netgo -o ./out/che-linux-amd64 ./cmd/che
+					"""
+			},
+			{
+				name: "Upload release asset"
+				uses: "actions/upload-release-asset@v1"
+				with: {
+					upload_url:         "${{ github.event.release.upload_url }}"
+					asset_path:         "./out/che-linux-amd64"
+					asset_name:         "che-linux-amd64"
+					asset_content_type: "application/octet-stream"
+				}
+				env: GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+			},
+		]])
+	}
+}
