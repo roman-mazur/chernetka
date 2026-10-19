@@ -28,7 +28,7 @@ func CopyLine(line Line) Line {
 	if line == nil {
 		return nil
 	}
-	if cl, ok := line.(lineCopyable); !ok {
+	if cl, ok := line.(lineCopyable); ok {
 		return cl.copy()
 	}
 	if line.MimeType() == MimeTypeTextPlain {
