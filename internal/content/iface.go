@@ -13,14 +13,6 @@ type Document interface {
 	Len() int
 }
 
-// Seekable extends the Document with methods that allow the implementation to track where the user is and load
-// more data on demand.
-type Seekable interface {
-	Document
-
-	UpdateUserCursor(lineNumber int) error
-}
-
 // Line represents a piece of content displayed by the editor. Usually a text line, but can also be an image.
 type Line interface {
 	MimeType() string
