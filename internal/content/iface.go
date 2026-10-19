@@ -34,7 +34,7 @@ type Mutable interface {
 	// Insert puts the lines at pos, shifting the lines starting there.
 	Insert(pos int, lines ...Line)
 	Update(pos int, line Line)
-	Delete(pos int)
+	Delete(startPos, endPos int)
 }
 
 // Print is useful to dump a part of the document for check what's inside.

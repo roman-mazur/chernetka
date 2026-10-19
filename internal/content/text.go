@@ -55,8 +55,8 @@ func (ft *FullText) Insert(pos int, lines ...Line) {
 func (ft *FullText) Update(pos int, line Line) {
 	(*ft)[pos] = line
 }
-func (ft *FullText) Delete(pos int) {
-	*ft = slices.Delete(*ft, pos, pos+1)
+func (ft *FullText) Delete(startPos, endPos int) {
+	*ft = slices.Delete(*ft, startPos, endPos)
 }
 
 // Empty returns an implementation of an empty content.

@@ -1,7 +1,8 @@
-package changes
+package change
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -19,13 +20,13 @@ func TestHistory_Track(t *testing.T) {
 
 	m.Insert(1, content.TextLine("line 2"))
 	m.Update(1, content.TextLine("update line 2"))
-	m.Delete(0)
+	m.Delete(0, 1)
 	m.Update(0, content.TextLine("update line 2 v2"))
 	m.Update(0, content.TextLine("update line 2 v3")) // modifies the last change
-	m.Insert(0, content.TextLine("line 0"), content.TextLine("line 1"))
 
-	if editsLen := len(h[0].Items); editsLen != 7 {
-		t.Errorf("expected history of 7 items, got %d", editsLen)
+	allChanges := slices.Collect((&h[0]).iterateChanges)
+	if editsLen := len(allChanges); editsLen != 5 {
+		t.Errorf("expected history of 5 items, got %d", editsLen)
 	}
 
 	var out bytes.Buffer

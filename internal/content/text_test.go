@@ -58,7 +58,7 @@ func TestFullText_Mutate(t *testing.T) {
 	}
 	data.Update(1, TextLine("d"))
 	data.Insert(0, TextLine("0"))
-	data.Delete(1)
+	data.Delete(1, 2)
 	data.Insert(3, TextLine("e"))
 
 	var buf strings.Builder

@@ -19,9 +19,7 @@ func DeleteSpan(m Mutable, span Span) Position {
 
 	last := lines[stop.Line].String()
 	m.Update(start.Line, TextLine(first[:start.Col]+last[stop.Col:]))
-	for i := stop.Line; i > start.Line; i-- {
-		m.Delete(i)
-	}
+	m.Delete(start.Line+1, stop.Line+1)
 	return start
 }
 

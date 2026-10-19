@@ -75,13 +75,13 @@ func TestMarkdown_FollowBlock(t *testing.T) {
 	ext.AfterEdit(nil, buf)
 	m.Update(8, content.TextLine("x -> z"))
 	ext.AfterEdit(nil, buf)
-	m.Delete(3)
+	m.Delete(3, 4)
 	ext.AfterEdit(nil, buf)
 	rerun("x -> z")
 
 	// Remove the block.
 	for range 3 {
-		m.Delete(6)
+		m.Delete(6, 7)
 	}
 	ext.AfterEdit(nil, buf)
 	action.Engage()

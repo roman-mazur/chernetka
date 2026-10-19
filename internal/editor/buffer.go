@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
-	"rmazur.io/chernetka/internal/content/changes"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -49,7 +49,7 @@ type Buffer struct {
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
 
-	history  changes.History
+	history  change.History
 	_mutator content.Mutable
 }
 
@@ -461,10 +461,10 @@ func (bm bufMutator) Update(pos int, line content.Line) {
 	bm.Mutable.Update(pos, line)
 	bm.setMutated()
 }
-func (bm bufMutator) Delete(pos int) {
+func (bm bufMutator) Delete(startPos, endPos int) {
 	if bm.Mutable == nil {
 		return
 	}
-	bm.Mutable.Delete(pos)
+	bm.Mutable.Delete(startPos, endPos)
 	bm.setMutated()
 }

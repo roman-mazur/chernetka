@@ -61,7 +61,7 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		} else if c.Line > 0 {
 			prev := lines[c.Line-1].String()
 			mut.Update(c.Line-1, content.TextLine(prev+line))
-			mut.Delete(c.Line)
+			mut.Delete(c.Line, c.Line+1)
 			buf.updateCursor(content.Position{Line: c.Line - 1, Col: len(prev)})
 		}
 		return
