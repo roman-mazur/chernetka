@@ -105,13 +105,14 @@ func (h *History) Track(m content.Mutable) content.Mutable {
 type tracker struct {
 	list *List
 	content.Mutable
-	currentPos int
+	currentPos     int
+	groupRequested bool
 }
 
 const maxGroupDelay = 2 * time.Second
 
 func (t *tracker) trackChange(change Item) {
-	if len(t.list.Edits) == 0 {
+	if len(t.list.Edits) == 0 || t.groupRequested {
 		t.startNewGroup(change)
 		return
 	}
@@ -142,6 +143,7 @@ func (t *tracker) startNewGroup(change Item) {
 		Changes: []Item{change},
 	})
 	t.currentPos = len(t.list.Edits) - 1
+	t.groupRequested = false
 }
 
 func (t *tracker) Insert(pos int, lines ...content.Line) {
@@ -226,4 +228,8 @@ func (t *tracker) Redo() {
 		change.apply(t.Mutable)
 	}
 	t.currentPos++
+}
+
+func (t *tracker) SplitChangeGroup() {
+	t.groupRequested = true
 }

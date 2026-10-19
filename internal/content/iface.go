@@ -38,6 +38,8 @@ type UndoRedo interface {
 	HasRedo() bool
 	Undo() // Revert the last mutation.
 	Redo() // Cancel the last revert of a mutation.
+
+	SplitChangeGroup() // Ensure that the next change is not grouped with the previous one.
 }
 
 // Print is useful to dump a part of the document for check what's inside.
