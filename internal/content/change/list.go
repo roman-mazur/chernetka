@@ -23,6 +23,32 @@ type Item struct {
 	Old, New  []content.Line // old/new lines within the change span; old is empty for inserts, new is empty for inserts
 }
 
+func (it *Item) apply(m content.Mutable) {
+	switch it.Operation {
+	case OperationDelete:
+		m.Delete(it.Span.Start.Line, it.Span.End.Line+1)
+	case OperationInsert:
+		m.Insert(it.Span.Start.Line, it.New...)
+	default:
+		for i, line := range it.New {
+			m.Update(it.Span.Start.Line+i, line)
+		}
+	}
+}
+
+func (it *Item) revert(m content.Mutable) {
+	switch it.Operation {
+	case OperationDelete:
+		m.Insert(it.Span.Start.Line, it.Old...)
+	case OperationInsert:
+		m.Delete(it.Span.Start.Line, it.Span.End.Line+1)
+	default:
+		for i, line := range it.Old {
+			m.Update(it.Span.Start.Line+i, line)
+		}
+	}
+}
+
 // Group combines multiple change items that done by the user at the same time (logically).
 type Group struct {
 	Time    time.Time
@@ -54,16 +80,7 @@ func (l *List) Replay() content.Document {
 	}
 
 	for item := range l.iterateChanges {
-		switch item.Operation {
-		case OperationDelete:
-			m.Delete(item.Span.Start.Line, item.Span.End.Line+1)
-		case OperationInsert:
-			m.Insert(item.Span.Start.Line, item.New...)
-		default:
-			for i, line := range item.New {
-				m.Update(item.Span.Start.Line+i, line)
-			}
-		}
+		item.apply(m)
 	}
 	return m
 }
