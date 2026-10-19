@@ -105,6 +105,7 @@ func (h *History) Track(m content.Mutable) content.Mutable {
 type tracker struct {
 	list *List
 	content.Mutable
+	currentPos int
 }
 
 const maxGroupDelay = 2 * time.Second
@@ -115,7 +116,7 @@ func (t *tracker) trackChange(change Item) {
 		return
 	}
 
-	lastGroup := &t.list.Edits[len(t.list.Edits)-1]
+	lastGroup := &t.list.Edits[t.currentPos]
 	if time.Since(lastGroup.Time) > maxGroupDelay {
 		t.startNewGroup(change)
 		return
@@ -135,10 +136,12 @@ func (t *tracker) trackChange(change Item) {
 }
 
 func (t *tracker) startNewGroup(change Item) {
-	t.list.Edits = append(t.list.Edits, Group{
+	index := min(len(t.list.Edits)-1, t.currentPos)
+	t.list.Edits = append(t.list.Edits[:index+1], Group{
 		Time:    time.Now(),
 		Changes: []Item{change},
 	})
+	t.currentPos = len(t.list.Edits) - 1
 }
 
 func (t *tracker) Insert(pos int, lines ...content.Line) {
@@ -204,4 +207,23 @@ func (t *tracker) Delete(startPos, endPos int) {
 			End:   content.Position{Line: endPos - 1, Col: deletedLines[len(deletedLines)-1].Len()},
 		},
 	})
+}
+
+func (t *tracker) HasUndo() bool { return len(t.list.Edits) > 0 && t.currentPos >= 0 }
+func (t *tracker) HasRedo() bool { return t.currentPos < len(t.list.Edits)-1 }
+
+func (t *tracker) Undo() {
+	group := t.list.Edits[t.currentPos]
+	for _, change := range slices.Backward(group.Changes) {
+		change.revert(t.Mutable)
+	}
+	t.currentPos--
+}
+
+func (t *tracker) Redo() {
+	group := t.list.Edits[t.currentPos+1]
+	for _, change := range group.Changes {
+		change.apply(t.Mutable)
+	}
+	t.currentPos++
 }

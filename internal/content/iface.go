@@ -20,6 +20,7 @@ type Line interface {
 	Len() int
 }
 
+// Mutable is a Document that can be modified.
 type Mutable interface {
 	Document
 
@@ -27,6 +28,16 @@ type Mutable interface {
 	Insert(pos int, lines ...Line)
 	Update(pos int, line Line)
 	Delete(startPos, endPos int)
+}
+
+// UndoRedo extends a Mutable document with under/redo operations.
+type UndoRedo interface {
+	Mutable
+
+	HasUndo() bool // Whether there is an action in the history that can be undone.
+	HasRedo() bool
+	Undo() // Revert the last mutation.
+	Redo() // Cancel the last revert of a mutation.
 }
 
 // Print is useful to dump a part of the document for check what's inside.

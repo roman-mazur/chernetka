@@ -41,4 +41,38 @@ func TestHistory_Track(t *testing.T) {
 	if diff := cmp.Diff(out.String(), replayOut.String()); diff != "" {
 		t.Errorf("replay mismatch (-want +got):\n%s", diff)
 	}
+
+	ur, ok := m.(content.UndoRedo)
+	if !ok {
+		t.Fatal("no UndoRedo support")
+	}
+
+	undoCount := 0
+	for ur.HasUndo() {
+		ur.Undo()
+		undoCount++
+	}
+	if undoCount == 0 {
+		t.Error("no undo actions")
+	}
+	if ur.Len() != 1 {
+		t.Error("unexpected doc after all updates, len=", ur.Len())
+	}
+
+	redoCount := 0
+	for ur.HasRedo() {
+		ur.Redo()
+		redoCount++
+	}
+	if undoCount != redoCount {
+		t.Errorf("unexpected redo count %d, undo count %d", redoCount, undoCount)
+	}
+
+	var redoOut bytes.Buffer
+	if err := content.SaveToWriter(ur, &redoOut); err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(out.String(), redoOut.String()); diff != "" {
+		t.Errorf("after-redo mismatch (-want +got):\n%s", diff)
+	}
 }
