@@ -1,6 +1,7 @@
 package change
 
 import (
+	"fmt"
 	"slices"
 	"time"
 
@@ -23,29 +24,35 @@ type Item struct {
 	Old, New  []content.Line // old/new lines within the change span; old is empty for inserts, new is empty for inserts
 }
 
-func (it *Item) apply(m content.Mutable) {
+func (it *Item) apply(m content.Mutable) content.Position {
 	switch it.Operation {
 	case OperationDelete:
 		m.Delete(it.Span.Start.Line, it.Span.End.Line+1)
+		return it.Span.Start
 	case OperationInsert:
 		m.Insert(it.Span.Start.Line, it.New...)
+		return it.Span.End
 	default:
 		for i, line := range it.New {
 			m.Update(it.Span.Start.Line+i, line)
 		}
+		return it.Span.End
 	}
 }
 
-func (it *Item) revert(m content.Mutable) {
+func (it *Item) revert(m content.Mutable) content.Position {
 	switch it.Operation {
 	case OperationDelete:
 		m.Insert(it.Span.Start.Line, it.Old...)
+		return it.Span.End
 	case OperationInsert:
 		m.Delete(it.Span.Start.Line, it.Span.End.Line+1)
+		return it.Span.Start
 	default:
 		for i, line := range it.Old {
 			m.Update(it.Span.Start.Line+i, line)
 		}
+		return it.Span.Start
 	}
 }
 
@@ -86,7 +93,9 @@ func (l *List) Replay() content.Document {
 }
 
 // History represents the tracked change lists for some document.
-type History []List
+type History []*List
+
+const historyCap = 10
 
 // Track wraps the mutable content returning implementation that tracks the changes.
 func (h *History) Track(m content.Mutable) content.Mutable {
@@ -95,10 +104,16 @@ func (h *History) Track(m content.Mutable) content.Mutable {
 		// cannot be tracked
 		return m
 	}
-	*h = append(*h, List{Base: base})
+
+	if cap(*h) == 0 {
+		// ensure one allocation
+		*h = make(History, 0, historyCap)
+	}
+	*h = append((*h)[max(len(*h)-historyCap, 0):], &List{Base: base})
+
 	return &tracker{
 		Mutable: m,
-		list:    &(*h)[len(*h)-1],
+		list:    (*h)[len(*h)-1],
 	}
 }
 
@@ -112,7 +127,7 @@ type tracker struct {
 const maxGroupDelay = 2 * time.Second
 
 func (t *tracker) trackChange(change Item) {
-	if len(t.list.Edits) == 0 || t.groupRequested {
+	if l := len(t.list.Edits); l == 0 || t.currentPos != l-1 || t.groupRequested {
 		t.startNewGroup(change)
 		return
 	}
@@ -123,11 +138,15 @@ func (t *tracker) trackChange(change Item) {
 		return
 	}
 
+	lastGroup.Time = time.Now()
+
 	if change.Operation == OperationUpdate {
 		lastChange := &lastGroup.Changes[len(lastGroup.Changes)-1]
 		if lastChange.Operation == OperationUpdate {
 			if lastChange.Span.Start.Line == change.Span.Start.Line && lastChange.Span.End.Line == change.Span.End.Line {
 				lastChange.New = change.New
+				lastChange.Span.Start.Col = min(lastChange.Span.Start.Col, change.Span.Start.Col)
+				lastChange.Span.End.Col = max(lastChange.Span.End.Col, change.Span.End.Col)
 				return
 			}
 		}
@@ -147,6 +166,10 @@ func (t *tracker) startNewGroup(change Item) {
 }
 
 func (t *tracker) Insert(pos int, lines ...content.Line) {
+	if len(lines) == 0 {
+		return
+	}
+
 	newLines := make([]content.Line, len(lines))
 	for i, line := range lines {
 		newLines[i] = content.CopyLine(line)
@@ -168,30 +191,24 @@ func (t *tracker) Update(pos int, line content.Line) {
 	prevLine := t.Mutable.Lines()[pos]
 	t.Mutable.Update(pos, line)
 
-	chStart, chEnd := 0, prevLine.Len()
+	prefixLen, suffixLen := 0, 0
 	if prevLine.MimeType() == content.MimeTypeTextPlain {
 		// TODO: this could happen concurrently.
 		ps := prevLine.String()
 		cs := line.String()
-		for chStart < min(len(ps), len(cs)) && ps[chStart] == cs[chStart] {
-			chStart++
+		for prefixLen < min(len(ps), len(cs)) && ps[prefixLen] == cs[prefixLen] {
+			prefixLen++
 		}
-		for chEnd > 0 {
-			if len(cs) < chEnd {
-				break
-			}
-			if ps[chEnd-1] != cs[chEnd-1] {
-				break
-			}
-			chEnd--
+		for suffixLen < min(len(ps), len(cs))-prefixLen && ps[len(ps)-1-suffixLen] == cs[len(cs)-1-suffixLen] {
+			suffixLen++
 		}
 	}
 
 	t.trackChange(Item{
 		Operation: OperationUpdate,
 		Span: content.Span{
-			Start: content.Position{Line: pos, Col: chStart},
-			End:   content.Position{Line: pos, Col: chEnd},
+			Start: content.Position{Line: pos, Col: prefixLen},
+			End:   content.Position{Line: pos, Col: line.Len() - suffixLen},
 		},
 		Old: []content.Line{prevLine},
 		New: []content.Line{content.CopyLine(line)},
@@ -199,6 +216,13 @@ func (t *tracker) Update(pos int, line content.Line) {
 }
 
 func (t *tracker) Delete(startPos, endPos int) {
+	if startPos == endPos {
+		return
+	}
+	if startPos > endPos {
+		panic(fmt.Errorf("startPos > endPos: %d > %d", startPos, endPos))
+	}
+
 	deletedLines := slices.Clone(t.Mutable.Lines()[startPos:endPos])
 	t.Mutable.Delete(startPos, endPos)
 	t.trackChange(Item{
@@ -214,20 +238,22 @@ func (t *tracker) Delete(startPos, endPos int) {
 func (t *tracker) HasUndo() bool { return len(t.list.Edits) > 0 && t.currentPos >= 0 }
 func (t *tracker) HasRedo() bool { return t.currentPos < len(t.list.Edits)-1 }
 
-func (t *tracker) Undo() {
+func (t *tracker) Undo() (cursor content.Position) {
 	group := t.list.Edits[t.currentPos]
 	for _, change := range slices.Backward(group.Changes) {
-		change.revert(t.Mutable)
+		cursor = change.revert(t.Mutable)
 	}
 	t.currentPos--
+	return
 }
 
-func (t *tracker) Redo() {
+func (t *tracker) Redo() (cursor content.Position) {
 	group := t.list.Edits[t.currentPos+1]
 	for _, change := range group.Changes {
-		change.apply(t.Mutable)
+		cursor = change.apply(t.Mutable)
 	}
 	t.currentPos++
+	return
 }
 
 func (t *tracker) SplitChangeGroup() {

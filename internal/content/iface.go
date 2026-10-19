@@ -36,8 +36,8 @@ type UndoRedo interface {
 
 	HasUndo() bool // Whether there is an action in the history that can be undone.
 	HasRedo() bool
-	Undo() // Revert the last mutation.
-	Redo() // Cancel the last revert of a mutation.
+	Undo() Position // Revert the last mutation.
+	Redo() Position // Cancel the last revert of a mutation.
 
 	SplitChangeGroup() // Ensure that the next change is not grouped with the previous one.
 }

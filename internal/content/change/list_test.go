@@ -24,7 +24,7 @@ func TestHistory_Track(t *testing.T) {
 	m.Update(0, content.TextLine("update line 2 v2"))
 	m.Update(0, content.TextLine("update line 2 v3")) // modifies the last change
 
-	allChanges := slices.Collect((&h[0]).iterateChanges)
+	allChanges := slices.Collect[Item](h[0].iterateChanges)
 	if editsLen := len(allChanges); editsLen != 5 {
 		t.Errorf("expected history of 5 items, got %d", editsLen)
 	}
