@@ -1,12 +1,14 @@
 package editor_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"rmazur.io/chernetka/internal/editor"
@@ -24,6 +26,10 @@ var fuzzFileExts = []string{".txt", ".go", ".md", ".d2", ".json", ".yaml", ".sh"
 // is handled the same way every time, and quickly. The input ends like the terminal closing.
 // Files are saved only in the test directory, and the clipboard is kept in memory.
 //
+// The input runs in a synctest bubble: the editor sees a fake clock that moves only when it
+// waits, so what depends on time, like grouping the changes to undo, is the same every time.
+// A fuzzPause byte in the input pauses the typing for fuzzPauseDelay on that clock.
+//
 //	go test -run '^$' -fuzz FuzzEditor ./internal/editor
 func FuzzEditor(f *testing.F) {
 	for _, seed := range []struct {
@@ -39,6 +45,7 @@ func FuzzEditor(f *testing.F) {
 		{".go", "package p\n\n// f does\nfunc f() {\n\t\tx := 1\n}\n", "jjli\t\x7f\x7f\x1b[3~\x1b[1;3C\x1b[1;10A\x1b[Z\x1b\x1b[1;7D\x1b[1;7C"},
 		{".d2", "a -> b\n", "Go\rc: {\r  shape: circle\r}\x1b"},
 		{".cue", "", "iname: \"value\"\rlist: [1, 2]\x1b"},
+		{".txt", "a\n", "ione\xfftwo\xff\x1bx\xff\x1b[<0;3;1M\x1b[<0;3;1m\xff\x1b[<0;3;1M\x1b[<0;3;1m"},
 	} {
 		f.Add(byte(fuzzExtIndex(seed.ext)), seed.text, []byte(seed.input))
 	}
@@ -78,18 +85,33 @@ func TestRunFuzzedInput(t *testing.T) {
 // fuzzHangTimeout is how long an input may take before the editor is considered hung.
 const fuzzHangTimeout = 10 * time.Second
 
+const (
+	// fuzzPause in the input pauses the typing. Terminals do not send it: it's never part of UTF-8.
+	fuzzPause = 0xff
+	// fuzzPauseDelay is longer than the delays of the editor: the double click and the changes
+	// grouped to undo at once.
+	fuzzPauseDelay = 3 * time.Second
+)
+
 // runFuzzedInput opens a file with the extension and the text in dir, and handles the input.
 func runFuzzedInput(t *testing.T, dir, ext, text string, input []byte) {
-	t.Chdir(dir)
-	editor.IsolateEffects(t, dir)
-
 	// A hung editor never returns: crash with the goroutines to report the input.
+	// The timer is out of the bubble: the fake clock does not move while the editor is busy.
+	// An editor blocked for good is reported by synctest as a deadlock instead.
 	hang := time.AfterFunc(fuzzHangTimeout, func() {
 		debug.SetTraceback("all")
 		panic(fmt.Sprintf("the editor does not handle the input for %s", fuzzHangTimeout))
 	})
-	// Stopped after the cleanup of the harness, which waits for the editor to shut down.
-	t.Cleanup(func() { hang.Stop() })
+	defer hang.Stop()
+
+	synctest.Test(t, func(t *testing.T) {
+		runFuzzedInputInBubble(t, dir, ext, text, input)
+	})
+}
+
+func runFuzzedInputInBubble(t *testing.T, dir, ext, text string, input []byte) {
+	t.Chdir(dir)
+	editor.IsolateEffects(t, dir)
 
 	h := editor.NewTestHarness(t)
 	h.Root = dir
@@ -106,6 +128,14 @@ func runFuzzedInput(t *testing.T, dir, ext, text string, input []byte) {
 		t.Fatal(err)
 	}
 	h.Run(t)
-	h.WriteInput(t, input)
+	for i, part := range bytes.Split(input, []byte{fuzzPause}) {
+		if i > 0 {
+			// The clock moves once the editor waits: it handles the input written before.
+			time.Sleep(fuzzPauseDelay)
+		}
+		if len(part) > 0 {
+			h.WriteInput(t, part)
+		}
+	}
 	h.CloseInput()
 }
