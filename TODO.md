@@ -15,14 +15,15 @@
 - [x] LSP diagnostics (line marker + status bar with problems count)
 - [x] Unify how text content is distinguished by the buffer
 - [x] Navigation history: go to definition, go back
+- [x] Undo/redo
 
 - unify how external commands are run (consider a helper process that receives commands to execute): d2, go run, git diff
-- undo/redo backed by tracking changes with content/changes.History, consider batch edit interface on a buffer
 - project search (render with the tool buffer)
 - project search inter-process (dir + main editor)
 - find references (render with the tool buffer), call hierarchy, diagnostics using the tool buffer
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 - present a choice on what version to keep when content is updated outside the editor
+- store and visualize local history based on change.History (to define where to persist)
 
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy
