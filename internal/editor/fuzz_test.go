@@ -11,6 +11,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 )
 
@@ -20,7 +22,8 @@ var fuzzFileExts = []string{".txt", ".go", ".md", ".d2", ".json", ".yaml", ".sh"
 // FuzzEditor opens a file with the fuzzed text, and types the fuzzed input into the editor
 // as the terminal input: keys, mouse events, and pastes. The extensions of cmd/che are
 // enabled (see cheExtensions), and the fuzzed kind picks the file extension in fuzzFileExts.
-// It checks that the editor neither panics nor hangs.
+// It checks that the editor neither panics nor hangs, and that undoing all the changes
+// of the file restores its text, and redoing them restores the edited one.
 //
 // The editor runs its loop with the test harness, rendering after each command, so an input
 // is handled the same way every time, and quickly. The input ends like the terminal closing.
@@ -45,6 +48,8 @@ func FuzzEditor(f *testing.F) {
 		{".go", "package p\n\n// f does\nfunc f() {\n\t\tx := 1\n}\n", "jjli\t\x7f\x7f\x1b[3~\x1b[1;3C\x1b[1;10A\x1b[Z\x1b\x1b[1;7D\x1b[1;7C"},
 		{".d2", "a -> b\n", "Go\rc: {\r  shape: circle\r}\x1b"},
 		{".cue", "", "iname: \"value\"\rlist: [1, 2]\x1b"},
+		{".txt", "one\ntwo\n", "Aa\x1b\xffjob\x1b\xff\x1a\x1a\x1b[122;6u\xffxp\x1a\x1b[122;6u\x1b[122;6u"},
+		{".go", "package p\n", "Go\x1b[200~func f() {\n}\x1b[201~\x1b\xff/p\rx\x1b[122;5u\x1b[1;2B\x1a\x1b[122;6u"},
 		{".txt", "a\nb\n", "Atwo\x1b[27u\xffjx\x1b[122;5u\x1b[122;6u\x1b[115;5u\x1b[13;2u\x1b[120;3u"},
 		{".txt", "a\n", "ione\xfftwo\xff\x1bx\xff\x1b[<0;3;1M\x1b[<0;3;1m\xff\x1b[<0;3;1M\x1b[<0;3;1m"},
 	} {
@@ -80,6 +85,42 @@ func TestRunFuzzedInput(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "outside.txt")); err == nil {
 		t.Error("a file is saved outside the test directory")
+	}
+}
+
+// checkUndoRedo undoes all the changes of the file buffer, if it's the top one, expecting the
+// text of the file, then redoes as many of them, expecting the edited text. The changes undone
+// by the input stay to redo.
+func checkUndoRedo(t *testing.T, e *editor.Editor, path, text string) {
+	buf := e.Top()
+	if buf == nil || buf.Path != path {
+		return
+	}
+	ur, ok := buf.Mutate().(content.UndoRedo)
+	if !ok {
+		t.Error("the file buffer does not support undo")
+		return
+	}
+	loaded, _, err := content.LoadFullText(strings.NewReader(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want strings.Builder
+	_ = content.SaveToWriter(&loaded, &want)
+
+	edited := buf.Text()
+	undone := 0
+	for ; ur.HasUndo(); undone++ {
+		editor.Undo.DoOnBuffer(buf, editor.RenderPrefs{})
+	}
+	if diff := cmp.Diff(want.String(), buf.Text()); diff != "" {
+		t.Errorf("text after undoing all the changes differs from the opened file (-want +got):\n%s", diff)
+	}
+	for range undone {
+		editor.Redo.DoOnBuffer(buf, editor.RenderPrefs{})
+	}
+	if diff := cmp.Diff(edited, buf.Text()); diff != "" {
+		t.Errorf("text after redoing all the changes differs from the edited one (-want +got):\n%s", diff)
 	}
 }
 
@@ -137,6 +178,11 @@ func runFuzzedInputInBubble(t *testing.T, dir, ext, text string, input []byte) {
 		if len(part) > 0 {
 			h.WriteInput(t, part)
 		}
+	}
+	// The editor handles the input it has read.
+	synctest.Wait()
+	if h.Running() {
+		h.Post(t, editor.CommandFunc(func(e *editor.Editor) { checkUndoRedo(t, e, path, text) }))
 	}
 	h.CloseInput()
 }

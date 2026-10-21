@@ -151,6 +151,16 @@ func (h *TestHarness) WriteInput(t *testing.T, b []byte) {
 	h.written += int64(len(b))
 }
 
+// Running reports whether the editor loop is not over, for example, quit by the input.
+func (h *TestHarness) Running() bool {
+	select {
+	case <-h.loopDone():
+		return false
+	default:
+		return true
+	}
+}
+
 // CloseInput ends the input, like closing the terminal, and waits for the loop to close
 // the buffers and end. Unlike SendInput, it lets the input end anyhow, like in the middle
 // of a paste the editor waits the rest of.
