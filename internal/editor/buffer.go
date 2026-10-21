@@ -439,6 +439,29 @@ func (b *Buffer) Mutate() content.Mutable {
 	return b._mutator
 }
 
+// MutateAsGroup applies the provided operation on a mutable buffer content ensuring this is tracked as
+// a separate group of changes (that can be undone separately from previous and future changes).
+func (b *Buffer) MutateAsGroup(op func(m content.Mutable)) {
+	m := b.Mutate()
+	ur, ok := m.(content.UndoRedo)
+	if ok {
+		ur.SplitChangeGroup()
+		defer ur.SplitChangeGroup()
+	}
+	op(m)
+}
+
+// setMode switches the mode of the buffer. The changes made in one mode are undone
+// separately from the ones made in another.
+func (b *Buffer) setMode(m Mode) {
+	if b.mode != m {
+		if ur, ok := b.Mutate().(content.UndoRedo); ok {
+			ur.SplitChangeGroup()
+		}
+	}
+	b.mode = m
+}
+
 func (b *Buffer) setMutated() {
 	b.dirty = true
 	b._mutated = true

@@ -55,7 +55,7 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 
 	// Switch mode.
 	case 'i':
-		buf.mode = ModeInsert
+		buf.setMode(ModeInsert)
 	case 'a':
 		c := buf.c()
 		line := lines[c.Line].String()
@@ -64,21 +64,22 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 			c.Col += sz
 			buf.updateCursor(c)
 		}
-		buf.mode = ModeInsert
+		buf.setMode(ModeInsert)
 	case 'A':
 		c := buf.c()
 		c.Col = lines[c.Line].Len()
 		buf.updateCursor(c)
-		buf.mode = ModeInsert
+		buf.setMode(ModeInsert)
 	case 'o':
 		if !buf.canEdit() {
 			return false
 		}
 		buf.cancelSelection()
+		// The new line is undone together with the text typed in it.
+		buf.setMode(ModeInsert)
 		next := buf.c().Line + 1
 		buf.Mutate().Insert(next, content.TextLine(""))
 		buf.updateCursor(content.Position{Line: next})
-		buf.mode = ModeInsert
 
 	// Delete.
 	case 'x':

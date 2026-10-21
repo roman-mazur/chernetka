@@ -434,7 +434,7 @@ func (srv *server) format(buf *editor.Buffer, data *BufferData, prefs editor.Ren
 	if len(edits) == 0 || buf.Text() != text {
 		return
 	}
-	applyEdits(buf, edits)
+	buf.MutateAsGroup(func(content.Mutable) { applyEdits(buf, edits) })
 }
 
 // formatting returns the edits formatting the text of req.
@@ -481,7 +481,9 @@ func (srv *server) addImports(ctx context.Context, client lspClient, req syncReq
 		if !strings.HasPrefix(buf.Text(), header) {
 			return // The imports were edited in the meantime.
 		}
-		applyEdits(buf, []protocol.TextEdit{{Range: *change.Range, NewText: change.Text}})
+		buf.MutateAsGroup(func(content.Mutable) {
+			applyEdits(buf, []protocol.TextEdit{{Range: *change.Range, NewText: change.Text}})
+		})
 		le.Logf("added imports %v", added)
 	}))
 }

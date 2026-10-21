@@ -76,6 +76,30 @@ func TestEditor_UndoRedo(t *testing.T) {
 			want:   "one two four",
 		},
 		{
+			name:   "leaving insert mode ends the group",
+			text:   "one",
+			inputs: []string{"A two\x1b", "A three\x1b", undo},
+			want:   "one two",
+		},
+		{
+			name:   "entering insert mode ends the group",
+			text:   "one",
+			inputs: []string{"x", "Atwo\x1b", undo},
+			want:   "ne",
+		},
+		{
+			name:   "new line is undone with its text",
+			text:   "one\ntwo",
+			inputs: []string{"x", "otext\x1b", undo},
+			want:   "ne\ntwo",
+		},
+		{
+			name:   "command line in insert mode ends the group",
+			text:   "one",
+			inputs: []string{"Atwo", "\x0c\x1b", "three\x1b", undo},
+			want:   "onetwo",
+		},
+		{
 			name:   "split and join lines",
 			text:   "one two\nthree",
 			inputs: []string{"fi\r\x1b", pause, "jA\x7f\x7f\x1b", undo, undo},

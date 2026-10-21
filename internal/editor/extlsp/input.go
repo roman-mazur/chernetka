@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"go.lsp.dev/protocol"
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/input"
 )
@@ -37,8 +38,10 @@ func (le *Integration) HandleInsertKey(buf *editor.Buffer, k input.Key) (handled
 	case input.Tab:
 		sug := data.suggestions[data.sugIdx]
 		data.ResetSuggestions()
-		applyEdits(buf, sug.edits)
-		buf.AcceptSuggestion(sug.text, sug.cursor)
+		buf.MutateAsGroup(func(content.Mutable) {
+			applyEdits(buf, sug.edits)
+			buf.AcceptSuggestion(sug.text, sug.cursor)
+		})
 		return true
 	}
 	return false

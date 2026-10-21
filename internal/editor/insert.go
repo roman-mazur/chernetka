@@ -20,7 +20,7 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 			return
 		}
 		buf.cancelSelection()
-		buf.mode = ModeNormal
+		buf.setMode(ModeNormal)
 		if c := buf.c(); c.Col > 0 {
 			c.Col-- // Land on the last typed character.
 			buf.updateCursor(c)

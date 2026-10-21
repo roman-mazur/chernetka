@@ -365,5 +365,5 @@ func (s SwitchMode) DoOnBuffer(buf *Buffer, _ RenderPrefs) {
 	if Mode(s) == ModeInsert && !buf.canEdit() {
 		return
 	}
-	buf.mode = Mode(s)
+	buf.setMode(Mode(s))
 }
