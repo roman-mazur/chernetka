@@ -285,6 +285,8 @@ var (
 		if ur.HasUndo() {
 			b.cancelSelection()
 			b.updateCursor(ur.Undo())
+			b.noKeyboard = false
+			b.reveal = true
 		}
 	})
 	// Redo command re-applies previously reverted change on the buffer content if it's supported.
@@ -296,6 +298,8 @@ var (
 		if ur.HasRedo() {
 			b.cancelSelection()
 			b.updateCursor(ur.Redo())
+			b.noKeyboard = false
+			b.reveal = true
 		}
 	})
 )
