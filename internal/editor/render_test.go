@@ -11,6 +11,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extcomment"
 	"rmazur.io/chernetka/internal/editor/extd2"
 	"rmazur.io/chernetka/internal/editor/extgo"
+	"rmazur.io/chernetka/internal/editor/extindent"
 	"rmazur.io/chernetka/internal/editor/extmd"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 )
@@ -60,6 +61,7 @@ func cheExtensions() []editor.Extension {
 		&extd2.Integration{Viewer: nopViewer{}},
 		new(extmd.Integration),
 		new(extcomment.Integration),
+		new(extindent.Integration),
 		&extgo.Integration{Runner: nopRunner{}},
 	}
 }

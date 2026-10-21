@@ -88,7 +88,9 @@
 //	Tab        insert a tab character
 //	Backspace  delete the character before the cursor;
 //	           if at column 0, join the line with the one above
-//	Enter      split the line at the cursor
+//	Enter      split the line at the cursor, keeping its indentation on the new line
+//	           (taken from the line above if the line is empty; one level deeper after
+//	           an opening bracket, a closing bracket right after the cursor goes below)
 //	← → ↑ ↓   move the cursor without leaving insert mode
 //	Ctrl+S     save the current buffer
 //	Ctrl+R     re-run the last engaged line action

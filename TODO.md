@@ -30,7 +30,7 @@
 - code structure selection
 - key bindings / commands registry
 
-- Right col after return (understand tabs)
+- [x] Right col after return (understand tabs)
 
 - multiple cursors
 - SQL syntax highlight

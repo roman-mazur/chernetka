@@ -17,6 +17,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extcomment"
 	"rmazur.io/chernetka/internal/editor/extd2"
 	"rmazur.io/chernetka/internal/editor/extgo"
+	"rmazur.io/chernetka/internal/editor/extindent"
 	"rmazur.io/chernetka/internal/editor/extlsp"
 	"rmazur.io/chernetka/internal/editor/extmd"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
@@ -63,6 +64,7 @@ func main() {
 	edit.Extend(&extd2.Integration{Viewer: viewer})
 	edit.Extend(new(extmd.Integration))
 	edit.Extend(new(extcomment.Integration))
+	edit.Extend(new(extindent.Integration))
 	edit.Extend(&extgo.Integration{Runner: paneRunner{logf: logf}})
 
 	if flag.NArg() < 1 {
