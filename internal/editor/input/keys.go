@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -48,6 +49,11 @@ func Rune(r rune) Key { return Key{Rune: r} }
 // Ctrl returns the key pressed with Ctrl: Ctrl('s') is Ctrl+S.
 func Ctrl(letter rune) Key { return Key{Rune: letter, Mod: ModCtrl} }
 
+// CtrlShift returns the key pressed with Ctrl and Shift: CtrlShift('z') is Ctrl+Shift+Z.
+// The terminal tells it from the key pressed with Ctrl only with the kitty keyboard protocol
+// (see escape.EnableKittyKeyboard), and sends Ctrl+Z for it otherwise.
+func CtrlShift(letter rune) Key { return Key{Rune: letter, Mod: ModCtrl | ModShift} }
+
 // Of returns the special key with no modifiers.
 func Of(s Special) Key { return Key{Special: s} }
 
@@ -61,6 +67,8 @@ func Move(c Cursor, mod Modifier) Key { return Key{Special: CursorMove, Cursor: 
 //
 // Esc followed by another key in the same input is decoded as two keys, so a quick
 // Esc and a command in the normal mode work. Alt+key is not supported for this reason.
+// With the kitty keyboard protocol, Esc and the keys pressed with the modifiers come as
+// "CSI code ; modifiers u" instead, and are not ambiguous.
 func Keys(b []byte) (keys []Key, n int) {
 	for n < len(b) {
 		c := b[n]
@@ -143,6 +151,9 @@ func decodeCSI(seq []byte) (k Key, size int, ok bool) {
 	size = i + 1
 
 	switch final {
+	case 'u':
+		k, ok := decodeKittyKey(params)
+		return k, size, ok
 	case 'Z':
 		return Of(Backtab), size, params == ""
 	case 'I':
@@ -186,6 +197,63 @@ func decodeCSI(seq []byte) (k Key, size int, ok bool) {
 		c = CursorEnd
 	}
 	return Move(c, mod), size, true
+}
+
+// decodeKittyKey decodes the params "code[:alternates][;modifiers[:event]]" of a key sent
+// with the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/.
+// The code is the key without Shift: Ctrl+Shift+Z is "122;6".
+func decodeKittyKey(params string) (Key, bool) {
+	codes, mods, _ := strings.Cut(params, ";")
+	code, _, _ := strings.Cut(codes, ":") // The shifted key and the key on the base layout follow.
+	c, err := strconv.Atoi(code)
+	if err != nil || c <= 0 || c > utf8.MaxRune {
+		return Key{}, false
+	}
+	var mod Modifier
+	if mods != "" {
+		m, _, _ := strings.Cut(mods, ":") // The event type follows.
+		v, err := strconv.Atoi(m)
+		if err != nil || v < 1 {
+			return Key{}, false
+		}
+		// Encoded as 1 + the bits, which are the same as the Modifier bits up to Super (ModMotion).
+		// Hyper, Meta, Caps Lock, and Num Lock are not used.
+		mod = Modifier(v-1) & (ModShift | ModAlt | ModCtrl | ModMotion)
+	}
+
+	switch r := rune(c); {
+	case r == escByte:
+		return Key{Special: Esc, Mod: mod}, true
+	case r == '\r':
+		return Key{Special: Enter, Mod: mod}, true
+	case r == '\t' && mod == ModShift:
+		return Of(Backtab), true
+	case r == '\t':
+		return Key{Special: Tab, Mod: mod}, true
+	case r == 0x7f:
+		return Key{Special: Backspace, Mod: mod}, true
+	case mod == ModCtrl && controlByte(r) != 0:
+		// The same key as the control character sent without the protocol: Ctrl+A is Home.
+		keys, _ := Keys([]byte{controlByte(r)})
+		return keys[0], true
+	case unicode.IsPrint(r): // Not one of the functional keys in the Private Use Area.
+		return Key{Rune: r, Mod: mod}, true
+	}
+	return Key{}, false
+}
+
+// controlByte returns the control character sent for the key pressed with Ctrl without
+// the kitty keyboard protocol, or 0 if there is none.
+func controlByte(r rune) byte {
+	switch {
+	case 'a' <= r && r <= 'z':
+		return byte(r-'a') + 1
+	case r == '[':
+		return escByte
+	case r == '/':
+		return 0x1f
+	}
+	return 0
 }
 
 func (k Key) String() string {

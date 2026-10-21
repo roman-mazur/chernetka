@@ -9,10 +9,10 @@ import (
 
 func TestEditor_UndoRedo(t *testing.T) {
 	const (
-		undo = "\x1a" // Ctrl+Z
+		undo = "\x1a"        // Ctrl+Z
+		redo = "\x1b[122;6u" // Ctrl+Shift+Z with the kitty keyboard protocol
 		// pause ends the group of changes undone at once.
 		pause = "pause"
-		redo  = "redo" // The redo key is not decoded from the terminal input yet.
 	)
 
 	for _, tc := range []struct {
@@ -25,6 +25,12 @@ func TestEditor_UndoRedo(t *testing.T) {
 			name:   "nothing to undo",
 			text:   "one",
 			inputs: []string{undo, redo},
+			want:   "one",
+		},
+		{
+			name:   "kitty undo",
+			text:   "one",
+			inputs: []string{"Atwo\x1b[27u", "\x1b[122;5u"},
 			want:   "one",
 		},
 		{
@@ -105,8 +111,6 @@ func TestEditor_UndoRedo(t *testing.T) {
 					switch in {
 					case pause:
 						time.Sleep(time.Minute)
-					case redo:
-						e.execBufferCmd(Redo)
 					default:
 						sendChunks(t, e, in)
 					}

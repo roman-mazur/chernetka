@@ -139,6 +139,7 @@ func configureTerminal(t vt.Terminal) {
 		escape.EnableBracketedPasteMode,
 		escape.EnableMouse,
 		escape.EnableFocusReporting,
+		escape.EnableKittyKeyboard,
 	)
 }
 

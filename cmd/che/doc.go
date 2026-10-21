@@ -56,6 +56,10 @@
 //	Ctrl+F   search (in any mode)
 //	Ctrl+L   open the command line to go to a line with :n (in any mode)
 //	Ctrl+D   save the current file and show its git diff in a new pane on the right (in any mode)
+//	Ctrl+Z   undo the last change (in any mode)
+//	Ctrl+Shift+Z
+//	         redo the undone change (in any mode, in a terminal supporting the kitty keyboard
+//	         protocol, like Ghostty, kitty, or WezTerm; it's undo in other terminals)
 //	Enter    engage the line action if the line is marked with ▶, move down otherwise
 //	Ctrl+R   re-run the last engaged line action
 //	q        quit

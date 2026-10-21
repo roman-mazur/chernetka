@@ -126,6 +126,14 @@ func EnableFocusReporting(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?1004h", "\x1b[?1004l")
 }
 
+// EnableKittyKeyboard asks the terminal to send Esc and the keys pressed with the modifiers
+// as unambiguous sequences of the kitty keyboard protocol, so Ctrl+Shift+Z is told from Ctrl+Z.
+// The terminals not supporting the protocol ignore it.
+func EnableKittyKeyboard(out io.Writer) Restore {
+	// Pushes the "disambiguate escape codes" flag, restoring the flags of the shell when popped.
+	return applyPair(out, "\x1b[>1u", "\x1b[<u")
+}
+
 func EnableBracketedPasteMode(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?2004h", "\x1b[?2004l")
 }

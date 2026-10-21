@@ -265,7 +265,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	case input.Ctrl('z'):
 		e.execBufferCmd(Undo)
 		return false
-	case input.Ctrl('Z'):
+	case input.CtrlShift('z'):
 		e.execBufferCmd(Redo)
 		return false
 

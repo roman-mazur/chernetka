@@ -35,6 +35,31 @@ func TestKeys(t *testing.T) {
 		{name: "incomplete sequence", input: "a\x1b[1;", keys: []Key{Rune('a')}, n: 1},
 		{name: "before mouse", input: "a\x1b[<0;1;2M", keys: []Key{Rune('a')}, n: 1},
 		{name: "before paste", input: "a\x1b[200~b", keys: []Key{Rune('a')}, n: 1},
+
+		// The kitty keyboard protocol.
+		{name: "kitty esc", input: "\x1b[27u", keys: []Key{Of(Esc)}, n: -1},
+		{name: "kitty esc and command", input: "\x1b[27ui", keys: []Key{Of(Esc), Rune('i')}, n: -1},
+		{name: "kitty ctrl", input: "\x1b[115;5u\x1b[111;5u\x1b[102;5u\x1b[122;5u",
+			keys: []Key{Ctrl('s'), Ctrl('o'), Ctrl('f'), Ctrl('z')}, n: -1},
+		{name: "kitty ctrl+shift", input: "\x1b[122;6u", keys: []Key{CtrlShift('z')}, n: -1},
+		{name: "kitty caps lock and num lock", input: "\x1b[122;69u\x1b[122;198u",
+			keys: []Key{Ctrl('z'), CtrlShift('z')}, n: -1},
+		{name: "kitty event type", input: "\x1b[122;6:1u", keys: []Key{CtrlShift('z')}, n: -1},
+		{name: "kitty alternate keys", input: "\x1b[122:90;6u", keys: []Key{CtrlShift('z')}, n: -1},
+		{name: "kitty ctrl slash", input: "\x1b[47;5u", keys: []Key{Ctrl('/')}, n: -1},
+		{name: "kitty home end", input: "\x1b[97;5u\x1b[101;5u",
+			keys: []Key{Move(CursorHome, 0), Move(CursorEnd, 0)}, n: -1},
+		{name: "kitty ctrl+[", input: "\x1b[91;5u", keys: []Key{Of(Esc)}, n: -1},
+		{name: "kitty specials", input: "\x1b[13u\x1b[9u\x1b[9;2u\x1b[127u",
+			keys: []Key{Of(Enter), Of(Tab), Of(Backtab), Of(Backspace)}, n: -1},
+		{name: "kitty shift+enter", input: "\x1b[13;2u", keys: []Key{{Special: Enter, Mod: ModShift}}, n: -1},
+		{name: "kitty alt", input: "\x1b[120;3u", keys: []Key{{Rune: 'x', Mod: ModAlt}}, n: -1},
+		{name: "kitty text", input: "\x1b[1082u", keys: []Key{Rune('к')}, n: -1},
+		{name: "kitty functional key", input: "\x1b[57399ua", keys: []Key{Rune('a')}, n: -1},
+		{name: "kitty flags reply", input: "\x1b[?1ua", keys: []Key{Rune('a')}, n: -1},
+		{name: "kitty invalid", input: "\x1b[0u\x1b[;5u\x1b[122;0u\x1b[99999999uа",
+			keys: []Key{Rune('а')}, n: -1},
+		{name: "kitty incomplete", input: "a\x1b[122;6", keys: []Key{Rune('a')}, n: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			keys, n := Keys([]byte(tc.input))
@@ -52,6 +77,7 @@ func TestKey_String(t *testing.T) {
 	for k, want := range map[Key]string{
 		Rune('a'):                         "a",
 		Ctrl('s'):                         "Ctrl+s",
+		CtrlShift('z'):                    "Shift+Ctrl+z",
 		Of(Enter):                         "Enter",
 		Move(CursorArrowLeft, ModShift):   "Shift+ArrowLeft",
 		Move(CursorEnd, ModMotion|ModAlt): "Alt+Motion+End",

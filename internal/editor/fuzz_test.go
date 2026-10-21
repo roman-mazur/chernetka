@@ -45,6 +45,7 @@ func FuzzEditor(f *testing.F) {
 		{".go", "package p\n\n// f does\nfunc f() {\n\t\tx := 1\n}\n", "jjli\t\x7f\x7f\x1b[3~\x1b[1;3C\x1b[1;10A\x1b[Z\x1b\x1b[1;7D\x1b[1;7C"},
 		{".d2", "a -> b\n", "Go\rc: {\r  shape: circle\r}\x1b"},
 		{".cue", "", "iname: \"value\"\rlist: [1, 2]\x1b"},
+		{".txt", "a\nb\n", "Atwo\x1b[27u\xffjx\x1b[122;5u\x1b[122;6u\x1b[115;5u\x1b[13;2u\x1b[120;3u"},
 		{".txt", "a\n", "ione\xfftwo\xff\x1bx\xff\x1b[<0;3;1M\x1b[<0;3;1m\xff\x1b[<0;3;1M\x1b[<0;3;1m"},
 	} {
 		f.Add(byte(fuzzExtIndex(seed.ext)), seed.text, []byte(seed.input))
