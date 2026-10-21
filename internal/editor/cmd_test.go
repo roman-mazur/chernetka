@@ -139,7 +139,7 @@ func TestScreenMove_DoOnBuffer(t *testing.T) {
 func s(lines ...string) []string { return lines }
 
 func TestSave(t *testing.T) {
-	ftContent, err := content.LoadFullText(strings.NewReader("test content\nline 2"))
+	ftContent, _, err := content.LoadFullText(strings.NewReader("test content\nline 2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestSave(t *testing.T) {
 		t.Fatal("cannot open saved file:", err)
 	}
 	t.Cleanup(func() { _ = outFile.Close() })
-	outContent, err := content.LoadFullText(outFile)
+	outContent, _, err := content.LoadFullText(outFile)
 	if err != nil {
 		t.Fatal("cannot read saved file:", err)
 	}
@@ -172,7 +172,7 @@ func TestSave(t *testing.T) {
 }
 
 func TestScroll(t *testing.T) {
-	ftContent, err := content.LoadFullText(strings.NewReader("test content\nline 2\nline 3\nline 4"))
+	ftContent, _, err := content.LoadFullText(strings.NewReader("test content\nline 2\nline 3\nline 4"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -99,6 +99,93 @@ func TestEditor_ReloadShorter(t *testing.T) {
 	}
 }
 
+func TestEditor_ReloadBuffer(t *testing.T) {
+	open := func(t *testing.T, text string) (*Editor, *Buffer, string) {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "a.txt")
+		writeFile(t, path, text)
+		e := &Editor{cmdChannel: make(chan Command, 16)}
+		if err := e.OpenReader(path, strings.NewReader(text)); err != nil {
+			t.Fatal(err)
+		}
+		return e, e.Top(), path
+	}
+	check := func(t *testing.T, buf *Buffer, text string, dirty bool) {
+		t.Helper()
+		if got := buf.Text(); got != text {
+			t.Errorf("text %q, want %q", got, text)
+		}
+		if buf.dirty != dirty {
+			t.Errorf("dirty %t, want %t", buf.dirty, dirty)
+		}
+	}
+
+	t.Run("file not changed", func(t *testing.T) {
+		e, buf, _ := open(t, "first")
+		buf.Mutate().Update(0, content.TextLine("typed"))
+		e.reloadBuffer(buf, []byte("first"))
+		check(t, buf, "typed", true)
+	})
+
+	t.Run("file changed", func(t *testing.T) {
+		e, buf, _ := open(t, "first")
+		buf.Mutate().Update(0, content.TextLine("typed"))
+		e.reloadBuffer(buf, []byte("reloaded\nfile"))
+		check(t, buf, "reloaded\nfile", false)
+	})
+
+	t.Run("edit after reload", func(t *testing.T) {
+		e, buf, _ := open(t, "first")
+		buf.Mutate().Update(0, content.TextLine("typed"))
+		e.reloadBuffer(buf, []byte("reloaded\nfile"))
+		buf.Mutate().Update(0, content.TextLine("edited"))
+		check(t, buf, "edited\nfile", true)
+	})
+
+	t.Run("undo after reload", func(t *testing.T) {
+		e, buf, _ := open(t, "first")
+		buf.Mutate().Update(0, content.TextLine("typed"))
+		e.reloadBuffer(buf, []byte("reloaded"))
+		sendChunks(t, e, "\x1a") // The changes before the reload are not undone.
+		check(t, buf, "reloaded", false)
+
+		buf.Mutate().Update(0, content.TextLine("edited"))
+		sendChunks(t, e, "\x1a")
+		check(t, buf, "reloaded", true)
+	})
+
+	t.Run("own save", func(t *testing.T) {
+		// The saved file differs from the opened one: the lines end with \n now.
+		e, buf, path := open(t, "one\r\ntwo")
+		buf.Mutate().Update(0, content.TextLine("saved"))
+		(&Save{DstPath: path}).DoOnBuffer(buf, e.rPrefs)
+		saved, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Typed before the watcher reports the save.
+		buf.Mutate().Update(0, content.TextLine("typed"))
+		e.reloadBuffer(buf, saved)
+		check(t, buf, "typed\ntwo", true)
+	})
+
+	t.Run("save elsewhere", func(t *testing.T) {
+		e, buf, path := open(t, "first")
+		buf.Mutate().Update(0, content.TextLine("copied"))
+		(&Save{DstPath: path + ".copy"}).DoOnBuffer(buf, e.rPrefs)
+		// The file itself is changed outside the editor to the text of the copy.
+		e.reloadBuffer(buf, []byte("copied"))
+		check(t, buf, "copied", false)
+	})
+}
+
+// textOf returns the document text as it's saved to a file.
+func textOf(doc content.Document) string {
+	var out strings.Builder
+	_ = content.SaveToWriter(doc, &out)
+	return out.String()
+}
+
 func writeFile(t *testing.T, path, text string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(text), 0600); err != nil {

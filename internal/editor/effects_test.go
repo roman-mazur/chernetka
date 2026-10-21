@@ -15,13 +15,13 @@ func IsolateEffects(t testing.TB, dir string) {
 	prevSave := saveContent
 	t.Cleanup(func() { saveContent = prevSave })
 
-	saveContent = func(doc content.Document, dst string) error {
+	saveContent = func(doc content.Document, dst string) (string, error) {
 		abs, err := filepath.Abs(dst)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if rel, err := filepath.Rel(dir, abs); err != nil || !filepath.IsLocal(rel) {
-			return errors.New("saving outside the test directory")
+			return "", errors.New("saving outside the test directory")
 		}
 		return content.Save(doc, dst)
 	}

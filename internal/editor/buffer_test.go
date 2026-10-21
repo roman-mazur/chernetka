@@ -224,7 +224,7 @@ func TestBuffer_Render(t *testing.T) {
 		} {
 			t.Run(fmt.Sprintf("%d/%s", n, tc.name), func(t *testing.T) {
 				var buf Buffer
-				testContent, err := content.LoadFullText(strings.NewReader(tc.content))
+				testContent, _, err := content.LoadFullText(strings.NewReader(tc.content))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -476,7 +476,7 @@ func BenchmarkBuffer_Text(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	cnt, err := content.LoadFullText(bytes.NewReader(data))
+	cnt, _, err := content.LoadFullText(bytes.NewReader(data))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -609,7 +609,7 @@ func TestBuffer_ScreenToContentPosition(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("%d/x=%d/y=%d/pos/%s", i, tc.x, tc.y, tc.pos), func(t *testing.T) {
-			data, err := content.LoadFullText(strings.NewReader(tc.content))
+			data, _, err := content.LoadFullText(strings.NewReader(tc.content))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -641,7 +641,7 @@ type countingAction struct{ engaged int }
 func (ca *countingAction) Engage() { ca.engaged++ }
 
 func newActionsTestBuffer(text string, actionLines ...int) (*Buffer, testActionsExt) {
-	data, err := content.LoadFullText(strings.NewReader(text))
+	data, _, err := content.LoadFullText(strings.NewReader(text))
 	if err != nil {
 		panic(err)
 	}

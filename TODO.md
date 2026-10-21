@@ -22,6 +22,7 @@
 - project search inter-process (dir + main editor)
 - find references (render with the tool buffer), call hierarchy, diagnostics using the tool buffer
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
+- present a choice on what version to keep when content is updated outside the editor
 
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy

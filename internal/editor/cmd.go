@@ -332,11 +332,11 @@ func (s *Save) DoOnBuffer(buf *Buffer, prefs RenderPrefs) {
 	if f, ok := FindExtData[Formatter](buf); ok {
 		f.Format(prefs)
 	}
-	err := saveContent(buf.Content, s.DstPath)
+	fp, err := saveContent(buf.Content, s.DstPath)
 	if err == nil {
 		buf.dirty = false
 		if samePath(s.DstPath, buf.Path) {
-			buf.fileText = buf.Text()
+			buf.srcFingerprint = fp
 		}
 	}
 	// TODO: Visualize the error.

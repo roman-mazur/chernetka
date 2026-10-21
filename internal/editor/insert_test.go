@@ -9,7 +9,7 @@ import (
 )
 
 func TestInsertInput_HandleCursor(t *testing.T) {
-	data, err := content.LoadFullText(strings.NewReader("line 1\nline 2"))
+	data, _, err := content.LoadFullText(strings.NewReader("line 1\nline 2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 
 func TestInsertInput_AutomateBrackets(t *testing.T) {
 	const firstLineContent = "line 1"
-	data, err := content.LoadFullText(strings.NewReader(
+	data, _, err := content.LoadFullText(strings.NewReader(
 		strings.Join([]string{firstLineContent, "something"}, "\n"),
 	))
 	if err != nil {
@@ -124,7 +124,7 @@ func TestInsertInput_ReplaceMultilineSelection(t *testing.T) {
 		{"rune", input.Rune('x'), "first 12x\nlast"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			data, err := content.LoadFullText(strings.NewReader("first 12345\nmiddle\nab\nlast"))
+			data, _, err := content.LoadFullText(strings.NewReader("first 12345\nmiddle\nab\nlast"))
 			if err != nil {
 				t.Fatal(err)
 			}

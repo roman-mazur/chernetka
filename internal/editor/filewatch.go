@@ -88,37 +88,22 @@ func (e *Editor) watchDir(buf *Buffer, dir string, open content.OpenFile) {
 
 // reloadBuffer replaces the buffer content with the file data read from the disk.
 // Unsaved changes in the buffer are discarded.
-// TODO: Merge the outside changes with the unsaved ones instead.
+// TODO: Consider merging the outside changes with the unsaved ones. Or presenting a choice what version to keep.
 func (e *Editor) reloadBuffer(buf *Buffer, data []byte) {
 	if !slices.Contains(e.bufs, buf) {
 		return // Closed in the meantime.
 	}
-	ft, err := content.LoadFullText(bytes.NewReader(data))
+	ft, fp, err := content.LoadFullText(bytes.NewReader(data))
 	if err != nil {
 		return
 	}
-	text := textOf(&ft)
-	if text == buf.fileText {
+	if fp == buf.srcFingerprint {
 		return // Not changed since the last load or save, for example, saved by this editor.
-	}
-	buf.fileText = text
-	if text == buf.Text() {
-		buf.dirty = false
-		return
 	}
 
 	e.Logf("reload %s", buf.Path)
-	buf.Content = &ft
-	buf.cancelSelection()
-	buf.setMutated()
-	buf.dirty = false
+	buf.srcFingerprint = fp
+	buf.replaceContent(&ft)
 	e.renderRequested = true
 	e.handleAfterEdit(buf)
-}
-
-// textOf returns the document text as it's saved to a file.
-func textOf(doc content.Document) string {
-	var out bytes.Buffer
-	_ = content.SaveToWriter(doc, &out)
-	return out.String()
 }

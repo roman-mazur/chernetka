@@ -17,14 +17,15 @@ func (e *Editor) OpenReader(path string, in io.Reader) error {
 		return nil
 	}
 
-	data, err := content.LoadFullText(in)
+	data, fp, err := content.LoadFullText(in)
 	if err != nil {
 		return err
 	}
 
 	buf := &Buffer{
-		Path:    path,
-		Content: &data,
+		Path:           path,
+		Content:        &data,
+		srcFingerprint: fp,
 	}
 	e.push(buf)
 	return nil
@@ -77,7 +78,6 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 	if buf == nil {
 		panic("e.Top() returned nil")
 	}
-	buf.fileText = buf.Text()
 	e.watchFile(buf)
 }
 

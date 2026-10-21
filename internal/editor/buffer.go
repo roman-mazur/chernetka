@@ -43,8 +43,8 @@ type Buffer struct {
 
 	version uint64 // internal edits version
 
-	fileText string // the file content as of the last load or save
-	unwatch  func() // stops reloading the content changed outside the editor
+	srcFingerprint string // the fingerprint of the content loaded from the source
+	unwatch        func() // stops reloading the content changed outside the editor
 
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()
@@ -93,6 +93,14 @@ func (b *Buffer) Close() error {
 // instead of inspecting the buffer's path and content on their own.
 func (b *Buffer) HoldsTextFile() bool {
 	return b.Path != "" && content.IsText(b.Content)
+}
+
+func (b *Buffer) replaceContent(doc content.Document) {
+	b.Content = doc
+	b._mutator = nil
+	b.cancelSelection()
+	b.setMutated()
+	b.dirty = false
 }
 
 func (b *Buffer) c() content.Position { return b._c }
