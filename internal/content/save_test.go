@@ -11,15 +11,27 @@ import (
 )
 
 func TestSave(t *testing.T) {
-	content, err := LoadFullText(strings.NewReader("hello world 1\nhello world 2\nhello world 3"))
+	content, fingerprint, err := LoadFullText(strings.NewReader("hello world 1\nhello world 2\nhello world 3"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	dst := filepath.Join(t.TempDir(), "out.txt")
+	var saveFingerprints []string
 	for range 4 {
-		if err := Save(&content, dst); err != nil {
+		if fp, err := Save(&content, dst); err != nil {
 			t.Errorf("Save(content, %q) => %s", dst, err)
+		} else {
+			saveFingerprints = append(saveFingerprints, fp)
+		}
+	}
+	for i := 0; i < len(saveFingerprints)-1; i++ {
+		if saveFingerprints[i] == "" {
+			t.Error("empty fingerprint on attempt", i)
+		}
+		if saveFingerprints[i] != saveFingerprints[i+1] {
+			t.Error("different fingerprints", saveFingerprints)
+			break
 		}
 	}
 
@@ -30,12 +42,15 @@ func TestSave(t *testing.T) {
 	t.Cleanup(func() {
 		_ = f.Close()
 	})
-	outContent, err := LoadFullText(f)
+	outContent, outFingerprint, err := LoadFullText(f)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if outContent.Len() != content.Len() {
 		t.Errorf("content length mismatch: got %d, want %d", outContent.Len(), content.Len())
+	}
+	if outFingerprint != fingerprint {
+		t.Errorf("the saved file fingerprint %s differs from the loaded one %s", outFingerprint, fingerprint)
 	}
 
 	t.Run("real-sources", func(t *testing.T) {
@@ -51,7 +66,7 @@ func TestSave(t *testing.T) {
 
 					stat, err := f.Stat()
 					must(t, err)
-					content, err := LoadFullText(f)
+					content, _, err := LoadFullText(f)
 					must(t, err)
 
 					var out bytes.Buffer
@@ -82,9 +97,9 @@ func TestSave(t *testing.T) {
 		for i := range saves {
 			dsts[i] = filepath.Join(t.TempDir(), "out.txt")
 			go func() {
-				content, err := LoadFullText(strings.NewReader(fmt.Sprintf("content %d", i)))
+				content, _, err := LoadFullText(strings.NewReader(fmt.Sprintf("content %d", i)))
 				if err == nil {
-					err = Save(&content, dsts[i])
+					_, err = Save(&content, dsts[i])
 				}
 				errs <- err
 			}()
@@ -106,7 +121,7 @@ func TestSave(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("the permissions are not kept on Windows")
 		}
-		content, err := LoadFullText(strings.NewReader("#!/bin/sh"))
+		content, _, err := LoadFullText(strings.NewReader("#!/bin/sh"))
 		must(t, err)
 		dir := t.TempDir()
 
@@ -125,7 +140,8 @@ func TestSave(t *testing.T) {
 					must(t, os.WriteFile(dst, nil, tc.existing))
 					must(t, os.Chmod(dst, tc.existing)) // Not limited by the umask.
 				}
-				must(t, Save(&content, dst))
+				_, err := Save(&content, dst)
+				must(t, err)
 				info, err := os.Stat(dst)
 				must(t, err)
 				if got := info.Mode().Perm(); got != tc.want {
@@ -137,7 +153,7 @@ func TestSave(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		content, err := LoadFullText(strings.NewReader("text"))
+		content, _, err := LoadFullText(strings.NewReader("text"))
 		must(t, err)
 		dir := t.TempDir()
 		// Renaming a file over a directory fails.
@@ -145,7 +161,7 @@ func TestSave(t *testing.T) {
 		must(t, os.Mkdir(dst, 0o700))
 		must(t, os.WriteFile(filepath.Join(dst, "file"), nil, 0o600))
 
-		if err := Save(&content, dst); err == nil {
+		if _, err := Save(&content, dst); err == nil {
 			t.Error("saved over a directory")
 		}
 		assertNoTempFiles(t, dir)

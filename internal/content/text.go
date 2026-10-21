@@ -23,22 +23,21 @@ type FullText []Line
 
 // LoadFullText reads the input reader until the end using the system line delimiter.
 // In the success scenario the input reader is fully consumed.
-func LoadFullText(in io.Reader) (FullText, error) {
-	r := bufio.NewReader(in)
-	var (
-		ft  FullText
-		end bool
-	)
+func LoadFullText(in io.Reader) (doc FullText, fingerprint string, err error) {
+	hasher := newFingerprintHasher()
+	r := bufio.NewReader(io.TeeReader(in, hasher))
+	var end bool
 	for !end {
 		line, readError := r.ReadString('\n')
 		end = errors.Is(readError, io.EOF)
 		if readError != nil && !end {
-			return nil, readError
+			return nil, "", readError
 		}
 		line = dropRN(line)
-		ft = append(ft, TextLine(line))
+		doc = append(doc, TextLine(line))
 	}
-	return ft, nil
+	fingerprint = encodeFingerprint(hasher.Sum(nil))
+	return
 }
 
 func (ft *FullText) Len() int      { return len(*ft) }

@@ -12,7 +12,7 @@ import (
 // in the destination directory first, which then replaces the destination, so the destination
 // is never left half written. An existing destination keeps its permissions, and a new one
 // gets newFileMode.
-func Save(content Document, dst string) (err error) {
+func Save(content Document, dst string) (fingerprint string, err error) {
 	mode := os.FileMode(newFileMode)
 	if info, err := os.Stat(dst); err == nil {
 		mode = info.Mode().Perm()
@@ -20,7 +20,7 @@ func Save(content Document, dst string) (err error) {
 
 	f, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".*.tmp")
 	if err != nil {
-		return fmt.Errorf("could not create temporary file: %w", err)
+		return "", fmt.Errorf("could not create temporary file: %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -29,20 +29,24 @@ func Save(content Document, dst string) (err error) {
 		}
 	}()
 
-	w := bufio.NewWriter(f)
+	hasher := newFingerprintHasher()
+
+	w := bufio.NewWriter(io.MultiWriter(f, hasher))
 	if err := SaveToWriter(content, w); err != nil {
-		return err
+		return "", err
 	}
 	if err := w.Flush(); err != nil {
-		return err
+		return "", err
 	}
 	if err := f.Chmod(mode); err != nil {
-		return err
+		return "", err
 	}
 	if err := f.Close(); err != nil {
-		return err
+		return "", err
 	}
-	return os.Rename(f.Name(), dst)
+
+	fingerprint = encodeFingerprint(hasher.Sum(nil))
+	return fingerprint, os.Rename(f.Name(), dst)
 }
 
 // newFileMode is the permissions of the files created by Save.

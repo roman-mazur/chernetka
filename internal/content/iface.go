@@ -2,7 +2,11 @@
 // Implementations include maintaining all text lines in a memory or loading a part of a big file.
 package content
 
-import "io"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
+)
 
 // Document defines the minimal set of methods needed to get the content visualized by the editor.
 type Document interface {
@@ -61,3 +65,8 @@ func IsText(d Document) bool {
 	lines := d.Lines()
 	return len(lines) > 0 && lines[0].MimeType() == MimeTypeTextPlain
 }
+
+var (
+	newFingerprintHasher = sha256.New
+	encodeFingerprint    = hex.EncodeToString
+)
