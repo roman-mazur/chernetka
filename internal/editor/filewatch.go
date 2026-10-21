@@ -74,8 +74,7 @@ func (e *Editor) watchDir(buf *Buffer, dir string, open content.OpenFile) {
 				return // Closed in the meantime.
 			}
 			folder.SyncState(buf.Content.(*content.FsContent))
-			buf.Content = folder
-			buf.clampPos()
+			buf.replaceContent(folder)
 			e.renderRequested = true
 		}))
 	})
