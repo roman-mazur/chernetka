@@ -214,6 +214,8 @@ var cheSnippets = []string{
 	"\x1bh", "\x1bj", "\x1bk", "\x1bl", "\x1b0", "\x1b$", "\x1bg", "\x1bG", "\x1b ", "\x1bb",
 	"\x1bn", "\x1bN", "\x1bi", "\x1ba", "\x1bA", "\x1bo", "\x1bx", "\x1b+", "\x1b-", "\x1b:",
 	"\x1b/", "\x1b/a\r", "\x1b/[a-z]+/X\r", "\x1b/(/\r", "\x1b:w\r", "\x0fnew\r",
+	// Undo and redo, Ctrl+Z and Ctrl+Shift+Z with the kitty keyboard protocol.
+	"\x1a", "\x1b[122;5u", "\x1b[122;6u", "\x1a\x1a\x1a", "\x1b[122;6u\x1b[122;6u\x1b[122;6u",
 }
 
 // logTail returns the last n lines of the log file.
