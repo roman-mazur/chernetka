@@ -83,27 +83,29 @@ func (d *document) toggle() {
 		return
 	}
 
-	for i := first; i <= last; i++ {
-		line := d.buf.Content.Lines()[i].String()
-		text := strings.TrimLeft(line, " \t")
-		if text == "" {
-			continue
+	d.buf.MutateAsGroup(func(content.Mutable) {
+		for i := first; i <= last; i++ {
+			line := d.buf.Content.Lines()[i].String()
+			text := strings.TrimLeft(line, " \t")
+			if text == "" {
+				continue
+			}
+			if !commented {
+				at := content.Position{Line: i, Col: indent}
+				d.buf.ReplaceText(content.Span{Start: at, End: at}, d.prefix+" ")
+				continue
+			}
+			col := len(line) - len(text)
+			n := len(d.prefix)
+			if strings.HasPrefix(text[n:], " ") {
+				n++
+			}
+			d.buf.ReplaceText(content.Span{
+				Start: content.Position{Line: i, Col: col},
+				End:   content.Position{Line: i, Col: col + n},
+			}, "")
 		}
-		if !commented {
-			at := content.Position{Line: i, Col: indent}
-			d.buf.ReplaceText(content.Span{Start: at, End: at}, d.prefix+" ")
-			continue
-		}
-		col := len(line) - len(text)
-		n := len(d.prefix)
-		if strings.HasPrefix(text[n:], " ") {
-			n++
-		}
-		d.buf.ReplaceText(content.Span{
-			Start: content.Position{Line: i, Col: col},
-			End:   content.Position{Line: i, Col: col + n},
-		}, "")
-	}
+	})
 }
 
 // lineRange returns the lines touched by the selection, or the cursor line without it.

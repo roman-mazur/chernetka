@@ -191,18 +191,21 @@ func (b *Buffer) replaceAll(template string) {
 	}
 	first, found := b.findMatch(b.c(), 1, true)
 
-	lines := b.Content.Lines()
-	for ln, line := range slices.Backward(lines) {
-		line := line.String()
-		replaced := b.search.ReplaceAllString(line, template)
-		if replaced == line {
-			continue
+	b.MutateAsGroup(func(content.Mutable) {
+		lines := b.Content.Lines()
+		for ln, line := range slices.Backward(lines) {
+			line := line.String()
+			replaced := b.search.ReplaceAllString(line, template)
+			if replaced == line {
+				continue
+			}
+			b.ReplaceText(content.Span{
+				Start: content.Position{Line: ln},
+				End:   content.Position{Line: ln, Col: len(line)},
+			}, replaced)
 		}
-		b.ReplaceText(content.Span{
-			Start: content.Position{Line: ln},
-			End:   content.Position{Line: ln, Col: len(line)},
-		}, replaced)
-	}
+	})
+
 	if found {
 		b.updateCursor(first.Start)
 	}

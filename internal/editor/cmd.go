@@ -308,12 +308,14 @@ func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 	if !b.canEdit() {
 		return
 	}
-	if b.hasSelection() {
-		// The pasted text replaces the selection.
-		DeleteSelection.DoOnBuffer(b, prefs)
-	}
-	b.cancelSelection()
-	b.updateCursor(content.InsertText(b.Mutate(), b.c(), string(pt)))
+	b.MutateAsGroup(func(m content.Mutable) {
+		if b.hasSelection() {
+			// The pasted text replaces the selection.
+			DeleteSelection.DoOnBuffer(b, prefs)
+		}
+		b.cancelSelection()
+		b.updateCursor(content.InsertText(m, b.c(), string(pt)))
+	})
 }
 
 // saveContent stores the content in a file. Tests may replace it to limit where files are written.

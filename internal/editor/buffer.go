@@ -454,7 +454,7 @@ func (b *Buffer) MutateAsGroup(op func(m content.Mutable)) {
 // setMode switches the mode of the buffer. The changes made in one mode are undone
 // separately from the ones made in another.
 func (b *Buffer) setMode(m Mode) {
-	if b.mode != m {
+	if b.mode != m && b._mutator != nil {
 		if ur, ok := b.Mutate().(content.UndoRedo); ok {
 			ur.SplitChangeGroup()
 		}
