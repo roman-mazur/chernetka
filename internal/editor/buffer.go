@@ -418,6 +418,9 @@ func (b *Buffer) cancelSelection() {
 // Mutate is used to start changing the buffer content.
 // If underlying Content is not mutable, the returned implementation is a noop.
 func (b *Buffer) Mutate() content.Mutable {
+	if !b.canEdit() {
+		return bufMutator{Buffer: b} // noop
+	}
 	if b._mutator == nil {
 		m, _ := b.Content.(content.Mutable)
 		b._mutator = b.history.Track(bufMutator{
@@ -467,4 +470,17 @@ func (bm bufMutator) Delete(startPos, endPos int) {
 	}
 	bm.Mutable.Delete(startPos, endPos)
 	bm.setMutated()
+}
+
+func (bm bufMutator) Lines() []content.Line {
+	if bm.Mutable == nil {
+		return bm.Content.Lines()
+	}
+	return bm.Mutable.Lines()
+}
+func (bm bufMutator) Len() int {
+	if bm.Mutable == nil {
+		return bm.Content.Len()
+	}
+	return bm.Mutable.Len()
 }

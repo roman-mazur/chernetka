@@ -275,6 +275,29 @@ var (
 	ClipboardPaste = BufferCommandFunc(func(b *Buffer, prefs RenderPrefs) {
 		PasteText(clipboard.Read()).DoOnBuffer(b, prefs)
 	})
+
+	// Undo command reverts the last edit on the top buffer content if it's supported.
+	Undo = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		ur, ok := b.Mutate().(content.UndoRedo)
+		if !ok {
+			return
+		}
+		if ur.HasUndo() {
+			b.cancelSelection()
+			b.updateCursor(ur.Undo())
+		}
+	})
+	// Redo command re-applies previously reverted change on the buffer content if it's supported.
+	Redo = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
+		ur, ok := b.Mutate().(content.UndoRedo)
+		if !ok {
+			return
+		}
+		if ur.HasRedo() {
+			b.cancelSelection()
+			b.updateCursor(ur.Redo())
+		}
+	})
 )
 
 var clipboard clipb.Clipboard = new(clipb.System)

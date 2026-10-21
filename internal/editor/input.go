@@ -261,6 +261,14 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		e.showDiff(buf)
 		return false
 
+	// Undo/redo.
+	case input.Ctrl('z'):
+		e.execBufferCmd(Undo)
+		return false
+	case input.Ctrl('Z'):
+		e.execBufferCmd(Redo)
+		return false
+
 	// Clipboard.
 	case input.Ctrl('c'):
 		e.execBufferCmd(ClipboardCopy)
