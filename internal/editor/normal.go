@@ -86,7 +86,7 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 		if !buf.canEdit() {
 			return false
 		}
-		if buf.hasSelection() {
+		if buf.HasSelection() {
 			DeleteSelection.DoOnBuffer(buf, *prefs)
 			return false
 		}

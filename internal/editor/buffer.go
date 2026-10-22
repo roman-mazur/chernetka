@@ -393,15 +393,18 @@ func (b *Buffer) Text() string {
 	return b._textCache
 }
 
-// Selection returns the selected spans. A span may be empty or reversed.
-func (b *Buffer) Selection() []content.Span { return slices.Clone(b.sel) }
-
-func (b *Buffer) SelectedText() string {
-	return content.Select(b.Content, b.sel)
+// Selection returns the selected spans normalized by content.NormalizeSpans: not empty,
+// going forward, sorted, and apart. It's empty if no text is selected.
+func (b *Buffer) Selection() []content.Span {
+	return content.NormalizeSpans(slices.Clone(b.sel))
 }
 
-// hasSelection reports whether any text is selected.
-func (b *Buffer) hasSelection() bool {
+func (b *Buffer) SelectedText() string {
+	return content.Select(b.Content, b.Selection())
+}
+
+// HasSelection reports whether any text is selected, that is whether Selection is not empty.
+func (b *Buffer) HasSelection() bool {
 	for i := range b.sel {
 		if b.sel[i].Start != b.sel[i].End {
 			return true

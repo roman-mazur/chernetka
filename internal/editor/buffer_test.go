@@ -403,8 +403,9 @@ func TestBuffer_ReplaceText(t *testing.T) {
 			if buf.c() != tc.wantCursor {
 				t.Errorf("cursor = %s, want %s", buf.c(), tc.wantCursor)
 			}
-			if !slices.Equal(buf.Selection(), tc.wantSel) {
-				t.Errorf("selection = %v, want %v", buf.Selection(), tc.wantSel)
+			// The stored spans keep their direction, from the anchor to the cursor.
+			if !slices.Equal(buf.sel, tc.wantSel) {
+				t.Errorf("selection = %v, want %v", buf.sel, tc.wantSel)
 			}
 		})
 	}
@@ -962,5 +963,34 @@ func TestBuffer_Render_Diagnostics(t *testing.T) {
 	rows = strings.Split(out.String(), "\r\n")
 	if got := escape.Clean(rows[1]); !strings.HasSuffix(strings.TrimSpace(got), "undefined: someVari…") {
 		t.Errorf("cursor line = %q, want a shortened message", got)
+	}
+}
+
+func TestBuffer_Selection(t *testing.T) {
+	pos := func(line, col int) content.Position { return content.Position{Line: line, Col: col} }
+	text := content.FullText{content.TextLine("abcdef"), content.TextLine("ghij")}
+	buf := &Buffer{Content: &text, sel: []content.Span{
+		{Start: pos(1, 3), End: pos(1, 1)}, // backwards
+		{Start: pos(0, 2), End: pos(0, 2)}, // empty
+		{Start: pos(0, 1), End: pos(0, 3)},
+		{Start: pos(0, 2), End: pos(1, 0)}, // overlapping the previous one
+	}}
+	want := []content.Span{{Start: pos(0, 1), End: pos(1, 0)}, {Start: pos(1, 1), End: pos(1, 3)}}
+	if got := buf.Selection(); !slices.Equal(got, want) {
+		t.Errorf("selection = %v, want %v", got, want)
+	}
+	if got, want := buf.SelectedText(), "bcdef\nhi"; got != want {
+		t.Errorf("selected text = %q, want %q", got, want)
+	}
+	if buf.sel[0] != (content.Span{Start: pos(1, 3), End: pos(1, 1)}) {
+		t.Errorf("stored selection changed to %v", buf.sel)
+	}
+	if !buf.HasSelection() {
+		t.Error("HasSelection = false, want true")
+	}
+
+	buf.sel = []content.Span{{Start: pos(0, 2), End: pos(0, 2)}}
+	if got := buf.Selection(); len(got) != 0 || buf.HasSelection() {
+		t.Errorf("selection = %v, HasSelection = %v, want none", got, buf.HasSelection())
 	}
 }

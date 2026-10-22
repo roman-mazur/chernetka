@@ -15,7 +15,7 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		return
 
 	case input.Esc:
-		if buf.hasSelection() {
+		if buf.HasSelection() {
 			buf.cancelSelection()
 			return
 		}
@@ -39,7 +39,7 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	if !buf.canEdit() {
 		return
 	}
-	if buf.hasSelection() {
+	if buf.HasSelection() {
 		// The input replaces the selection. The cursor may move to another line.
 		DeleteSelection.DoOnBuffer(buf, *prefs)
 		if k.Special == input.Backspace {

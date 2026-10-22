@@ -254,7 +254,7 @@ var (
 	// DeleteSelection command deletes currently selected content in the buffer adjusting the cursor position.
 	DeleteSelection = BufferCommandFunc(func(b *Buffer, _ RenderPrefs) {
 		m := b.Mutate()
-		for _, span := range slices.Backward(b.sel) {
+		for _, span := range slices.Backward(b.Selection()) {
 			b.updateCursor(content.DeleteSpan(m, span))
 		}
 		b.cancelSelection()
@@ -265,7 +265,7 @@ var (
 	})
 	// ClipboardCut copies selected text to the clipboard and removes it from the buffer.
 	ClipboardCut = BufferCommandFunc(func(b *Buffer, prefs RenderPrefs) {
-		if !b.hasSelection() || !b.canEdit() {
+		if !b.HasSelection() || !b.canEdit() {
 			return
 		}
 		clipboard.Write(b.SelectedText())
@@ -313,7 +313,7 @@ func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 		return
 	}
 	b.MutateAsGroup(func(m content.Mutable) {
-		if b.hasSelection() {
+		if b.HasSelection() {
 			// The pasted text replaces the selection.
 			DeleteSelection.DoOnBuffer(b, prefs)
 		}
