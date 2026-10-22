@@ -1,6 +1,9 @@
 package content
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestSpan_Min(t *testing.T) {
 	tests := []struct {
@@ -219,6 +222,51 @@ func TestSpan_LineProjection(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.span.LineProjection(tt.idx, tt.lineLen); got != tt.want {
 				t.Errorf("LineProjection(%d, %d) = %+v, want %+v", tt.idx, tt.lineLen, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeSpans(t *testing.T) {
+	span := func(l1, c1, l2, c2 int) Span {
+		return Span{Start: Position{Line: l1, Col: c1}, End: Position{Line: l2, Col: c2}}
+	}
+	tests := []struct {
+		name  string
+		spans []Span
+		want  []Span
+	}{
+		{name: "none"},
+		{name: "empty spans dropped", spans: []Span{span(1, 2, 1, 2), span(0, 0, 0, 0)}},
+		{name: "forward kept", spans: []Span{span(1, 2, 3, 1)}, want: []Span{span(1, 2, 3, 1)}},
+		{name: "reversed", spans: []Span{span(3, 1, 1, 2)}, want: []Span{span(1, 2, 3, 1)}},
+		{name: "reversed on a line", spans: []Span{span(1, 5, 1, 2)}, want: []Span{span(1, 2, 1, 5)}},
+		{
+			name:  "sorted",
+			spans: []Span{span(7, 0, 8, 1), span(2, 3, 2, 4), span(1, 0, 2, 1)},
+			want:  []Span{span(1, 0, 2, 1), span(2, 3, 2, 4), span(7, 0, 8, 1)},
+		},
+		{
+			name:  "overlapping merged",
+			spans: []Span{span(3, 2, 4, 1), span(1, 0, 3, 3)},
+			want:  []Span{span(1, 0, 4, 1)},
+		},
+		{
+			name:  "contained merged",
+			spans: []Span{span(1, 0, 5, 0), span(2, 0, 2, 3), span(3, 1, 4, 1)},
+			want:  []Span{span(1, 0, 5, 0)},
+		},
+		{
+			name:  "touching merged",
+			spans: []Span{span(1, 0, 1, 2), span(1, 4, 1, 2)},
+			want:  []Span{span(1, 0, 1, 4)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NormalizeSpans(slices.Clone(tt.spans))
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("NormalizeSpans(%v) = %v, want %v", tt.spans, got, tt.want)
 			}
 		})
 	}
