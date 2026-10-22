@@ -59,12 +59,12 @@ func main() {
 	edit.ShowDiff = delegate.showDiff
 	debugEnv(logf)
 
+	edit.Extend(new(extindent.Integration)) // Before LSP to handle tab on selection first.
 	edit.Extend(new(extlsp.Integration))
 	edit.Extend(new(extsyntaxhl.Integration))
 	edit.Extend(&extd2.Integration{Viewer: viewer})
 	edit.Extend(new(extmd.Integration))
 	edit.Extend(new(extcomment.Integration))
-	edit.Extend(new(extindent.Integration))
 	edit.Extend(&extgo.Integration{Runner: paneRunner{logf: logf}})
 
 	if flag.NArg() < 1 {

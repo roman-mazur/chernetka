@@ -85,7 +85,8 @@
 //
 //	Esc        return to normal mode
 //	(any)      insert printable ASCII character at the cursor
-//	Tab        insert a tab character
+//	Tab        insert a tab character; with a selection, indent the selected lines
+//	Shift+Tab  unindent the selected lines, or the cursor line without a selection
 //	Backspace  delete the character before the cursor;
 //	           if at column 0, join the line with the one above
 //	Enter      split the line at the cursor, keeping its indentation on the new line
