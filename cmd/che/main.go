@@ -270,7 +270,12 @@ func (ed *editDelegate) OpenFile(path string) {
 }
 
 func (ed *editDelegate) sendOpenCommand(path string) error {
-	return remotectl.SendCommand(remotectl.EditorEndpoint.InTab(), &remotectl.CommandData{
+	s, err := remotectl.Client(remotectl.EditorEndpoint.InTab())
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	return s.Send(&remotectl.CommandData{
 		Action: "open",
 		Args:   []string{path},
 	})

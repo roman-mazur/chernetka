@@ -88,5 +88,10 @@ func ParseCommand(cmd remotectl.CommandData) (Item, error) {
 // Show sends the item to the che-img process running in the same terminal tab.
 // It fails if there is no such process.
 func Show(it Item) error {
-	return remotectl.SendCommand(Endpoint.InTab(), it.Command())
+	s, err := remotectl.Client(Endpoint.InTab())
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	return s.Send(it.Command())
 }
