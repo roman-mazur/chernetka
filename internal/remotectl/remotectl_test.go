@@ -125,9 +125,9 @@ func TestEndpoint_Scoped(t *testing.T) {
 		scope string
 		want  Endpoint
 	}{
-		{"", "ctl"},
-		{"tab-7f98af016230", "ctl-tab-7f98af016230"},
-		{"../a b", "ctl-___a_b"},
+		{"", "mainctl"},
+		{"tab-7f98af016230", "mainctl-tab-7f98af016230"},
+		{"../a b", "mainctl-___a_b"},
 	} {
 		if got := EditorEndpoint.Scoped(tc.scope); got != tc.want {
 			t.Errorf("Scoped(%q) = %q, want %q", tc.scope, got, tc.want)

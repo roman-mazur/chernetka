@@ -12,7 +12,7 @@ import (
 type Endpoint string
 
 // EditorEndpoint is used by the main editor process to receive files to open.
-const EditorEndpoint Endpoint = "ctl"
+const EditorEndpoint Endpoint = "mainctl"
 
 // socketDir resolves the directory to put the sockets in. Overridden in tests.
 var socketDir = internal.UserDir

@@ -28,5 +28,17 @@ func SendCommand(ep Endpoint, cmd *CommandData) error {
 		return err
 	}
 	_, err = fmt.Fprintln(conn)
-	return err
+	if err != nil {
+		return err
+	}
+
+	var rsp CommandData
+	err = json.NewDecoder(conn).Decode(&rsp)
+	if err != nil {
+		return fmt.Errorf("didn't get ack: %w", err)
+	}
+	if rsp.Action != "ack" {
+		return fmt.Errorf("got %q instead of ack", rsp.Action)
+	}
+	return nil
 }

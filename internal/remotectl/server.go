@@ -93,6 +93,7 @@ func (c *Server) Run(e Executor, logf logger.Func) {
 				line := strings.TrimSpace(scan.Text())
 				if line != "" {
 					commands <- line
+					_ = json.NewEncoder(conn).Encode(CommandData{Action: "ack"})
 				}
 			}
 		})
