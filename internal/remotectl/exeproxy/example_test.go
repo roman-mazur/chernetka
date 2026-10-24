@@ -30,11 +30,14 @@ func ExampleCommandProxy() {
 
 	// Client side.
 	fmt.Println("waiting for server")
+	var client *remotectl.Sender
 	waitTime := 50 * time.Millisecond
 	for range 10 {
-		if err := remotectl.SendCommand(endpoint, &remotectl.CommandData{Action: "ping"}); err == nil {
+		client, err = remotectl.Client(endpoint)
+		if err == nil {
 			break
 		}
+		time.Sleep(waitTime)
 		waitTime *= 2
 	}
 	fmt.Println("send echo")
@@ -42,9 +45,9 @@ func ExampleCommandProxy() {
 	if runtime.GOOS == "windows" {
 		cmd = []string{"cmd", "/c", "echo", "OK"}
 	}
-	remotectl.SendCommand(endpoint, &remotectl.CommandData{Action: "exe", Args: cmd})
+	client.Send(&remotectl.CommandData{Action: "exe", Args: cmd})
 	time.Sleep(time.Second / 2) // Give time for echo to finish.
-	remotectl.SendCommand(endpoint, &remotectl.CommandData{Action: "quit"})
+	client.Send(&remotectl.CommandData{Action: "quit"})
 
 	<-done
 	// Output:

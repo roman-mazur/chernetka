@@ -49,6 +49,8 @@ func (cp *CommandProxy) logf(fmt string, args ...any) {
 
 func (cp *CommandProxy) exec(cmd remotectl.CommandData) {
 	if cmd.Action == "quit" {
+		// This may result in an error on Send on the client side as they may not get an ack.
+		// It's fine as it's used in tests mainly for cleaning up.
 		cp.replaceProcess(nil)
 		_ = cp.srv.Close()
 		return

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -16,6 +17,9 @@ import (
 // Server implements a local socket server to receive editor commands.
 type Server struct {
 	l net.Listener
+
+	mu                sync.Mutex
+	activeConnections []net.Conn
 }
 
 type Executor interface {
@@ -54,6 +58,12 @@ func isStaleSocket(p string) bool {
 }
 
 func (c *Server) Close() error {
+	c.mu.Lock()
+	for _, conn := range c.activeConnections {
+		_ = conn.Close()
+	}
+	c.activeConnections = nil
+	c.mu.Unlock()
 	return c.l.Close()
 }
 
@@ -62,6 +72,9 @@ func (c *Server) handle(e Executor, commands <-chan string, logf logger.Func) {
 		var cmd CommandData
 		if err := json.Unmarshal([]byte(line), &cmd); err != nil {
 			logf("cmd decode error: %s, data: %s", err, line)
+			continue
+		}
+		if cmd.Action == "ping" {
 			continue
 		}
 		e.ExecuteCommand(cmd)
@@ -76,7 +89,7 @@ func (c *Server) Run(e Executor, logf logger.Func) {
 	var wg sync.WaitGroup
 
 	for {
-		conn, err := c.l.Accept()
+		conn, err := c.accept()
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
 				logf("ctl accept error: %s", err)
@@ -87,7 +100,7 @@ func (c *Server) Run(e Executor, logf logger.Func) {
 		scan := bufio.NewScanner(conn)
 		scan.Split(bufio.ScanLines)
 		wg.Go(func() {
-			defer conn.Close()
+			defer c.close(conn)
 
 			for scan.Scan() {
 				line := strings.TrimSpace(scan.Text())
@@ -100,4 +113,21 @@ func (c *Server) Run(e Executor, logf logger.Func) {
 	}
 
 	wg.Wait()
+}
+
+func (c *Server) accept() (net.Conn, error) {
+	conn, err := c.l.Accept()
+	if err == nil {
+		c.mu.Lock()
+		c.activeConnections = append(c.activeConnections, conn)
+		c.mu.Unlock()
+	}
+	return conn, err
+}
+
+func (c *Server) close(conn net.Conn) {
+	_ = conn.Close()
+	c.mu.Lock()
+	c.activeConnections = slices.DeleteFunc(c.activeConnections, func(c net.Conn) bool { return c == conn })
+	c.mu.Unlock()
 }

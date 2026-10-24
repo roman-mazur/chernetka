@@ -50,26 +50,21 @@ func TestCommandProxy(t *testing.T) {
 	}
 
 	tstEndpoint := remotectl.Endpoint("cmd-proxy-test")
+
 	proxyFinishErr := make(chan error)
 	go func() {
 		proxyFinishErr <- cp.Run(tstEndpoint)
 		close(proxyFinishErr)
 	}()
 
-	t.Cleanup(func() {
-		_ = remotectl.SendCommand(tstEndpoint, &remotectl.CommandData{Action: "quit"})
-		if err := <-proxyFinishErr; err != nil {
-			t.Fatal("proxy finish error:", err)
-		}
-	})
-
 	t.Log("waiting for the connection")
 	var (
+		client    *remotectl.Sender
 		waitTime  = 50 * time.Millisecond
 		connError error
 	)
 	for range 10 {
-		connError = remotectl.SendCommand(tstEndpoint, &remotectl.CommandData{Action: "ping"})
+		client, connError = remotectl.Client(tstEndpoint)
 		if connError == nil {
 			break
 		}
@@ -79,14 +74,19 @@ func TestCommandProxy(t *testing.T) {
 	if connError != nil {
 		t.Fatal("proxy was not started")
 	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	t.Cleanup(func() {
+		_ = client.Send(&remotectl.CommandData{Action: "quit"})
+		if err := <-proxyFinishErr; err != nil {
+			t.Fatal("proxy finish error:", err)
+		}
+	})
 
 	send := func(cmd ...string) {
 		t.Helper()
 		t.Log("send", cmd)
-		err := remotectl.SendCommand(
-			tstEndpoint,
-			&remotectl.CommandData{Action: cmd[0], Args: cmd[1:]},
-		)
+		err := client.Send(&remotectl.CommandData{Action: cmd[0], Args: cmd[1:]})
 		if err != nil {
 			t.Error("err", err)
 		}
