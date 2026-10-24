@@ -17,6 +17,9 @@
 - [x] Navigation history: go to definition, go back
 - [x] Undo/redo
 
+- better complete suggestions
+- mouse selection stopped working
+- create new file (with parent dirs)
 - unify how external commands are run (consider a helper process that receives commands to execute): d2, go run, git diff
 - project search (render with the tool buffer)
 - project search inter-process (dir + main editor)
