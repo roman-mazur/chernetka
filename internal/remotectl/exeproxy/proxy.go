@@ -86,12 +86,12 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd) {
 		cp.logf("cannot run command %q: %s", exeCmd.Path, err)
 		return
 	}
-	pDone := make(chan struct{})
+	p, pDone := exeCmd.Process, make(chan struct{})
 	go func() {
-		_, _ = cp.p.Wait()
+		_ = exeCmd.Wait()
 		close(pDone)
 	}()
-	cp.p, cp.pDone = exeCmd.Process, pDone
+	cp.p, cp.pDone = p, pDone
 	if cp.pWatcher != nil {
 		go func() {
 			cp.pWatcher <- pDone

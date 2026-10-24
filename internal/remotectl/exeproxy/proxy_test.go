@@ -25,8 +25,7 @@ func TestMain(m *testing.M) {
 			fmt.Println(strings.Join(os.Args[2:], " "))
 			os.Exit(0)
 		case helperBlock:
-			fmt.Println(os.Getpid())
-			time.Sleep(42 * time.Hour)
+			time.Sleep(5 * time.Minute)
 			os.Exit(1)
 		}
 	}
@@ -100,7 +99,7 @@ func TestCommandProxy(t *testing.T) {
 		if outputCapture.String() != s {
 			t.Errorf("output = %q, want %q", outputCapture.String(), s)
 		}
-		outputCapture.Reset() // potentially a race?
+		outputCapture.Reset()
 	}
 
 	t.Log("check unknown command")
