@@ -27,7 +27,7 @@ type CommandProxy struct {
 	srv *remotectl.Server
 
 	mu    sync.Mutex
-	p     *os.Process
+	p     *processTree
 	pDone chan struct{}
 }
 
@@ -76,7 +76,7 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 	if cp.p != nil {
-		killProcess(cp.p)
+		cp.p.kill()
 		<-cp.pDone
 		cp.p, cp.pDone = nil, nil
 	}
@@ -84,17 +84,18 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd) {
 	if exeCmd == nil {
 		return
 	}
-	foreground := setProcessGroup(exeCmd)
+	p := newProcessTree(exeCmd)
 	if err := exeCmd.Start(); err != nil {
 		cp.logf("cannot run command %q: %s", exeCmd.Path, err)
 		return
 	}
-	p, pDone := exeCmd.Process, make(chan struct{})
+	if err := p.track(exeCmd.Process); err != nil {
+		cp.logf("cannot track the processes started by %q: %s", exeCmd.Path, err)
+	}
+	pDone := make(chan struct{})
 	go func() {
 		_ = exeCmd.Wait()
-		if foreground {
-			reclaimForeground()
-		}
+		p.exited()
 		close(pDone)
 	}()
 	cp.p, cp.pDone = p, pDone
