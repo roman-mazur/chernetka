@@ -1,0 +1,2 @@
+# Keep LF line endings in checkouts on all platforms: test data is compared byte by byte.
+* text=auto eol=lf
