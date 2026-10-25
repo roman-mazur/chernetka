@@ -9,7 +9,20 @@ name: Test
     branches:
       - main
 jobs:
-  test:
+  generate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Check the generated workflows
+        run: |-
+          go generate ./internal/ci
+          git diff --exit-code -- .github/workflows
+  test-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -19,8 +32,20 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Run tests
-        run: CHEMONKEY=1 go test ./...
-      - name: Check the generated workflows
-        run: |-
-          go generate ./internal/ci
-          git diff --exit-code -- .github/workflows
+        env:
+          CHEMONKEY: "1"
+        run: go test ./...
+  test-windows-latest:
+    continue-on-error: true
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Run tests
+        env:
+          CHEMONKEY: "1"
+        run: go test ./...
