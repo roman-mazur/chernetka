@@ -76,7 +76,7 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 	if cp.p != nil {
-		_ = cp.p.Kill()
+		killProcess(cp.p)
 		<-cp.pDone
 		cp.p, cp.pDone = nil, nil
 	}
@@ -84,6 +84,7 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd) {
 	if exeCmd == nil {
 		return
 	}
+	foreground := setProcessGroup(exeCmd)
 	if err := exeCmd.Start(); err != nil {
 		cp.logf("cannot run command %q: %s", exeCmd.Path, err)
 		return
@@ -91,6 +92,9 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd) {
 	p, pDone := exeCmd.Process, make(chan struct{})
 	go func() {
 		_ = exeCmd.Wait()
+		if foreground {
+			reclaimForeground()
+		}
 		close(pDone)
 	}()
 	cp.p, cp.pDone = p, pDone

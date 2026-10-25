@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +16,9 @@ import (
 
 const (
 	helperEcho  = "exeproxy-helper-echo"  // Prints the rest of the args and exits.
-	helperBlock = "exeproxy-helper-block" // Prints its pid and runs until killed.
+	helperBlock = "exeproxy-helper-block" // Runs until killed.
+	// Starts helperBlock sharing its stdout, creates the file passed in the args and runs until killed.
+	helperSpawn = "exeproxy-helper-spawn"
 )
 
 // TestMain lets the test binary act as a command executed by the proxy.
@@ -25,6 +29,19 @@ func TestMain(m *testing.M) {
 			fmt.Println(strings.Join(os.Args[2:], " "))
 			os.Exit(0)
 		case helperBlock:
+			time.Sleep(5 * time.Minute)
+			os.Exit(1)
+		case helperSpawn:
+			child := exec.Command(os.Args[0], helperBlock)
+			child.Stdout = os.Stdout
+			if err := child.Start(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			if err := os.WriteFile(os.Args[2], nil, 0o600); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 			time.Sleep(5 * time.Minute)
 			os.Exit(1)
 		}
@@ -93,8 +110,13 @@ func TestCommandProxy(t *testing.T) {
 	}
 	expectOut := func(s string, n int) {
 		t.Helper()
+		timeout := time.After(10 * time.Second)
 		for range n {
-			<-(<-cp.pWatcher)
+			select {
+			case <-(<-cp.pWatcher):
+			case <-timeout:
+				t.Fatal("timeout waiting for the processes to finish")
+			}
 		}
 		if outputCapture.String() != s {
 			t.Errorf("output = %q, want %q", outputCapture.String(), s)
@@ -114,4 +136,14 @@ func TestCommandProxy(t *testing.T) {
 	send("exe", os.Args[0], helperBlock)
 	send("exe", os.Args[0], helperEcho, "REPLACED")
 	expectOut("REPLACED\n", 2)
+
+	t.Log("check replace kills children")
+	spawned := filepath.Join(home, "spawned")
+	send("exe", os.Args[0], helperSpawn, spawned)
+	for _, err := os.Stat(spawned); err != nil; _, err = os.Stat(spawned) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	// Until the child sharing stdout is gone, the output is not finished.
+	send("exe", os.Args[0], helperEcho, "NO CHILDREN")
+	expectOut("NO CHILDREN\n", 2)
 }
