@@ -56,7 +56,9 @@ func TestCommandProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(home) })
+	// os.UserHomeDir reads USERPROFILE on Windows.
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 
 	var outputCapture bytes.Buffer
 	cp := CommandProxy{

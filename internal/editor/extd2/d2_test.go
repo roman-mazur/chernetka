@@ -126,7 +126,7 @@ func TestMarkdown(t *testing.T) {
 	}
 
 	engage(t, buf, ext, 1)
-	want := cheimg.Item{Path: "/notes/README.md", Source: "a -> b\nb -> c"}
+	want := cheimg.Item{Path: absPath(t, "/notes/README.md"), Source: "a -> b\nb -> c"}
 	if got := viewer.receive(t); got != want {
 		t.Errorf("shown %+v, want %+v", got, want)
 	}

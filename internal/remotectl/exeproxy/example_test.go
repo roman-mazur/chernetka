@@ -16,7 +16,9 @@ func ExampleCommandProxy() {
 	if err != nil {
 		panic(err)
 	}
+	// os.UserHomeDir reads USERPROFILE on Windows.
 	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
 
 	const endpoint = remotectl.Endpoint("example")
 

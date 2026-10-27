@@ -2,6 +2,9 @@ package content
 
 import (
 	"bufio"
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -133,9 +136,15 @@ func TestFsContent_SyncState_Error(t *testing.T) {
 	origin := LoadFolder("testdata/dirs/sample1", &openFile)
 	origin.Lines()[1].(LineAction).Engage()
 	missing := LoadFolder("testdata/dirs/missing", &openFile)
+	// The message is platform specific.
+	_, readErr := fs.ReadDir(os.DirFS("testdata/dirs/missing"), ".")
+	if readErr == nil {
+		t.Fatal("missing directory exists")
+	}
+	notExist := errors.Unwrap(readErr).Error()
 
 	confirmMissinState := func() {
-		if missing.Len() != 1 || !strings.Contains(missing.Lines()[0].String(), "no such file") {
+		if missing.Len() != 1 || !strings.Contains(missing.Lines()[0].String(), notExist) {
 			t.Errorf("missing directory content: %v", missing.Lines())
 		}
 	}

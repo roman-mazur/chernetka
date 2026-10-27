@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -66,7 +67,7 @@ func TestFetch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(upstream), "package lang\n") || !strings.Contains(string(upstream), repo+"@"+commit) {
+	if !strings.Contains(string(upstream), "package lang\n") || !strings.Contains(string(upstream), strconv.Quote(repo+"@"+commit)) {
 		t.Errorf("upstream.go doesn't record the package and the commit:\n%s", upstream)
 	}
 }

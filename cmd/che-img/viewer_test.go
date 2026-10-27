@@ -213,6 +213,11 @@ func TestViewer_PNG(t *testing.T) {
 		}
 	})
 
+	missingPath := filepath.Join(dir, "missing.png")
+	_, missingErr := os.Open(missingPath)
+	if missingErr == nil {
+		t.Fatal("missing file exists")
+	}
 	for _, tc := range []struct {
 		name    string
 		images  bool
@@ -221,7 +226,8 @@ func TestViewer_PNG(t *testing.T) {
 	}{
 		{name: "no images support", path: imagePath, wantErr: errNoImages.Error()},
 		{name: "not a PNG", images: true, path: notImagePath, wantErr: "not a PNG image"},
-		{name: "missing file", images: true, path: filepath.Join(dir, "missing.png"), wantErr: "no such file"},
+		// The message is platform specific.
+		{name: "missing file", images: true, path: missingPath, wantErr: errors.Unwrap(missingErr).Error()},
 		{name: "unsupported", images: true, path: filepath.Join(dir, "photo.jpg"), wantErr: errUnsupported.Error()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

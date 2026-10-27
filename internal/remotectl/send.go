@@ -2,8 +2,10 @@ package remotectl
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
+	"os"
 )
 
 // CommandData encodes an action that can be sent to a Server.
@@ -25,6 +27,12 @@ func Client(ep Endpoint) (*Sender, error) {
 
 	conn, err := net.Dial("unix", p)
 	if err != nil {
+		// Windows reports a refused connection when there is no socket file.
+		if !errors.Is(err, os.ErrNotExist) {
+			if _, statErr := os.Stat(p); errors.Is(statErr, os.ErrNotExist) {
+				err = fmt.Errorf("%w: %w", err, os.ErrNotExist)
+			}
+		}
 		return nil, err
 	}
 

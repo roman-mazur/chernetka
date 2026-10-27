@@ -124,7 +124,7 @@ func TestClient_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Definition: %v", err)
 	}
-	if len(locs) != 1 || locs[0].URI.Filename() != "/tmp/y.go" || locs[0].Range.Start.Line != 7 {
+	if len(locs) != 1 || locs[0].URI != uri.File("/tmp/y.go") || locs[0].Range.Start.Line != 7 {
 		t.Errorf("got locations=%+v, want one in /tmp/y.go on line 7", locs)
 	}
 
@@ -227,7 +227,7 @@ func TestClient_Diagnostics(t *testing.T) {
 	})
 	select {
 	case got := <-published:
-		if got.URI.Filename() != "/tmp/x.go" || got.Version != 3 || len(got.Diagnostics) != 1 ||
+		if got.URI != uri.File("/tmp/x.go") || got.Version != 3 || len(got.Diagnostics) != 1 ||
 			got.Diagnostics[0].Message != "undefined: x" || got.Diagnostics[0].Range.Start.Line != 4 {
 			t.Errorf("published %+v", got)
 		}
@@ -256,7 +256,7 @@ func TestDecodeLocations(t *testing.T) {
 			t.Errorf("decodeLocations(%s) = %+v, want %d locations", tc.raw, locs, tc.want)
 		}
 		for _, l := range locs {
-			if l.URI.Filename() != "/tmp/x.go" || l.Range.Start.Character != 2 {
+			if l.URI != "file:///tmp/x.go" || l.Range.Start.Character != 2 {
 				t.Errorf("decodeLocations(%s): bad location %+v", tc.raw, l)
 			}
 		}
