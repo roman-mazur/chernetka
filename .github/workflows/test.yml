@@ -39,7 +39,6 @@ jobs:
           CHEMONKEY: "1"
         run: go test ./...
   test-windows-latest:
-    continue-on-error: true
     runs-on: windows-latest
     steps:
       - name: Checkout code

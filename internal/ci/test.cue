@@ -31,10 +31,6 @@ workflows: test: githubactions.#Workflow & {
 	for _, runType in ["ubuntu-latest", "windows-latest"] {
 		jobs: "test-\(runType)": {
 			"runs-on": runType
-			if runType == "windows-latest" {
-				// The Windows support is being refined: its failure does not fail the workflow yet.
-				"continue-on-error": true
-			}
 			steps: list.Concat([#goSetup, [
 				{
 					name: "Run tests"
