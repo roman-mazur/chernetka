@@ -13,6 +13,8 @@ workflows: test: githubactions.#Workflow & {
 		pull_request: branches: ["main"]
 	}
 
+	defaults: run: shell: "bash"
+
 	jobs: "generate-check": {
 		"runs-on": "ubuntu-latest"
 		steps: list.Concat([#goSetup, [
