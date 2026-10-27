@@ -8,7 +8,6 @@ tool (
 )
 
 require (
-	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/go-cmp v0.7.0
 	github.com/kanrichan/resvg-go v0.0.1
 	github.com/mattn/go-pointer v0.0.1
@@ -24,7 +23,7 @@ require (
 	golang.org/x/sys v0.46.0
 	golang.org/x/term v0.44.0
 	oss.terrastruct.com/d2 v0.7.2
-	rmazur.io/watch v0.0.4
+	rmazur.io/watch v0.0.5
 )
 
 require (
@@ -40,6 +39,7 @@ require (
 	github.com/dop251/goja v0.0.0-20240927123429-241b342198c2 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/emicklei/proto v1.14.3 // indirect
+	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/pprof v0.0.0-20240927180334-d43a67379298 // indirect
