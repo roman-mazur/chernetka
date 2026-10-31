@@ -37,6 +37,11 @@ func (pt *processTree) track(p *os.Process) error {
 	return nil
 }
 
+// interrupt asks the command and the processes it started to stop, like Ctrl+C does.
+func (pt *processTree) interrupt() {
+	_ = syscall.Kill(-pt.pid, syscall.SIGINT)
+}
+
 // kill kills the command together with the processes it started.
 func (pt *processTree) kill() {
 	_ = syscall.Kill(-pt.pid, syscall.SIGKILL)

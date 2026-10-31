@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +21,9 @@ const (
 	helperBlock = "exeproxy-helper-block" // Runs until killed.
 	// Starts helperBlock sharing its stdout, creates the file passed in the args and runs until killed.
 	helperSpawn = "exeproxy-helper-spawn"
+	// Creates the file passed in the args, prints INTERRUPTED on SIGINT and exits.
+	helperTrap = "exeproxy-helper-trap"
+	helperExit = "exeproxy-helper-exit" // Exits with status 3.
 )
 
 // TestMain lets the test binary act as a command executed by the proxy.
@@ -28,9 +33,11 @@ func TestMain(m *testing.M) {
 		case helperEcho:
 			fmt.Println(strings.Join(os.Args[2:], " "))
 			os.Exit(0)
+
 		case helperBlock:
 			time.Sleep(5 * time.Minute)
 			os.Exit(1)
+
 		case helperSpawn:
 			child := exec.Command(os.Args[0], helperBlock)
 			child.Stdout = os.Stdout
@@ -44,12 +51,35 @@ func TestMain(m *testing.M) {
 			}
 			time.Sleep(5 * time.Minute)
 			os.Exit(1)
+
+		case helperExit:
+			os.Exit(3)
+
+		case helperTrap:
+			interrupts := make(chan os.Signal, 1)
+			signal.Notify(interrupts, os.Interrupt)
+			if err := os.WriteFile(os.Args[2], nil, 0o600); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			<-interrupts
+			fmt.Println("INTERRUPTED")
+			os.Exit(0)
+
 		}
 	}
 	os.Exit(m.Run())
 }
 
-func TestCommandProxy(t *testing.T) {
+type testClient struct {
+	t        *testing.T
+	home     string
+	sender   *remotectl.Sender
+	output   bytes.Buffer
+	pWatcher <-chan (<-chan struct{})
+}
+
+func startProxy(t *testing.T, configure func(cp *CommandProxy)) *testClient {
 	// Unix socket paths are limited in length, so the directory is not based on t.TempDir.
 	home, err := os.MkdirTemp("", "proxytest")
 	if err != nil {
@@ -60,15 +90,18 @@ func TestCommandProxy(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 
-	var outputCapture bytes.Buffer
-	cp := CommandProxy{
+	tc := new(testClient)
+	cp := &CommandProxy{
 		Logf:     logger.Prefix(t.Logf, "test proxy:"),
-		Stdout:   &outputCapture,
-		Stderr:   &outputCapture,
+		Stdout:   &tc.output,
+		Stderr:   &tc.output,
 		pWatcher: make(chan (<-chan struct{})),
 	}
+	if configure != nil {
+		configure(cp)
+	}
 
-	tstEndpoint := remotectl.Endpoint("cmd-proxy-test")
+	tstEndpoint := Endpoint("tst")
 
 	proxyFinishErr := make(chan error)
 	go func() {
@@ -102,28 +135,59 @@ func TestCommandProxy(t *testing.T) {
 		}
 	})
 
-	send := func(cmd ...string) {
-		t.Helper()
-		t.Log("send", cmd)
-		err := client.Send(&remotectl.CommandData{Action: cmd[0], Args: cmd[1:]})
-		if err != nil {
-			t.Error("err", err)
+	tc.sender = client
+	tc.t = t
+	tc.home = home
+	tc.pWatcher = cp.pWatcher
+	return tc
+}
+
+func (tc *testClient) send(cmd ...string) {
+	tc.t.Helper()
+	tc.t.Log("send", cmd)
+	err := tc.sender.Send(&remotectl.CommandData{Action: cmd[0], Args: cmd[1:]})
+	if err != nil {
+		tc.t.Error("err", err)
+	}
+}
+
+// waitFinished waits for n commands to finish and returns their output.
+func (tc *testClient) waitFinished(n int) string {
+	tc.t.Helper()
+	timeout := time.After(10 * time.Second)
+	for range n {
+		select {
+		case <-(<-tc.pWatcher):
+		case <-timeout:
+			tc.t.Fatal("timeout waiting for the processes to finish")
 		}
 	}
+	out := tc.output.String()
+	tc.output.Reset()
+	return out
+}
+
+// waitFile waits for the file at path to appear.
+func waitFile(t *testing.T, path string) {
+	t.Helper()
+	start := time.Now()
+	for _, err := os.Stat(path); err != nil; _, err = os.Stat(path) {
+		if time.Since(start) > 10*time.Second {
+			t.Errorf("timeout waiting for file to appear: %s", path)
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestCommandProxy(t *testing.T) {
+	tp := startProxy(t, nil)
+	send := tp.send
 	expectOut := func(s string, n int) {
 		t.Helper()
-		timeout := time.After(10 * time.Second)
-		for range n {
-			select {
-			case <-(<-cp.pWatcher):
-			case <-timeout:
-				t.Fatal("timeout waiting for the processes to finish")
-			}
+		if out := tp.waitFinished(n); out != s {
+			t.Errorf("output = %q, want %q", out, s)
 		}
-		if outputCapture.String() != s {
-			t.Errorf("output = %q, want %q", outputCapture.String(), s)
-		}
-		outputCapture.Reset()
 	}
 
 	t.Log("check unknown command")
@@ -140,12 +204,65 @@ func TestCommandProxy(t *testing.T) {
 	expectOut("REPLACED\n", 2)
 
 	t.Log("check replace kills children")
-	spawned := filepath.Join(home, "spawned")
+	spawned := filepath.Join(tp.home, "spawned")
 	send("exe", os.Args[0], helperSpawn, spawned)
-	for _, err := os.Stat(spawned); err != nil; _, err = os.Stat(spawned) {
-		time.Sleep(10 * time.Millisecond)
-	}
+	waitFile(t, spawned)
 	// Until the child sharing stdout is gone, the output is not finished.
 	send("exe", os.Args[0], helperEcho, "NO CHILDREN")
 	expectOut("NO CHILDREN\n", 2)
+
+	if runtime.GOOS != "windows" {
+		t.Log("check replace interrupts")
+		trapped := filepath.Join(tp.home, "trapped")
+		send("exe", os.Args[0], helperTrap, trapped)
+		waitFile(t, trapped)
+		send("exe", os.Args[0], helperEcho, "AFTER INTERRUPT")
+		expectOut("INTERRUPTED\nAFTER INTERRUPT\n", 2)
+	}
+
+	t.Log("check shell")
+	dir := t.TempDir()
+	tp.sender.Send(&remotectl.CommandData{
+		Action:  "exe",
+		WorkDir: dir,
+		Args:    []string{"bash", "-c", "echo SHELL > out.txt"},
+	})
+	expectOut("", 1)
+	if out, err := os.ReadFile(filepath.Join(dir, "out.txt")); err != nil || strings.TrimSpace(string(out)) != "SHELL" {
+		t.Errorf("the shell command output in its dir: %q, %v", out, err)
+	}
+}
+
+func TestCommandProxy_Header(t *testing.T) {
+	tp := startProxy(t, func(cp *CommandProxy) {
+		cp.Header = true
+		cp.Clear = true
+		cp.Grace = 100 * time.Millisecond
+	})
+
+	tp.send("exe", os.Args[0], helperEcho, "it's OK")
+	out := tp.waitFinished(1)
+	t.Log(out)
+	for _, want := range []string{"\x1b[2J", "it's OK\n", "✓ done in"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output %q misses %q", out, want)
+		}
+	}
+
+	tp.send("exe", os.Args[0], helperBlock)
+	tp.send("exe", os.Args[0], helperExit)
+	out = tp.waitFinished(2)
+	t.Log(out)
+	for _, want := range []string{"✗ exit status 3 after"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output %q misses %q", out, want)
+		}
+	}
+
+	tp.send("exe", filepath.Join(tp.home, "missing"))
+	tp.send("exe", os.Args[0], helperEcho)
+	t.Log(out)
+	if out := tp.waitFinished(1); !strings.Contains(out, "cannot start") {
+		t.Errorf("output %q misses the start error", out)
+	}
 }

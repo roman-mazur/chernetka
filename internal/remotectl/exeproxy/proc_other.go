@@ -23,6 +23,11 @@ func (pt *processTree) track(p *os.Process) error {
 	return nil
 }
 
+// interrupt kills only the command process itself.
+func (pt *processTree) interrupt() {
+	pt.kill()
+}
+
 // kill kills only the command process itself.
 func (pt *processTree) kill() {
 	_ = pt.p.Kill()

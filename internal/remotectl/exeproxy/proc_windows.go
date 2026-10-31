@@ -3,6 +3,7 @@ package exeproxy
 import (
 	"os"
 	"os/exec"
+	"syscall"
 
 	"golang.org/x/sys/windows"
 )
@@ -39,6 +40,12 @@ func (pt *processTree) track(p *os.Process) error {
 	}
 	pt.job = job
 	return nil
+}
+
+// interrupt kills the command together with the processes it started:
+// the console control events cannot target them alone.
+func (pt *processTree) interrupt() {
+	pt.kill()
 }
 
 // kill kills the command together with the processes it started.

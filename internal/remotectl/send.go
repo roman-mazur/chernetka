@@ -10,8 +10,9 @@ import (
 
 // CommandData encodes an action that can be sent to a Server.
 type CommandData struct {
-	Action string   `json:"action"`
-	Args   []string `json:"args"`
+	Action  string   `json:"action"`
+	Args    []string `json:"args"`
+	WorkDir string   `json:"workDir"`
 }
 
 type Sender struct {
