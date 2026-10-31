@@ -167,6 +167,7 @@ func (cp *CommandProxy) publishNewProcessStart(title string, err error) {
 				styles.TextStyle{TextColor: styles.DefaultColors.Error},
 			)
 		}
+		fmt.Fprintln(out)
 	}
 }
 
@@ -187,6 +188,7 @@ func (cp *CommandProxy) publishProcessFinish(duration time.Duration, err error) 
 			styles.TextStyle{TextColor: styles.DefaultColors.Error},
 		)
 	}
+	fmt.Fprintln(cp.stdout())
 }
 
 type exeFunc func(cmd remotectl.CommandData)
