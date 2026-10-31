@@ -1,7 +1,8 @@
 // Package extgo implements an editor extension that makes Go tests and main functions actionable.
 //
 // The line declaring a test function like "func TestName(t *testing.T)" in a _test.go file
-// can be engaged to run the test with go test, and the line declaring the main function
+// can be engaged to run the test with go test, a benchmark like "func BenchmarkName(b *testing.B)"
+// is run with go test -bench, and the line declaring the main function
 // of a main package can be engaged to run the program with go run. The commands are passed
 // to a Runner in the directory of the file, after the editor saves the unsaved changes.
 package extgo
@@ -80,7 +81,7 @@ func (gf *goFile) LineAction(lineNumber int) content.LineAction {
 }
 
 // isTestName reports whether go test treats the function name as a test:
-// "Test" or "Bench" is not followed by a lower-case letter.
+// "Test" or "Benchmark" is not followed by a lower-case letter.
 func isTestName(name string) bool {
 	r, _ := utf8.DecodeRuneInString(name)
 	return !unicode.IsLower(r)

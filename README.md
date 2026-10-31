@@ -20,7 +20,7 @@ Install with
 ```bash
 go install rmazur.io/chernetka/cmd/che@latest
 ```
-A C compile is needed on the machine as syntax highlight currently depends on [treesitter](https://tree-sitter.github.io/).
+A C compiler is needed on the machine as syntax highlight currently depends on [treesitter](https://tree-sitter.github.io/).
 
 To view images and d2 diagrams from the editor, install `che-img` as well:
 ```bash

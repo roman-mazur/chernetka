@@ -4,6 +4,7 @@
 //
 //	che [-root dir] [file]
 //	some-command | che
+//	che -exeproxy purpose
 //
 // When no file is given and stdin is a pipe, edit opens the piped content in a
 // read-only buffer. When no file and no pipe are present, a blank scratch
@@ -35,8 +36,8 @@
 //
 // # Normal mode
 //
-// The editor starts in normal mode. The cursor rests on a character (never
-// past the last one).
+// The editor starts in normal mode. The cursor moves up to the end of the line,
+// right after its last character. Shift with the arrows (or Home/End) selects the text.
 //
 //	h / ←    move left
 //	l / →    move right
@@ -45,11 +46,15 @@
 //	0        jump to the first non-blank character of the line, or to its start
 //	         if the cursor is already there or within the indentation (same for Home)
 //	$        jump to end of line
+//	g / G    jump to the first / last line
+//	Space    scroll one screen down
+//	b        scroll one screen up
 //	i        enter insert mode before the cursor
 //	a        enter insert mode after the cursor
 //	A        enter insert mode at end of line
 //	o        open a new line below and enter insert mode
-//	x        delete the character under the cursor
+//	x        delete the character under the cursor, or the selected text
+//	y        copy the selected text to the clipboard
 //	+ / =    increase tab width
 //	-        decrease tab width
 //	:        enter command mode
@@ -60,13 +65,19 @@
 //	Ctrl+F   search (in any mode)
 //	Ctrl+L   open the command line to go to a line with :n (in any mode)
 //	Ctrl+D   save the current file and show its git diff in a new pane on the right (in any mode)
+//	Ctrl+S   save the current buffer (in any mode)
+//	Ctrl+C   copy the selected text to the clipboard (in any mode)
+//	Ctrl+X   cut the selected text to the clipboard (in any mode)
+//	Ctrl+V   paste the clipboard text, replacing the selection (in any mode)
 //	Ctrl+Z   undo the last change (in any mode)
 //	Ctrl+Shift+Z
 //	         redo the undone change (in any mode, in a terminal supporting the kitty keyboard
 //	         protocol, like Ghostty, kitty, or WezTerm; it's undo in other terminals)
 //	Enter    engage the line action if the line is marked with ▶, move down otherwise
 //	Ctrl+R   re-run the last engaged line action
-//	q        quit
+//	Ctrl+Alt+← / Ctrl+Alt+→
+//	         go back / forward in the navigation history (in any mode)
+//	q        close the buffer if it has no unsaved changes; che exits when the last one is closed
 //
 // # Line actions
 //
@@ -81,7 +92,8 @@
 // unchecks it on "- [x] task". Ctrl+R does not toggle it again.
 //
 // Go tests and programs: Enter on the line declaring a test like "func TestName(t *testing.T)"
-// runs it with go test, and Enter on "func main()" of a main package runs the program
+// runs it with go test, a benchmark like "func BenchmarkName(b *testing.B)" is run with
+// go test -bench, and Enter on "func main()" of a main package runs the program
 // with go run. The command runs in the directory of the file in a terminal pane below: the pane
 // is opened once, and the next command interrupts the one still running there (like Ctrl+C,
 // it's killed if it does not exit in 2s) and reuses the pane, clearing it.
@@ -89,8 +101,10 @@
 //
 // # Insert mode
 //
-//	Esc        return to normal mode
-//	(any)      insert printable ASCII character at the cursor
+//	Esc        clear the selection, or return to normal mode without one
+//	(any)      insert the printable character at the cursor, replacing the selection;
+//	           an opening bracket or quote is closed, and typing the closing one
+//	           in the empty pair moves over it
 //	Tab        insert a tab character; with a selection, indent the selected lines
 //	Shift+Tab  unindent the selected lines, or the cursor line without a selection
 //	Backspace  delete the character before the cursor;
@@ -99,7 +113,6 @@
 //	           (taken from the line above if the line is empty; one level deeper after
 //	           an opening bracket, a closing bracket right after the cursor goes below)
 //	← → ↑ ↓   move the cursor without leaving insert mode
-//	Ctrl+S     save the current buffer
 //	Ctrl+R     re-run the last engaged line action
 //	Ctrl+/     comment out the line or the selected lines, or uncomment them
 //
@@ -120,7 +133,8 @@
 // status bar counts the errors (E) and warnings (W) of the file.
 //
 // Ctrl+click on a symbol goes to its definition, opening its file if needed.
-// Ctrl+O and Enter switch back to the previous buffer.
+// Ctrl+O and Enter switch back to the previous buffer, and Ctrl+Alt+← returns
+// to where the cursor was.
 //
 // Unsaved changes of a file are saved automatically when switching to another
 // buffer or when the terminal loses focus (if the terminal supports focus reporting).
@@ -149,10 +163,11 @@
 // The command line, the search and the file picker opened from insert mode return
 // to insert mode when they are closed.
 //
-//	:q       quit
+//	:q       close the buffer, discarding its unsaved changes
 //	:w       save the current buffer
 //	:w path  save the current buffer to path
-//	:wq      save and quit
+//	:wq      save and close the buffer
+//	:pbcopy  copy the selected text to the clipboard (also :pbcut and :pbpaste)
 //	:e query quick open a file (see below)
 //	:n       go to line n
 //	Esc      cancel
