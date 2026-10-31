@@ -45,13 +45,13 @@ func (f *fakeCheImg) launch() error {
 }
 
 func (f *fakeCheImg) viewer(t *testing.T) *imageViewer {
-	return &imageViewer{
+	return &imageViewer{paneProcess[cheimg.Item]{
 		logf:          t.Logf,
 		send:          f.send,
 		launch:        f.launch,
 		retryInterval: time.Millisecond,
 		launchTimeout: 100 * time.Millisecond,
-	}
+	}}
 }
 
 func TestImageViewer(t *testing.T) {
@@ -87,14 +87,14 @@ func TestImageViewer(t *testing.T) {
 func TestImageViewer_ShowDoesNotBlock(t *testing.T) {
 	blocked := make(chan struct{})
 	shown := make(chan cheimg.Item, 1)
-	v := &imageViewer{
+	v := &imageViewer{paneProcess[cheimg.Item]{
 		logf: t.Logf,
 		send: func(d cheimg.Item) error {
 			<-blocked
 			shown <- d
 			return nil
 		},
-	}
+	}}
 	v.Show(cheimg.Item{Source: "a"})
 	close(blocked)
 	select {

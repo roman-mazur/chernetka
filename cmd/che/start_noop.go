@@ -16,6 +16,11 @@ func launchImageViewer() error {
 	return errorTerminalNotSupported
 }
 
+// launchCommandProxy does nothing
+func launchCommandProxy(_, _ string) error {
+	return errorTerminalNotSupported
+}
+
 // runInNewPane does nothing
 func runInNewPane(_, _ string) error {
 	return errorTerminalNotSupported

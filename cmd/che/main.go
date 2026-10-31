@@ -28,14 +28,20 @@ import (
 )
 
 func main() {
+	rootFlag := flag.String("root", "", "project `dir` to search files in (defaults to the opened directory or the working one)")
+	proxyFlag := flag.String("exeproxy", "", "run the commands sent by the editor for the `purpose` instead of editing")
+	flag.Parse()
+	if *proxyFlag != "" {
+		runCommandProxy(*proxyFlag)
+		return
+	}
+
 	term, err := vt.SystemTerminal()
 	if err != nil {
 		log.Fatal("no terminal detected:", err)
 	}
 	defer term.Close()
 
-	rootFlag := flag.String("root", "", "project `dir` to search files in (defaults to the opened directory or the working one)")
-	flag.Parse()
 	go tabscope.ID() // Resolve the terminal tab early: talking to the terminal is slow.
 	var (
 		edit    editor.Editor
@@ -65,7 +71,7 @@ func main() {
 	edit.Extend(&extd2.Integration{Viewer: viewer})
 	edit.Extend(new(extmd.Integration))
 	edit.Extend(new(extcomment.Integration))
-	edit.Extend(&extgo.Integration{Runner: paneRunner{logf: logf}})
+	edit.Extend(&extgo.Integration{Runner: newPaneRunner("go-run", logf)})
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
@@ -206,15 +212,6 @@ func (ed *editDelegate) showDiff(path string) {
 // since the last commit, both staged and not.
 func gitDiffCommand(path string) string {
 	return fmt.Sprintf("git -C %s diff HEAD -- %s", shellQuote(filepath.Dir(path)), shellQuote(path))
-}
-
-// paneRunner runs the commands of the Go line actions in a new terminal pane below.
-type paneRunner struct {
-	logf logger.Func
-}
-
-func (pr paneRunner) Run(cmd extgo.Command) {
-	go launchCommandViaTerminal("down", fmt.Sprintf("cd %s && %s", shellQuote(cmd.Dir), cmd.Line), pr.logf)
 }
 
 // shellQuote quotes s as a single word for a POSIX shell: nothing is expanded inside

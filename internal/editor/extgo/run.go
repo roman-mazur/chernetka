@@ -7,7 +7,6 @@
 package extgo
 
 import (
-	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -18,24 +17,13 @@ import (
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
+	"rmazur.io/chernetka/internal/remotectl"
 )
-
-// Command is a shell command to run in a directory.
-type Command struct {
-	Dir  string // absolute path
-	Line string // shell command line
-}
-
-// Runner runs the commands, usually in a new terminal pane.
-type Runner interface {
-	// Run starts the command. It's called by the editor and must not block.
-	Run(cmd Command)
-}
 
 // Integration implements an editor.Extension that provides line actions for the Go tests and main functions.
 type Integration struct {
 	logger.LogEmbed
-	Runner Runner
+	Runner remotectl.Executor
 }
 
 func (in *Integration) ID() string { return "go" }
@@ -79,15 +67,14 @@ func (gf *goFile) LineAction(lineNumber int) content.LineAction {
 		if m == nil || !isTestName(m[3]) {
 			return nil
 		}
-		cmd := "-run"
-		switch m[2] {
-		case "Benchmark":
-			cmd = "-run '^&' -benchmem -bench"
+		args := []string{"go", "test", "-v", "-run"}
+		if m[2] == "Benchmark" {
+			args = append(args, "^$", "-benchmem", "-bench")
 		}
-		return run{gf: gf, line: fmt.Sprintf("go test -v %s '^%s$' .", cmd, m[1])}
+		return run{gf: gf, args: append(args, "^"+m[1]+"$", ".")}
 	}
 	if mainFunc.MatchString(text) && gf.pkg() == "main" {
-		return run{gf: gf, line: "go run ."}
+		return run{gf: gf, args: []string{"go", "run", "."}}
 	}
 	return nil
 }
@@ -112,15 +99,19 @@ func (gf *goFile) pkg() string {
 // run passes the command to the Runner in the directory of the file.
 type run struct {
 	gf   *goFile
-	line string
+	args []string
 }
 
 func (r run) Engage() {
 	dir, err := filepath.Abs(filepath.Dir(r.gf.buf.Path))
 	if err != nil {
-		r.gf.Logf("cannot run %s: %s", r.line, err)
+		r.gf.Logf("cannot run %s: %s", r.args, err)
 		return
 	}
-	r.gf.Logf("run %s in %s", r.line, dir)
-	r.gf.Runner.Run(Command{Dir: dir, Line: r.line})
+	r.gf.Logf("run %s in %s", r.args, dir)
+	r.gf.Runner.ExecuteCommand(remotectl.CommandData{
+		Action:  "exe",
+		WorkDir: dir,
+		Args:    r.args,
+	})
 }

@@ -22,6 +22,16 @@ func launchImageViewer() error {
 	return runInNewPane("down", shellQuote(cheImgCommand()))
 }
 
+// launchCommandProxy interacts with the terminal to launch the command proxy for the purpose in a new pane
+// split in the given direction.
+func launchCommandProxy(direction, purpose string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return runInNewPane(direction, fmt.Sprintf("%s -exeproxy %s", shellQuote(exe), shellQuote(purpose)))
+}
+
 // runInNewPane splits the focused terminal pane of the editor's tab in the given direction
 // and runs the command there. The new pane's shell knows the tab ID (see tabscope).
 func runInNewPane(direction, command string) error {

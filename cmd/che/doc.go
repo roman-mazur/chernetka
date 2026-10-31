@@ -17,6 +17,10 @@
 // The -root flag sets the project directory to search files in. It defaults to the
 // opened directory or the working one.
 //
+// With -exeproxy purpose, che does not edit: it runs the commands the editors of the terminal tab
+// send for the purpose, like the Go tests (the purpose "run"), in the terminal pane it is started in.
+// The editor starts it itself when needed.
+//
 // Each terminal tab has its own main editor and che-img: the directory browser opens files
 // in the main editor of its tab. In Ghostty, the tab is the one selected when che starts;
 // the panes che creates remember their tab in the CHE_TAB environment variable.
@@ -78,7 +82,9 @@
 //
 // Go tests and programs: Enter on the line declaring a test like "func TestName(t *testing.T)"
 // runs it with go test, and Enter on "func main()" of a main package runs the program
-// with go run. The command runs in the directory of the file in a new terminal pane below.
+// with go run. The command runs in the directory of the file in a terminal pane below: the pane
+// is opened once, and the next command interrupts the one still running there (like Ctrl+C,
+// it's killed if it does not exit in 2s) and reuses the pane, clearing it.
 // Ctrl+R runs it again, also after editing another file.
 //
 // # Insert mode

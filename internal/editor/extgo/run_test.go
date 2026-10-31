@@ -10,12 +10,13 @@ import (
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
+	"rmazur.io/chernetka/internal/remotectl"
 )
 
 // recordingRunner collects the commands it's asked to run.
-type recordingRunner struct{ cmds []Command }
+type recordingRunner struct{ cmds []remotectl.CommandData }
 
-func (rr *recordingRunner) Run(cmd Command) { rr.cmds = append(rr.cmds, cmd) }
+func (rr *recordingRunner) ExecuteCommand(cmd remotectl.CommandData) { rr.cmds = append(rr.cmds, cmd) }
 
 func newIntegration(t *testing.T) (*Integration, *recordingRunner) {
 	runner := new(recordingRunner)
@@ -34,14 +35,14 @@ func openDoc(t *testing.T, ext *Integration, path, text string) *editor.Buffer {
 	return edit.Top()
 }
 
-// actionCommands returns the command lines of the actions provided for the buffer lines, by line index.
-func actionCommands(t *testing.T, buf *editor.Buffer, ext *Integration, runner *recordingRunner) map[int]string {
+// actionCommands returns the command line arguments of the actions provided for the buffer lines, by line index.
+func actionCommands(t *testing.T, buf *editor.Buffer, ext *Integration, runner *recordingRunner) map[int][]string {
 	t.Helper()
 	actions, ok := buf.ExtensionData(ext.ID()).(content.LineActions)
 	if !ok {
 		t.Fatalf("no line actions for %q", buf.Path)
 	}
-	res := make(map[int]string)
+	res := make(map[int][]string)
 	for i := range buf.Content.Len() + 1 {
 		if action := actions.LineAction(i); action != nil {
 			runner.cmds = nil
@@ -49,7 +50,7 @@ func actionCommands(t *testing.T, buf *editor.Buffer, ext *Integration, runner *
 			if len(runner.cmds) != 1 {
 				t.Fatalf("line %d action ran %d commands", i, len(runner.cmds))
 			}
-			res[i] = runner.cmds[0].Line
+			res[i] = runner.cmds[0].Args
 		}
 	}
 	return res
@@ -58,7 +59,7 @@ func actionCommands(t *testing.T, buf *editor.Buffer, ext *Integration, runner *
 func TestIntegration_LineActions(t *testing.T) {
 	for _, tc := range []struct {
 		name, path, text string
-		want             map[int]string
+		want             map[int][]string
 	}{
 		{
 			name: "tests",
@@ -75,36 +76,36 @@ func TestHelper(tb testing.TB) {}
 func BenchmarkA(b *testing.B) {}
 func helper(t *testing.T) {}
   func TestIndented(t *testing.T) {}`,
-			want: map[int]string{
-				4: "go test -v -run '^TestA$' .",
-				5: "go test -v -run '^Test$' .",
-				6: "go test -v -run '^Test_b$' .",
-				9: "go test -v -run '^&' -benchmem -bench '^BenchmarkA$' .",
+			want: map[int][]string{
+				4: {"go", "test", "-v", "-run", "^TestA$", "."},
+				5: {"go", "test", "-v", "-run", "^Test$", "."},
+				6: {"go", "test", "-v", "-run", "^Test_b$", "."},
+				9: {"go", "test", "-v", "-run", "^$", "-benchmem", "-bench", "^BenchmarkA$", "."},
 			},
 		},
 		{
 			name: "main",
 			path: "cmd/main.go",
 			text: "// Command.\npackage main\n\nfunc main() {\n}\n\nfunc other() {}",
-			want: map[int]string{3: "go run ."},
+			want: map[int][]string{3: {"go", "run", "."}},
 		},
 		{
 			name: "main in a test file",
 			path: "main_test.go",
 			text: "package main\n\nfunc main() {}",
-			want: map[int]string{},
+			want: map[int][]string{},
 		},
 		{
 			name: "main of a library",
 			path: "lib.go",
 			text: "package lib\n\nfunc main() {}",
-			want: map[int]string{},
+			want: map[int][]string{},
 		},
 		{
 			name: "tests in a regular file",
 			path: "lib.go",
 			text: "package lib\n\nfunc TestA(t *testing.T) {}",
-			want: map[int]string{},
+			want: map[int][]string{},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,7 +116,7 @@ func helper(t *testing.T) {}
 				t.Errorf("got actions %v, want %v", got, tc.want)
 			}
 			for ln, want := range tc.want {
-				if got[ln] != want {
+				if !slices.Equal(got[ln], want) {
 					t.Errorf("line %d: got %q, want %q", ln, got[ln], want)
 				}
 			}
@@ -131,7 +132,7 @@ func TestIntegration_CommandDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(runner.cmds) != 1 || runner.cmds[0].Dir != want {
+	if len(runner.cmds) != 1 || runner.cmds[0].WorkDir != want {
 		t.Errorf("got commands %v, want one in %s", runner.cmds, want)
 	}
 }
@@ -172,7 +173,7 @@ func TestIntegration_SavesBeforeRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	var saved []string
-	ext := &Integration{Runner: runnerFunc(func(Command) {
+	ext := &Integration{Runner: runnerFunc(func(remotectl.CommandData) {
 		data, _ := os.ReadFile(path)
 		saved = append(saved, string(data))
 	})}
@@ -192,9 +193,9 @@ func TestIntegration_SavesBeforeRun(t *testing.T) {
 	}
 }
 
-type runnerFunc func(Command)
+type runnerFunc func(remotectl.CommandData)
 
-func (f runnerFunc) Run(cmd Command) { f(cmd) }
+func (f runnerFunc) ExecuteCommand(cmd remotectl.CommandData) { f(cmd) }
 
 // TestIntegration_RerunFromAnotherFile checks that Ctrl+R runs the test again after
 // another file is edited, and after that file is closed.
@@ -218,7 +219,7 @@ func TestIntegration_RerunFromAnotherFile(t *testing.T) {
 		if len(runner.cmds) != want {
 			t.Fatalf("ran %d commands, want %d: %v", len(runner.cmds), want, runner.cmds)
 		}
-		if got := runner.cmds[want-1].Line; got != "go test -v -run '^TestA$' ." {
+		if got := runner.cmds[want-1].Args; !slices.Equal(got, []string{"go", "test", "-v", "-run", "^TestA$", "."}) {
 			t.Errorf("ran %q, want the test", got)
 		}
 	}

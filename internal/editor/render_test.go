@@ -14,6 +14,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extindent"
 	"rmazur.io/chernetka/internal/editor/extmd"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
+	"rmazur.io/chernetka/internal/remotectl"
 )
 
 // BenchmarkEditor_Render measures a frame of a Go file without extensions, with
@@ -72,4 +73,4 @@ func (nopViewer) Show(cheimg.Item) {}
 
 type nopRunner struct{}
 
-func (nopRunner) Run(extgo.Command) {}
+func (nopRunner) ExecuteCommand(remotectl.CommandData) {}
