@@ -3,7 +3,6 @@ package exeproxy
 import (
 	"os"
 	"os/exec"
-	"syscall"
 
 	"golang.org/x/sys/windows"
 )
