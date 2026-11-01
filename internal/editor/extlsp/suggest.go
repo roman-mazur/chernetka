@@ -1,6 +1,8 @@
 package extlsp
 
 import (
+	"iter"
+	"slices"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -11,10 +13,61 @@ import (
 // didn't mean, and they would shrink the common prefix to nothing.
 const maxCandidates = 3
 
+// minWordTyped is how many characters of a word must be typed before the
+// words of the document are suggested.
+const minWordTyped = 2
+
+// completionInput is what the suggestions at the cursor are made of.
+type completionInput struct {
+	items []protocol.CompletionItem
+	line  string
+	cx    int
+
+	// ranked is set if the items are ranked by relevance, not just by the
+	// typed prefix (see rankByPrefix).
+	ranked bool
+
+	// params are the names of the call parameters from the one at the cursor
+	// on, if the cursor is in the arguments of a call.
+	params []string
+
+	// text is the document, to suggest its words from if the server has no
+	// candidates.
+	text string
+}
+
+// suggestionsFor makes the inline suggestions at the cursor.
+//
+// Where an argument of a call starts, the variables named as the parameters
+// are suggested: calls like f(ctx, name) are common in Go. The server ranks
+// the candidates there by their type only, which picks the right one too
+// rarely to be shown on its own.
+//
+// While typing an identifier, the server candidates are suggested (see
+// extractSuggestions). Where the server has nothing, like in strings and
+// comments or for the names being declared, the most frequent word of the
+// document extending what's typed is suggested.
+func suggestionsFor(in completionInput) []suggestion {
+	in.cx = min(in.cx, len(in.line))
+	before := in.line[:in.cx]
+	if afterArgStart(before) {
+		return argSuggestions(in.items, in.params, in.line, in.cx)
+	}
+	if len(in.items) == 0 {
+		return wordSuggestions(in.text, before)
+	}
+	return extractSuggestions(in.items, in.line, in.cx, in.ranked)
+}
+
 // extractSuggestions turns completion items into inline suggestions for the
 // cursor at line[:cx]. Only candidates that extend what's already typed can be
 // shown inline; the rest are dropped.
-func extractSuggestions(items []protocol.CompletionItem, line string, cx int) []suggestion {
+//
+// When the best candidates disagree, their common prefix is suggested first
+// (see withCommonPrefix). When they have nothing in common, the best ranked
+// one is suggested only if it is of a kind the server is usually right about
+// (see isConfidentKind); otherwise nothing is.
+func extractSuggestions(items []protocol.CompletionItem, line string, cx int, ranked bool) []suggestion {
 	cx = min(cx, len(line))
 	typed := identTrailing(line[:cx])
 	if len(items) > 0 && typed != "" && isComplete(items[0], typed) {
@@ -34,10 +87,31 @@ func extractSuggestions(items []protocol.CompletionItem, line string, cx int) []
 			cursor: cursor,
 			label:  item.Label,
 			info:   item.Detail,
+			kind:   item.Kind,
 			edits:  item.AdditionalTextEdits,
 		})
 	}
-	return withCommonPrefix(res)
+	if len(res) < 2 {
+		return res
+	}
+	if common := withCommonPrefix(res); common != nil || !ranked || typed == "" || !isConfidentKind(res[0].kind) {
+		return common
+	}
+	return res // The best ranked first, the others to cycle to.
+}
+
+// isConfidentKind reports whether the server's best candidate of the kind is
+// likely what the user is typing even when the next candidates disagree with
+// it. It's true for the local names (variables and constants), the keywords,
+// and the types. The functions, methods, fields and packages are often ranked
+// first just because they come first in the scope.
+func isConfidentKind(k protocol.CompletionItemKind) bool {
+	switch k {
+	case protocol.CompletionItemKindVariable, protocol.CompletionItemKindConstant,
+		protocol.CompletionItemKindKeyword, protocol.CompletionItemKindClass:
+		return true
+	}
+	return false
 }
 
 // rankByPrefix orders completion items of a server that doesn't rank them
@@ -146,4 +220,131 @@ func containsSuggestion(list []suggestion, text string) bool {
 		}
 	}
 	return false
+}
+
+// afterArgStart reports whether the cursor is where an argument of a call
+// may start: right after an opening bracket, or after a comma and a space.
+func afterArgStart(before string) bool {
+	return strings.HasSuffix(before, "(") || strings.HasSuffix(before, ", ")
+}
+
+// argSuggestions suggests the variables named as the parameters at the cursor:
+// as many of them in a row as there are, separated with commas, then the first
+// one alone to cycle to.
+func argSuggestions(items []protocol.CompletionItem, params []string, line string, cx int) []suggestion {
+	var (
+		args  []string
+		found []protocol.CompletionItem
+	)
+	for _, p := range params {
+		i := slices.IndexFunc(items, func(it protocol.CompletionItem) bool {
+			return it.Label == p && isValueKind(it.Kind)
+		})
+		if i < 0 {
+			break
+		}
+		args = append(args, p)
+		found = append(found, items[i])
+	}
+	if len(args) == 0 {
+		return nil
+	}
+	if first, _, ok := completionSuffix(found[0], line, cx); !ok || first != args[0] {
+		return nil // Not inserted as is, like with an address taken.
+	}
+	all := strings.Join(args, ", ")
+	res := []suggestion{{text: all, cursor: len(all), label: all, info: found[0].Detail, kind: found[0].Kind}}
+	if len(args) > 1 {
+		res[0].info = "arguments"
+		res = append(res, suggestion{text: args[0], cursor: len(args[0]), label: args[0], info: found[0].Detail, kind: found[0].Kind})
+	}
+	return res
+}
+
+// isValueKind reports whether a completion item of the kind can be passed as
+// an argument as is.
+func isValueKind(k protocol.CompletionItemKind) bool {
+	switch k {
+	case protocol.CompletionItemKindVariable, protocol.CompletionItemKindField, protocol.CompletionItemKindConstant:
+		return true
+	}
+	return false
+}
+
+// paramNames returns the names of the call parameters from the active one on.
+// It stops at the first unnamed parameter.
+func paramNames(help *protocol.SignatureHelp) []string {
+	if help == nil || int(help.ActiveSignature) >= len(help.Signatures) {
+		return nil
+	}
+	sig := help.Signatures[help.ActiveSignature]
+	active := int(help.ActiveParameter)
+	if n := len(sig.Parameters); active >= n {
+		if n == 0 || !strings.Contains(sig.Parameters[n-1].Label, "...") {
+			return nil
+		}
+		active = n - 1 // The rest of the arguments are variadic.
+	}
+	var names []string
+	for _, p := range sig.Parameters[active:] {
+		// Like "ctx context.Context", or a type alone if unnamed.
+		name, _, ok := strings.Cut(p.Label, " ")
+		if !ok || name == "_" || !isIdentifier(name) {
+			break
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func isIdentifier(s string) bool {
+	return s != "" && !startsWithDigit(s) && identTrailing(s) == s
+}
+
+// wordSuggestions suggests the most frequent of the words of text extending
+// the one typed at the end of before, once minWordTyped characters of it are
+// typed. Of the equally frequent words, the first in the alphabetical order
+// is suggested.
+func wordSuggestions(text, before string) []suggestion {
+	typed := identTrailing(before)
+	if len(typed) < minWordTyped || startsWithDigit(typed) {
+		return nil
+	}
+	counts := map[string]int{}
+	for w := range identsSeq(text) {
+		if len(w) > len(typed) && strings.HasPrefix(w, typed) {
+			counts[w]++
+		}
+	}
+	best, n := "", 0
+	for w, c := range counts {
+		if c > n || (c == n && w < best) {
+			best, n = w, c
+		}
+	}
+	if best == "" {
+		return nil
+	}
+	rest := best[len(typed):]
+	return []suggestion{{text: rest, cursor: len(rest), label: best, info: "word"}}
+}
+
+// identsSeq yields the identifiers of text, and the numbers.
+func identsSeq(text string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for i := 0; i < len(text); {
+			if !isIdentByte(text[i]) {
+				i++
+				continue
+			}
+			j := i
+			for j < len(text) && isIdentByte(text[j]) {
+				j++
+			}
+			if !yield(text[i:j]) {
+				return
+			}
+			i = j
+		}
+	}
 }

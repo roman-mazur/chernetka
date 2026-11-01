@@ -76,7 +76,7 @@ func TestRankByPrefix(t *testing.T) {
 		cx := len(tc.line)
 		items := rankByPrefix(cueItems(tc.line, cx), tc.line, cx)
 		var got []string
-		for _, sug := range extractSuggestions(items, tc.line, cx) {
+		for _, sug := range extractSuggestions(items, tc.line, cx, false) {
 			got = append(got, sug.text)
 		}
 		if !slices.Equal(got, tc.want) {

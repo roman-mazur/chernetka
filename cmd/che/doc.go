@@ -125,7 +125,11 @@
 // # Code suggestions
 //
 // Suggestions come from a language server: gopls for Go files, and the one
-// built into the cue command for CUE files.
+// built into the cue command for CUE files. They are shown while typing a word,
+// after a selector dot, and where an argument of a call starts: the variables
+// named as the parameters of the call are suggested as its arguments. Where the
+// server has nothing to suggest, like in comments and strings, the most
+// frequent word of the file extending the typed one is.
 //
 //	Tab        accept the suggestion (adding a missing import if needed)
 //	↑ ↓        cycle through the alternatives, if there are several

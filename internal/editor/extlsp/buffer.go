@@ -31,11 +31,12 @@ type BufferData struct {
 
 // suggestion is a completion candidate shown inline at the cursor.
 type suggestion struct {
-	text   string              // what gets inserted at the cursor
-	cursor int                 // where the cursor lands in the text after the insertion
-	label  string              // the full candidate name, e.g. "Println"
-	info   string              // details like the candidate's signature
-	edits  []protocol.TextEdit // extra edits to apply on accept, e.g. an import
+	text   string                      // what gets inserted at the cursor
+	cursor int                         // where the cursor lands in the text after the insertion
+	label  string                      // the full candidate name, e.g. "Println"
+	info   string                      // details like the candidate's signature
+	kind   protocol.CompletionItemKind // what the candidate is, like a variable
+	edits  []protocol.TextEdit         // extra edits to apply on accept, e.g. an import
 }
 
 // anchor is a cursor position together with the line text around it.
@@ -70,6 +71,21 @@ func (lbd *BufferData) assign(suggestions []suggestion, at anchor) {
 	lbd.suggestions = suggestions
 	lbd.sugIdx = 0
 	lbd.anchor = at
+}
+
+// assignLate sets the suggestions computed for the cursor at the anchor after
+// the user typed on to cx on line cy: they are shown if they agree with what
+// was typed since, as typeThrough would keep them. Otherwise, the current
+// suggestions stay.
+func (lbd *BufferData) assignLate(suggestions []suggestion, at anchor, line string, cx, cy int) bool {
+	prev, prevIdx, prevAnchor := lbd.suggestions, lbd.sugIdx, lbd.anchor
+	lbd.assign(suggestions, at)
+	lbd.typeThrough(line, cx, cy)
+	if !lbd.HasSuggestions() {
+		lbd.suggestions, lbd.sugIdx, lbd.anchor = prev, prevIdx, prevAnchor
+		return false
+	}
+	return true
 }
 
 func (lbd *BufferData) SuggestNext() {
