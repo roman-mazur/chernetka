@@ -169,6 +169,24 @@ func TestSave(t *testing.T) {
 }
 
 // assertNoTempFiles checks that only the saved files are in dir.
+func TestSave_ParentDirs(t *testing.T) {
+	content, _, err := LoadFullText(strings.NewReader("text"))
+	must(t, err)
+	dst := filepath.Join(t.TempDir(), "a", "b", "out.txt")
+	_, err = Save(&content, dst)
+	must(t, err)
+	data, err := os.ReadFile(dst)
+	must(t, err)
+	if string(data) != "text" {
+		t.Errorf("saved %q", data)
+	}
+	info, err := os.Stat(filepath.Dir(dst))
+	must(t, err)
+	if perm := info.Mode().Perm(); perm&0o700 != 0o700 {
+		t.Errorf("parent directory permissions %o", perm)
+	}
+}
+
 func assertNoTempFiles(t *testing.T, dir string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

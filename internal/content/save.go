@@ -18,6 +18,9 @@ func Save(content Document, dst string) (fingerprint string, err error) {
 		mode = info.Mode().Perm()
 	}
 
+	if err := os.MkdirAll(filepath.Dir(dst), newDirMode); err != nil {
+		return "", fmt.Errorf("could not create parent directories: %w", err)
+	}
 	f, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".*.tmp")
 	if err != nil {
 		return "", fmt.Errorf("could not create temporary file: %w", err)
@@ -49,8 +52,10 @@ func Save(content Document, dst string) (fingerprint string, err error) {
 	return fingerprint, os.Rename(f.Name(), dst)
 }
 
-// newFileMode is the permissions of the files created by Save.
-const newFileMode = 0o644
+const (
+	newFileMode = 0o644 // the permissions of the files created by Save
+	newDirMode  = 0o755 // the permissions of the parent directories created by Save
+)
 
 func SaveToWriter(content Document, out io.Writer) error {
 	if content == nil {

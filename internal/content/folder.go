@@ -32,6 +32,23 @@ type FsContent struct {
 	lines   []Line
 }
 
+// RootPath returns the directory the content was loaded from.
+func (fc *FsContent) RootPath() string { return fc.rootPath }
+
+// DirAt returns the directory selected with the line, as a slash-separated path relative
+// to the root ("." for the root itself). It's the directory shown on the line,
+// or the parent of the entry shown there otherwise.
+func (fc *FsContent) DirAt(line int) string {
+	if line < 0 || line >= len(fc.lines) {
+		return "."
+	}
+	fl := fc.lines[line].(*fsEntryLine)
+	if fl.isDir() {
+		return path.Join(fl.dir, fl.entry.Name())
+	}
+	return fl.dir
+}
+
 // SyncState ensures that FsContent has all the dirs expanded as in the origin.
 func (fc *FsContent) SyncState(origin *FsContent) {
 	if fc.rootPath != origin.rootPath {

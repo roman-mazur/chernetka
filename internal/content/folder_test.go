@@ -130,6 +130,35 @@ func TestFsContent_SyncState(t *testing.T) {
 	}
 }
 
+func TestFsContent_DirAt(t *testing.T) {
+	fc := LoadFolder("testdata/dirs/sample1", nil)
+	if fc.RootPath() != "testdata/dirs/sample1" {
+		t.Errorf("root path %q", fc.RootPath())
+	}
+	fc.Lines()[1].(LineAction).Engage() // Expand child1: child11, then its files.
+
+	for line, want := range []string{"child-empty", "child1", "child1/child11", "child1", "child1", "child2", "."} {
+		if got := fc.DirAt(line); got != want {
+			t.Errorf("line %d (%s): got %q, want %q", line, fc.Lines()[line], got, want)
+		}
+	}
+	for _, line := range []int{-1, fc.Len()} {
+		if got := fc.DirAt(line); got != "." {
+			t.Errorf("line %d: got %q", line, got)
+		}
+	}
+}
+
+func TestFsContent_DirAt_RootFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := LoadFolder(dir, nil).DirAt(0); got != "." {
+		t.Errorf("got %q", got)
+	}
+}
+
 // TestFsContent_SyncState_Error covers the directory being removed while its content is displayed.
 func TestFsContent_SyncState_Error(t *testing.T) {
 	var openFile testOpenFile
