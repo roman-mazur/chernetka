@@ -216,16 +216,28 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	// Any key may edit the buffer: the extensions are notified about it once.
 	defer e.handleAfterEdit(buf)
 
-	// The keys working in any mode.
+	// The focus changes, reported by the terminal as keys.
 	switch k {
 	// Save the changes when the terminal loses focus, so the file system is in sync
 	// for the tools used outside the editor.
 	case input.Of(input.FocusOut):
 		e.saveTop()
 		return false
+	// Getting the focus back is not typing: the text stays where it was scrolled to while
+	// the terminal was in the background, even if the cursor is out of the screen.
+	// A click that brings the focus moves the cursor to the clicked position, and the next
+	// key moves the cursor as usual, scrolling to it.
 	case input.Of(input.FocusIn):
+		buf.noKeyboard = true
 		return false
+	}
+	// The cursor moved by the keys is revealed. The flag is also reset after rendering,
+	// but the mouse input that does not render, like a button release ending every click,
+	// leaves it set until the next frame, and so does the input handled within one frame.
+	buf.noKeyboard = false
 
+	// The keys working in any mode.
+	switch k {
 	case input.Ctrl('s'):
 		e.execBufferCmd(&Save{buf.Path})
 		return false
