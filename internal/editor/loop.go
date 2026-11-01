@@ -140,6 +140,7 @@ func configureTerminal(t vt.Terminal) {
 		escape.EnableMouse,
 		escape.EnableFocusReporting,
 		escape.EnableKittyKeyboard,
+		escape.EnableGraphemeClusters,
 	)
 }
 

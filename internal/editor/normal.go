@@ -1,9 +1,8 @@
 package editor
 
 import (
-	"unicode/utf8"
-
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
 )
 
@@ -60,8 +59,7 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 		c := buf.c()
 		line := lines[c.Line].String()
 		if c.Col < len(line) {
-			_, sz := utf8.DecodeRuneInString(line[c.Col:])
-			c.Col += sz
+			c.Col = symbol.NextClusterEnd(line, c.Col)
 			buf.updateCursor(c)
 		}
 		buf.setMode(ModeInsert)
@@ -93,8 +91,8 @@ func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 		buf.cancelSelection()
 		line := lines[buf.c().Line].String()
 		if buf.c().Col < len(line) {
-			_, sz := utf8.DecodeRuneInString(line[buf.c().Col:])
-			buf.Mutate().Update(buf.c().Line, content.TextLine(line[:buf.c().Col]+line[buf.c().Col+sz:]))
+			end := symbol.NextClusterEnd(line, buf.c().Col)
+			buf.Mutate().Update(buf.c().Line, content.TextLine(line[:buf.c().Col]+line[end:]))
 		}
 
 	// Commands.

@@ -2,9 +2,9 @@ package editor
 
 import (
 	"unicode"
-	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
 )
 
@@ -55,9 +55,9 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	switch k.Special {
 	case input.Backspace:
 		if c.Col > 0 {
-			_, sz := utf8.DecodeLastRuneInString(line[:c.Col])
-			mut.Update(c.Line, content.TextLine(line[:c.Col-sz]+line[c.Col:]))
-			buf.updateCursor(content.Position{Line: c.Line, Col: c.Col - sz})
+			start := symbol.PrevClusterStart(line, c.Col)
+			mut.Update(c.Line, content.TextLine(line[:start]+line[c.Col:]))
+			buf.updateCursor(content.Position{Line: c.Line, Col: start})
 		} else if c.Line > 0 {
 			prev := lines[c.Line-1].String()
 			mut.Update(c.Line-1, content.TextLine(prev+line))

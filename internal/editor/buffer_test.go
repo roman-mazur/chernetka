@@ -20,6 +20,13 @@ import (
 
 var thousandLines = slices.Repeat(content.FullText{content.TextLine("test")}, 1000)
 
+// Grapheme clusters of several code points.
+const (
+	testMermaid = "\U0001F9DC\u200D\u2640\uFE0F" // 🧜‍♀️
+	testFlag    = "\U0001F1FA\U0001F1E6"         // 🇺🇦
+	testAccent  = "\u0430\u0301"                 // а́, a Cyrillic letter with a combining stress mark.
+)
+
 func TestBuffer_Render(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -538,7 +545,10 @@ func TestBuffer_Render_FillsExactlyHeight(t *testing.T) {
 }
 
 func TestBuffer_ScreenToContentPosition(t *testing.T) {
-	const tabSize = 2
+	const (
+		tabSize = 2
+		wide    = "a🌊" + testMermaid + "b"
+	)
 	for i, tc := range []struct {
 		x, y      int
 		pos       content.Position
@@ -607,6 +617,41 @@ func TestBuffer_ScreenToContentPosition(t *testing.T) {
 			content: "привіт",
 			x:       5,
 			pos:     content.Position{Col: 6},
+		},
+		{
+			content: wide,
+			x:       2,
+			pos:     content.Position{},
+		},
+		{ // The left half of a wide emoji.
+			content: wide,
+			x:       3,
+			pos:     content.Position{Col: 1},
+		},
+		{ // The right half of a wide emoji.
+			content: wide,
+			x:       4,
+			pos:     content.Position{Col: 1},
+		},
+		{ // The left half of a joined emoji.
+			content: wide,
+			x:       5,
+			pos:     content.Position{Col: 1 + len("🌊")},
+		},
+		{ // The right half of a joined emoji.
+			content: wide,
+			x:       6,
+			pos:     content.Position{Col: 1 + len("🌊")},
+		},
+		{
+			content: wide,
+			x:       7,
+			pos:     content.Position{Col: 1 + len("🌊"+testMermaid)},
+		},
+		{
+			content: wide,
+			x:       30,
+			pos:     content.Position{Col: len(wide)},
 		},
 	} {
 		t.Run(fmt.Sprintf("%d/x=%d/y=%d/pos/%s", i, tc.x, tc.y, tc.pos), func(t *testing.T) {
@@ -802,6 +847,8 @@ func TestBuffer_Render_HorizontalScroll(t *testing.T) {
 		{name: "tab crosses the left edge", text: "a\tbcdef", xoff: 2, w: 4, tabSize: 4, want: "   b"},
 		{name: "tab crosses the right edge", text: "ab\tc", xoff: 1, w: 4, tabSize: 4, want: "b   "},
 		{name: "utf-8", text: "привіт світ", xoff: 3, w: 5, want: "віт с"},
+		{name: "wide emoji crosses the left edge", text: "🌊ab", xoff: 1, w: 10, want: " ab"},
+		{name: "wide emoji crosses the right edge", text: "ab🌊", w: 3, want: "ab "},
 		{
 			name: "selection and current line", text: "0123456789abcdef", xoff: 4, w: 10, hlLine: true,
 			sel:  []content.Span{{Start: content.Position{Col: 2}, End: content.Position{Col: 6}}},
@@ -897,6 +944,28 @@ func TestBuffer_HorizontalScroll_Coordinates(t *testing.T) {
 		if want := fmt.Sprintf("\x1b[1;%dH", wantCol); out.String() != want {
 			t.Errorf("%q scrolled by %d: cursor position %q, want %q", tc.text, tc.xoff, out.String(), want)
 		}
+	}
+}
+
+func TestRuneToScreenCol(t *testing.T) {
+	line := "🌊" + testMermaid + "\t" + testAccent + "z"
+	for _, tc := range []struct {
+		name string
+		col  int
+		want int
+	}{
+		{name: "start", col: 0, want: 0},
+		{name: "after a wide emoji", col: len("🌊"), want: 2},
+		{name: "after a joined emoji", col: len("🌊" + testMermaid), want: 4},
+		{name: "after a tab", col: len("🌊" + testMermaid + "\t"), want: 8},
+		{name: "after a combining mark", col: len("🌊" + testMermaid + "\t" + testAccent), want: 9},
+		{name: "line end", col: len(line), want: 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := runeToScreenCol(line, tc.col, 4); got != tc.want {
+				t.Errorf("runeToScreenCol = %d, want %d", got, tc.want)
+			}
+		})
 	}
 }
 

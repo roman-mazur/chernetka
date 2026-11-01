@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/txtar"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor"
 )
 
@@ -335,9 +336,9 @@ func (s *simulator) backspace() {
 	s.key("\x7f")
 	line, c := s.line(), s.cursor
 	if c.Col > 0 {
-		_, sz := utf8.DecodeLastRuneInString(line[:c.Col])
-		s.lines[c.Line] = line[:c.Col-sz] + line[c.Col:]
-		s.cursor.Col -= sz
+		start := symbol.PrevClusterStart(line, c.Col)
+		s.lines[c.Line] = line[:start] + line[c.Col:]
+		s.cursor.Col = start
 		return
 	}
 	prev := s.lines[c.Line-1]
@@ -351,25 +352,26 @@ func (s *simulator) arrowRight() {
 	s.stepRight()
 }
 
-func (s *simulator) stepRight() {
-	_, sz := utf8.DecodeRuneInString(s.line()[s.cursor.Col:])
-	s.cursor.Col += sz
-}
+func (s *simulator) stepRight() { s.cursor.Col = symbol.NextClusterEnd(s.line(), s.cursor.Col) }
+
+func (s *simulator) stepLeft() { s.cursor.Col = symbol.PrevClusterStart(s.line(), s.cursor.Col) }
 
 // typeText types the text of a line like a person with the bracket pairing on: it steps over
 // the closing brackets added by the editor, and removes those not needed.
 func (s *simulator) typeText(text string) {
-	for _, r := range text {
+	for cluster := range symbol.Clusters(text, 1) {
 		if s.chance(0.03) {
 			s.typeRune(rune('a' + s.rnd.IntN(26))) // A typo.
 			s.backspace()
 		}
-		if line := s.line(); s.autoClosers > 0 && s.cursor.Col < len(line) && rune(line[s.cursor.Col]) == r {
+		if line := s.line(); s.autoClosers > 0 && s.cursor.Col < len(line) && line[s.cursor.Col:s.cursor.Col+1] == cluster {
 			s.arrowRight()
 			s.autoClosers--
 			continue
 		}
-		s.autoClosers += s.typeRune(r)
+		for _, r := range cluster { // A picker sends all the code points of a character at once.
+			s.autoClosers += s.typeRune(r)
+		}
 	}
 	for ; s.autoClosers > 0; s.autoClosers-- {
 		s.arrowRight()
@@ -431,10 +433,7 @@ func (s *simulator) setIndent(want string) {
 // esc leaves the insert mode. The cursor lands on the last typed character.
 func (s *simulator) esc() {
 	s.key("\x1b")
-	if line := s.line(); s.cursor.Col > 0 {
-		_, sz := utf8.DecodeLastRuneInString(line[:s.cursor.Col])
-		s.cursor.Col -= sz
-	}
+	s.stepLeft()
 }
 
 // Moving the cursor in the normal mode.
@@ -501,8 +500,7 @@ func (s *simulator) walkColumn(col int) {
 	}
 	for s.cursor.Col > col {
 		s.key(left)
-		_, sz := utf8.DecodeLastRuneInString(s.line()[:s.cursor.Col])
-		s.cursor.Col -= sz
+		s.stepLeft()
 	}
 }
 
@@ -604,14 +602,14 @@ func (s *simulator) editLine(line int, want string) {
 	if gone != "" {
 		if typed != "" && s.chance(0.5) {
 			// The typed text replaces the selection.
-			for range utf8.RuneCountInString(gone) {
+			for range symbol.Clusters(gone, 1) {
 				s.key("\x1b[1;2C")
 			}
 			s.key("i")
 			selected = true
 			s.lines[line] = have[:start] + have[start+len(gone):] // The next key removes it.
 		} else {
-			for range utf8.RuneCountInString(gone) {
+			for range symbol.Clusters(gone, 1) {
 				s.key("x")
 			}
 			s.lines[line] = have[:start] + have[start+len(gone):]
@@ -629,24 +627,29 @@ func (s *simulator) editLine(line int, want string) {
 	s.done("type in line")
 }
 
+// commonPrefix returns the size of the start of a and b made of the same characters.
 func commonPrefix(a, b string) int {
 	n := 0
-	for n < len(a) && n < len(b) && a[n] == b[n] {
-		n++
-	}
-	for n > 0 && (n < len(a) && !utf8.RuneStart(a[n]) || n < len(b) && !utf8.RuneStart(b[n])) {
-		n--
+	for cluster := range symbol.Clusters(a, 1) {
+		end := n + len(cluster)
+		if !strings.HasPrefix(b[n:], cluster) || symbol.NextClusterEnd(b, n) != end {
+			break
+		}
+		n = end
 	}
 	return n
 }
 
+// commonSuffix returns the size of the end of a and b made of the same characters.
 func commonSuffix(a, b string) int {
 	n := 0
-	for n < len(a) && n < len(b) && a[len(a)-1-n] == b[len(b)-1-n] {
-		n++
-	}
-	for n > 0 && (!utf8.RuneStart(a[len(a)-n]) || !utf8.RuneStart(b[len(b)-n])) {
-		n--
+	for n < len(a) && n < len(b) {
+		aEnd, bEnd := len(a)-n, len(b)-n
+		aStart, bStart := symbol.PrevClusterStart(a, aEnd), symbol.PrevClusterStart(b, bEnd)
+		if a[aStart:aEnd] != b[bStart:bEnd] {
+			break
+		}
+		n += aEnd - aStart
 	}
 	return n
 }

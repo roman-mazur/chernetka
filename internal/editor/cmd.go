@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/clipb"
 	"rmazur.io/chernetka/internal/editor/input"
 )
@@ -43,13 +44,11 @@ func (r RelMove) moveDx(b *Buffer) {
 	line := b.Content.Lines()[c.Line].String()
 	d := r.Dx
 	for d > 0 && c.Col < len(line) {
-		_, sz := utf8.DecodeRuneInString(line[c.Col:])
-		c.Col += sz
+		c.Col = symbol.NextClusterEnd(line, c.Col)
 		d--
 	}
 	for d < 0 && c.Col > 0 {
-		_, sz := utf8.DecodeLastRuneInString(line[:c.Col])
-		c.Col -= sz
+		c.Col = symbol.PrevClusterStart(line, c.Col)
 		d++
 	}
 	b.updateCursor(c)

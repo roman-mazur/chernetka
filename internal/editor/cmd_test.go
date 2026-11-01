@@ -46,6 +46,14 @@ func TestRelMove_Dx(t *testing.T) {
 		{name: "right/over 3-byte rune", lines: s("a日b"), cx: 1, d: 1, wantCx: 4},
 		{name: "left/over 3-byte rune", lines: s("a日b"), cx: 4, d: -1, wantCx: 1},
 
+		// Clusters of several code points are a single step.
+		{name: "right/over joined emoji", lines: s("a" + testMermaid + "b"), cx: 1, d: 1, wantCx: 1 + len(testMermaid)},
+		{name: "left/over joined emoji", lines: s("a" + testMermaid + "b"), cx: 1 + len(testMermaid), d: -1, wantCx: 1},
+		{name: "right/over flag", lines: s("a" + testFlag + "b"), cx: 1, d: 1, wantCx: 1 + len(testFlag)},
+		{name: "left/over flag", lines: s("a" + testFlag + "b"), cx: 1 + len(testFlag), d: -1, wantCx: 1},
+		{name: "right/over combining mark", lines: s("a" + testAccent), cx: 1, d: 1, wantCx: 1 + len(testAccent)},
+		{name: "left/over combining mark", lines: s("a" + testAccent), cx: 1 + len(testAccent), d: -1, wantCx: 1},
+
 		// Empty line.
 		{name: "empty/right no-op", lines: s(""), cx: 0, d: 1, wantCx: 0},
 		{name: "empty/left no-op", lines: s(""), cx: 0, d: -1, wantCx: 0},
@@ -68,6 +76,19 @@ func TestRelMove_Dx(t *testing.T) {
 					buf.c().Col, tc.wantCx, tc.lines[tc.cy], tc.cx, tc.d)
 			}
 		})
+	}
+}
+
+func TestRelMove_Dy_StopsAtClusterStart(t *testing.T) {
+	buf := &Buffer{
+		Content: &content.FullText{content.TextLine("abcdef"), content.TextLine(testMermaid + "z")},
+		_c:      content.Position{Col: 3},
+		w:       80,
+		h:       10,
+	}
+	RelMove{Dy: 1}.DoOnBuffer(buf, RenderPrefs{TabSize: 4})
+	if got, want := buf.c(), pos(1, 0); got != want {
+		t.Errorf("cursor = %s, want %s", got, want)
 	}
 }
 

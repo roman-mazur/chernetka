@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
@@ -41,7 +42,7 @@ func (s *StatusBar) cmdLine() *cmdLine {
 func (s *StatusBar) RenderCursorPosition(out io.Writer) {
 	var col int
 	if c := s.cmdLine(); c != nil {
-		col = utf8.RuneCountInString(c.prompt.prefix() + c.text)
+		col = symbol.DisplayWidth(c.prompt.prefix()+c.text, 2)
 	}
 	escape.SetCursorPosition(out, s.buf.y+s.buf.h+s.Height(), col+1)
 }

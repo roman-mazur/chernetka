@@ -362,6 +362,7 @@ func TestEditor_Run_ConfiguresTerminal(t *testing.T) {
 		{"bracketed paste", escape.EnableBracketedPasteMode},
 		{"focus reporting", escape.EnableFocusReporting},
 		{"kitty keyboard", escape.EnableKittyKeyboard},
+		{"grapheme clusters", escape.EnableGraphemeClusters},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var seq bytes.Buffer

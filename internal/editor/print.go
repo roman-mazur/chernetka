@@ -12,6 +12,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -203,7 +204,7 @@ func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, line
 		shorten   bool // the info may be cut to fit
 	)
 	if cr.hasGhost(ln, raw) {
-		used += utf8.RuneCountInString(cr.suggestion.Text)
+		used += symbol.DisplayWidth(cr.suggestion.Text, len(cr.tab))
 		info = cr.suggestion.Info
 	} else if d, ok := cr.diags[ln]; ok && ln == cr.b.c().Line {
 		info, _, _ = strings.Cut(d.Message, "\n")
@@ -374,21 +375,12 @@ func (clp *colorLinePrinter) emitTabSplit(s string, style styles.TextStyle) {
 // It sets the style before the first visible text unless styleSet, and reports whether it did.
 func (clp *colorLinePrinter) emit(s string, styleSet bool, style styles.TextStyle) (styleUpdated bool) {
 	x := clp.x
-	clp.x += utf8.RuneCountInString(s)
+	clp.x += symbol.DisplayWidth(s, len(clp.tab))
 	if clp.x <= clp.from || x >= clp.to {
 		return false
 	}
-	for ; x < clp.from; x++ {
-		_, sz := utf8.DecodeRuneInString(s)
-		s = s[sz:]
-	}
-	if clp.x > clp.to {
-		end := 0
-		for ; x < clp.to; x++ {
-			_, sz := utf8.DecodeRuneInString(s[end:])
-			end += sz
-		}
-		s = s[:end]
+	if x < clp.from || clp.x > clp.to {
+		s = symbol.ClipColumns(s, x, clp.from, clp.to)
 	}
 	if !styleSet {
 		styleUpdated = escape.StyleTextSet(clp.out, style)

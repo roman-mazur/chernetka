@@ -6,10 +6,10 @@ import (
 	"io"
 	"regexp"
 	"slices"
-	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/change"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -149,10 +149,8 @@ func (b *Buffer) clampPos() {
 	}
 	b._c.Col = max(0, min(b._c.Col, len(line)))
 
-	// Vertical movement may land cx mid-rune; snap back to the rune start.
-	for b._c.Col > 0 && b._c.Col < len(line) && !utf8.RuneStart(line[b._c.Col]) {
-		b._c.Col--
-	}
+	// Vertical movement may land cx in the middle of a character; snap back to its start.
+	b._c.Col = symbol.ClusterStart(line, b._c.Col)
 }
 
 // sideScrollMargin is how many columns are kept visible around the cursor when scrolling horizontally.
@@ -186,38 +184,22 @@ func (b *Buffer) screenToContentPosition(row, col int, tabSize int) content.Posi
 	line := max(0, min(row+b.offset, b.Content.Len()-1))
 	str := b.Content.Lines()[line].String()
 	target := col - b.lineNumberPrefixWidth() + b.xoff
-	x := 0 // screen column where the rune starts
-	for i, r := range str {
-		if x >= target {
+	x, i := 0, 0 // the screen column and the index where the cluster starts
+	for cluster, width := range symbol.Clusters(str, tabSize) {
+		// Both columns of a wide character stand for it.
+		if x >= target || (cluster != "\t" && target < x+width) {
 			return content.Position{Line: line, Col: i}
 		}
-		if r == '\t' {
-			x += tabSize
-		} else {
-			x++
-		}
+		x += width
+		i += len(cluster)
 	}
 	return content.Position{Line: line, Col: len(str)}
 }
 
-// runeToScreenCol returns the visual column at the given byte index, expanding
-// tabs by tabSize.
+// runeToScreenCol returns the terminal column at the given byte index, which must be
+// the start of a character, expanding tabs by tabSize, and counting the columns the characters take.
 func runeToScreenCol(line string, runeIdx, tabSize int) int {
-	if runeIdx > len(line) {
-		runeIdx = len(line)
-	}
-	col := 0
-	for i, r := range line {
-		if i >= runeIdx {
-			break
-		}
-		if r == '\t' {
-			col += tabSize
-		} else {
-			col++
-		}
-	}
-	return col
+	return symbol.DisplayWidth(line[:max(0, min(runeIdx, len(line)))], tabSize)
 }
 
 // Render visualizes the buffer UI content writing to the provided output.

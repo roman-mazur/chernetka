@@ -3,8 +3,8 @@ package editor
 import (
 	"io"
 	"strings"
-	"unicode/utf8"
 
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -95,8 +95,7 @@ func (e *Editor) cmdLineInput(k input.Key) (quit bool) {
 			e.cancelCmdLine()
 			return false
 		}
-		_, sz := utf8.DecodeLastRuneInString(c.text)
-		c.text = c.text[:len(c.text)-sz]
+		c.text = c.text[:symbol.PrevClusterStart(c.text, len(c.text))]
 		c.prompt.changed(e)
 	case input.Text:
 		if k.Mod == 0 && isTypedText(k.Rune) {
@@ -124,7 +123,7 @@ func renderCmdline(out io.Writer, w int, cmd, info string) {
 	escape.ClearLine(out)
 	_, _ = io.WriteString(out, cmd)
 	if info != "" {
-		padding := max(w-utf8.RuneCountInString(cmd)-utf8.RuneCountInString(info)-1, 1)
+		padding := max(w-symbol.DisplayWidth(cmd, 2)-symbol.DisplayWidth(info, 2)-1, 1)
 		_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 		_, _ = io.WriteString(out, info+" ")
 	}

@@ -381,6 +381,18 @@ func TestEditor_SelectionEdits(t *testing.T) {
 			want:   "wo",
 		},
 		{
+			name:   "delete a cluster under the cursor",
+			text:   "a" + testFlag + "b",
+			inputs: []string{"lx"},
+			want:   "ab",
+		},
+		{
+			name:   "append after a cluster",
+			text:   testMermaid + "b",
+			inputs: []string{"aX"},
+			want:   testMermaid + "Xb",
+		},
+		{
 			name: "drag over the line numbers",
 			text: "one\ntwo\nthree",
 			inputs: []string{

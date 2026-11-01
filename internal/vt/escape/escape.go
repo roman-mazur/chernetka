@@ -137,6 +137,13 @@ func EnableKittyKeyboard(out io.Writer) Restore {
 	return applyPair(out, "\x1b[>1u", "\x1b[<u")
 }
 
+// EnableGraphemeClusters asks the terminal to take the characters built of a few code points,
+// like joined emoji, as a single one when it counts columns, the way the editor does.
+// The terminals not knowing the mode 2027 ignore it, some of them doing that anyway.
+func EnableGraphemeClusters(out io.Writer) Restore {
+	return applyPair(out, "\x1b[?2027h", "\x1b[?2027l")
+}
+
 func EnableBracketedPasteMode(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?2004h", "\x1b[?2004l")
 }

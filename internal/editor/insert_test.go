@@ -50,6 +50,21 @@ func TestInsertInput_KeepsNonJoiner(t *testing.T) {
 	}
 }
 
+func TestInsertInput_BackspaceRemovesCluster(t *testing.T) {
+	line := "a" + testMermaid
+	buf := Buffer{
+		Content: &content.FullText{content.TextLine(line)},
+		_c:      content.Position{Col: len(line)},
+	}
+	insertInput(&buf, input.Of(input.Backspace), &RenderPrefs{TabSize: 2})
+	if got := buf.Text(); got != "a" {
+		t.Errorf("got %q, want %q", got, "a")
+	}
+	if got := buf.c().Col; got != 1 {
+		t.Errorf("cursor column = %d, want 1", got)
+	}
+}
+
 func TestInsertInput_DropsOtherFormatCharacters(t *testing.T) {
 	buf := Buffer{Content: content.Empty()}
 	insertInput(&buf, input.Rune('\u202E'), &RenderPrefs{}) // Right-to-left override.
