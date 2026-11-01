@@ -139,14 +139,14 @@ func TestMarkdown(t *testing.T) {
 	// Edits move the blocks.
 	buf.Mutate().Insert(0, content.TextLine("```d2"))
 	buf.Mutate().Insert(1, content.TextLine("```"))
-	ext.AfterEdit(nil, buf)
+	editor.NotifyExtensions(nil, buf, ext)
 	if got, want := actionLines(t, buf, ext), []int{0, 3, 9}; !slices.Equal(got, want) {
 		t.Errorf("action lines after edit = %v, want %v", got, want)
 	}
 
 	// The block is gone. Its closing fence opens a block without a language now.
 	buf.Mutate().Update(3, content.TextLine("text"))
-	ext.AfterEdit(nil, buf)
+	editor.NotifyExtensions(nil, buf, ext)
 	if got, want := actionLines(t, buf, ext), []int{0, 9}; !slices.Equal(got, want) {
 		t.Errorf("action lines after edit = %v, want %v", got, want)
 	}
@@ -233,7 +233,7 @@ func TestMarkdown_ExtensionsOrder(t *testing.T) {
 	}
 
 	buf.Mutate().Insert(0, content.TextLine("# Title"))
-	ext.AfterEdit(nil, buf)
+	editor.NotifyExtensions(nil, buf, ext)
 	if got, want := actionLines(t, buf, ext), []int{1}; !slices.Equal(got, want) {
 		t.Errorf("action lines after edit = %v, want %v", got, want)
 	}

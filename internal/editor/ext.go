@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor/input"
 )
@@ -16,9 +17,13 @@ type Extension interface {
 	// accepts the results of the work the data starts in the background.
 	MakeBufferData(loop Sender, buf *Buffer) BufferExtData
 
-	// AfterEdit runs on the editor loop after the buffer is changed. The results
-	// of the work started in the background are to be sent back to the loop.
-	AfterEdit(loop Sender, buf *Buffer)
+	// AfterEdit runs on the editor loop after the buffer is changed. The changes
+	// list the edits of the content since MakeBufferData or the previous AfterEdit,
+	// in the order they were made: each one is relative to the content left by
+	// the previous one. Replacing the whole content, like reloading the file,
+	// is reported as deleting all the lines and inserting the new ones.
+	// The results of the work started in the background are to be sent back to the loop.
+	AfterEdit(loop Sender, buf *Buffer, changes []change.Item)
 }
 
 // Sender queues the commands to run on the editor loop, where the editor and

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"rmazur.io/chernetka/internal/content/change"
 )
 
 func TestEditor_UndoRedo(t *testing.T) {
@@ -169,5 +171,5 @@ func TestEditor_UndoNotifiesExtensions(t *testing.T) {
 type countingEditExt int
 
 func (c *countingEditExt) ID() string                                   { return "counting edits" }
-func (c *countingEditExt) AfterEdit(Sender, *Buffer)                    { *c++ }
+func (c *countingEditExt) AfterEdit(Sender, *Buffer, []change.Item)     { *c++ }
 func (c *countingEditExt) MakeBufferData(Sender, *Buffer) BufferExtData { return nil }

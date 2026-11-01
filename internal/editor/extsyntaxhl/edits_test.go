@@ -9,9 +9,21 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/editor"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
+
+// changesRecorder is an extension collecting the changes passed to AfterEdit.
+type changesRecorder struct{ changes []change.Item }
+
+func (cr *changesRecorder) ID() string { return "changes recorder" }
+func (cr *changesRecorder) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData {
+	return nil
+}
+func (cr *changesRecorder) AfterEdit(_ editor.Sender, _ *editor.Buffer, changes []change.Item) {
+	cr.changes = append(cr.changes, changes...)
+}
 
 // snippets are typed into the documents by randomEdit: they open and close
 // the strings, the comments and the blocks, which changes much of the tree.
@@ -64,6 +76,26 @@ func randomEdit(rnd *rand.Rand, m content.Mutable) {
 	}
 }
 
+// replayLines applies the change to the lines of a text.
+func replayLines(lines []string, ch change.Item) []string {
+	strs := func(ls []content.Line) (res []string) {
+		for _, l := range ls {
+			res = append(res, l.String())
+		}
+		return res
+	}
+	pos := ch.Span.Start.Line
+	switch ch.Operation {
+	case change.OperationInsert:
+		return slices.Insert(lines, pos, strs(ch.New)...)
+	case change.OperationDelete:
+		return slices.Delete(lines, pos, pos+len(ch.Old))
+	default:
+		lines[pos] = ch.New[0].String()
+		return lines
+	}
+}
+
 // checkEdit checks that the edit describes how before turned into after, the way a tree-sitter
 // edit does: the text before StartByte and the one after the old and new ends is the same,
 // and the positions are where the offsets are.
@@ -91,22 +123,73 @@ func checkEdit(t *testing.T, before, after string, e treesitter.InputEdit) {
 	}
 }
 
-func TestTextEdit(t *testing.T) {
-	buf, _ := openDoc(t, "text.txt", "one\ntwo\nthree")
+func TestTextEdits(t *testing.T) {
+	rec := new(changesRecorder)
+	var edit editor.Editor
+	edit.Extend(rec)
+	if err := edit.OpenReader("text.txt", strings.NewReader("one\ntwo\nthree")); err != nil {
+		t.Fatal(err)
+	}
+	buf := edit.Top()
+
 	rnd := rand.New(rand.NewPCG(1, 2))
 	for i := range 2000 {
-		old := buf.Text()
+		old, oldLens := buf.Text(), lineLengths(buf.Content.Lines())
+		var lines []string // the document may have no lines, unlike the text split by "\n"
+		for _, line := range buf.Content.Lines() {
+			lines = append(lines, line.String())
+		}
 		for range 1 + rnd.IntN(3) {
 			randomEdit(rnd, buf.Mutate())
 		}
-		cur := buf.Text()
-		checkEdit(t, old, cur, textEdit(old, cur))
-		if t.Failed() {
-			t.Fatalf("edit %d", i)
+		rec.changes = nil
+		editor.NotifyExtensions(nil, buf, rec)
+		if rec.changes == nil {
+			continue // Not mutated, like deleting an empty span.
 		}
+		cur := buf.Text()
+
+		edits, ok := textEdits(oldLens, rec.changes, buf.Content.Lines())
+		if !ok {
+			t.Fatalf("edit %d: changes %+v are not converted, turning\n%q\ninto\n%q", i, rec.changes, old, cur)
+		}
+		if len(edits) != len(rec.changes) {
+			t.Fatalf("edit %d: %d edits for %d changes", i, len(edits), len(rec.changes))
+		}
+		before := old
+		for j, ch := range rec.changes {
+			lines = replayLines(lines, ch)
+			after := strings.Join(lines, "\n")
+			checkEdit(t, before, after, edits[j])
+			before = after
+		}
+		if t.Failed() {
+			t.Fatalf("edit %d: changes %+v", i, rec.changes)
+		}
+
 		if i%100 == 0 {
+			// Start over now and then: the document grows.
 			buf.Mutate().Delete(0, buf.Content.Len())
 			buf.Mutate().Insert(0, content.TextLine("a"), content.TextLine("b"))
+			editor.NotifyExtensions(nil, buf, rec)
+		}
+	}
+}
+
+func TestTextEdits_Mismatch(t *testing.T) {
+	lens, lines := []int{3, 3}, []content.Line{content.TextLine("one"), content.TextLine("two!")}
+	for _, tc := range []struct {
+		name    string
+		changes []change.Item
+	}{
+		{"no changes", nil},
+		{"another line", []change.Item{change.Replacement(0, content.TextLine("one"), content.TextLine("one!"))}},
+		{"other old line", []change.Item{change.Replacement(1, content.TextLine("two?"), content.TextLine("two!"))}},
+		{"out of the text", []change.Item{change.Deletion(2, []content.Line{content.TextLine("three")})}},
+		{"not all changes", []change.Item{change.Insertion(2, []content.Line{content.TextLine("three")})}},
+	} {
+		if edits, ok := textEdits(lens, tc.changes, lines); ok {
+			t.Errorf("%s: got edits %+v for the changes that don't match the texts", tc.name, edits)
 		}
 	}
 }
@@ -129,7 +212,7 @@ func TestIncrementalParse(t *testing.T) {
 				}
 				text = string(data)
 			}
-			ext := new(Integration)
+			ext, rec := new(Integration), new(changesRecorder)
 			var edit editor.Editor
 			edit.Extend(ext)
 			if err := edit.OpenReader(tc.path, strings.NewReader(text)); err != nil {
@@ -144,24 +227,28 @@ func TestIncrementalParse(t *testing.T) {
 
 			rnd := rand.New(rand.NewPCG(3, 4))
 			for i := range 200 {
-				old := doc.src
+				oldLens := doc.lens
 				// The keys handled between two renders.
+				rec.changes = nil
 				for range 1 + rnd.IntN(3) {
 					for range 1 + rnd.IntN(3) {
 						randomEdit(rnd, buf.Mutate())
 					}
-					ext.AfterEdit(nil, buf)
+					editor.NotifyExtensions(nil, buf, ext, rec)
 				}
 				doc.ensureParsed() // Like the render does.
-				if buf.Text() == old.text {
-					continue // Like a line deleted and inserted back.
+				if rec.changes == nil {
+					continue // Not mutated, like deleting an empty span.
 				}
-				if doc.src == old {
+				if doc.parsed != buf.Version() {
 					t.Fatalf("edit %d: the document is not parsed", i)
+				}
+				if _, ok := textEdits(oldLens, rec.changes, buf.Content.Lines()); !ok {
+					t.Fatalf("edit %d: the document is parsed from scratch", i)
 				}
 
 				fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
-				fresh.parse(buf.Text())
+				fresh.parse(nil)
 				fresh.build()
 				_ = fresh.Close()
 				if !doc.built {
@@ -200,7 +287,7 @@ func BenchmarkKeystroke(b *testing.B) {
 			line = line[:len(line)-1]
 		}
 		buf.Mutate().Update(ln, content.TextLine(line))
-		ext.AfterEdit(nil, buf)
+		editor.NotifyExtensions(nil, buf, ext)
 		doc.ensureParsed() // Like the render does.
 	}
 }
@@ -215,12 +302,12 @@ func TestCodeBlocksBeforeAfterEdit(t *testing.T) {
 	if blocks := doc.CodeBlocks(); len(blocks) != 1 {
 		t.Errorf("got %d code blocks, want 1", len(blocks))
 	}
-	ext.AfterEdit(nil, buf)
+	editor.NotifyExtensions(nil, buf, ext)
 	buf.Mutate().Insert(2, content.TextLine("```"))
-	ext.AfterEdit(nil, buf)
+	editor.NotifyExtensions(nil, buf, ext)
 
 	fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
-	fresh.parse(buf.Text())
+	fresh.parse(nil)
 	fresh.build()
 	doc.SyntaxSpans(0, "```d2")
 	if !slices.Equal(doc.spans, fresh.spans) {

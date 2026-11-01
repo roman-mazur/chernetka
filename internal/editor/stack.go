@@ -36,6 +36,8 @@ func (e *Editor) OpenReader(path string, in io.Reader) error {
 }
 
 func (e *Editor) prepareExt(b *Buffer) {
+	// The extension data are made for the current content, they don't need the changes made before.
+	b.dropChanges()
 	b.ext = bufExtensions{}
 	for _, ext := range e.x {
 		b.ext.extend(ext.ID(), ext.MakeBufferData(e, b))

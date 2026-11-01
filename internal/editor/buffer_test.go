@@ -1076,3 +1076,39 @@ func TestBuffer_Selection(t *testing.T) {
 		t.Errorf("selection = %v, HasSelection = %v, want none", got, buf.HasSelection())
 	}
 }
+
+// TestBuffer_ReplaceContentChanges checks the changes recorded for the extensions when the content
+// is replaced, like reloading the file: the old lines are deleted, and the new ones are inserted.
+// The changes keep their lines when the new content is edited before the extensions get them.
+func TestBuffer_ReplaceContentChanges(t *testing.T) {
+	old := content.FullText{content.TextLine("one"), content.TextLine("two")}
+	b := &Buffer{Content: &old}
+	b.resetMutated()
+
+	reloaded := content.FullText{content.TextLine("a"), content.TextLine("b"), content.TextLine("c")}
+	b.replaceContent(&reloaded)
+	b.Mutate().Delete(0, 1)
+	b.Mutate().Update(0, content.TextLine("B"))
+
+	changes, mutated := b.resetMutated()
+	if !mutated {
+		t.Fatal("not mutated")
+	}
+	var got []string
+	for _, ch := range changes {
+		var lines []string
+		for _, l := range slices.Concat(ch.Old, ch.New) {
+			if l == nil {
+				lines = append(lines, "<nil>")
+				continue
+			}
+			lines = append(lines, l.String())
+		}
+		got = append(got, fmt.Sprintf("%d@%d:%s", ch.Operation, ch.Span.Start.Line, strings.Join(lines, ",")))
+	}
+	// Delete is 1, Insert is 2, and Update is 0.
+	want := []string{"1@0:one,two", "2@0:a,b,c", "1@0:a", "0@0:b,B"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("changes (-want +got):\n%s", diff)
+	}
+}

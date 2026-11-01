@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/input"
@@ -42,7 +43,7 @@ func (r *recordingExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.Buff
 	return stubExtData{}
 }
 
-func (r *recordingExt) AfterEdit(editor.Sender, *editor.Buffer) {
+func (r *recordingExt) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {
 	r.afterEdit <- struct{}{}
 }
 
@@ -252,7 +253,7 @@ func TestEditor_AfterEditOnClipboard(t *testing.T) {
 type suggestingExt string
 
 func (s suggestingExt) ID() string                                                        { return string(s) }
-func (s suggestingExt) AfterEdit(editor.Sender, *editor.Buffer)                           {}
+func (s suggestingExt) AfterEdit(editor.Sender, *editor.Buffer, []change.Item)            {}
 func (s suggestingExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData { return s }
 func (s suggestingExt) TextSuggestion() code.Suggestion                                   { return code.Suggestion{Text: string(s)} }
 

@@ -41,13 +41,14 @@ type Buffer struct {
 
 	ext bufExtensions // extensions registered for this buffer
 
-	version uint64 // internal edits version
+	version uint64 // the revision of the content, see Version
 
 	srcFingerprint string // the fingerprint of the content loaded from the source
 	unwatch        func() // stops reloading the content changed outside the editor
 
-	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
-	_textCache string // cached result for Text()
+	_mutated   bool          // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
+	_changes   []change.Item // The content changes since the last check, see resetMutated.
+	_textCache string        // cached result for Text()
 
 	history  change.History
 	_mutator content.Mutable
@@ -88,6 +89,11 @@ func (b *Buffer) Close() error {
 	return errors.Join(allErrors...)
 }
 
+// Version identifies the revision of the content: it changes with every edit, so an extension
+// can tell whether the content is still the one it has seen, like before it's notified about
+// the changes with AfterEdit.
+func (b *Buffer) Version() uint64 { return b.version }
+
 // HoldsTextFile reports whether the buffer is backed by a file and its content is plain text.
 // It returns false for scratch and tool buffers (no Path), as well as for non-text documents
 // like a folder listing or an error message (see content.IsText).
@@ -98,6 +104,14 @@ func (b *Buffer) HoldsTextFile() bool {
 }
 
 func (b *Buffer) replaceContent(doc content.Document) {
+	// For the extensions, the old lines are deleted, and the new ones are inserted.
+	// The lines are copied: the documents may change them in place, like FullText does.
+	if b.Content != nil && len(b.Content.Lines()) > 0 {
+		b._changes = append(b._changes, change.Deletion(0, slices.Clone(b.Content.Lines())))
+	}
+	if lines := doc.Lines(); len(lines) > 0 {
+		b._changes = append(b._changes, change.Insertion(0, slices.Clone(lines)))
+	}
 	b.Content = doc
 	b._mutator = nil
 	b.cancelSelection()
@@ -467,36 +481,57 @@ func (b *Buffer) setMutated() {
 	b.version++
 }
 
-func (b *Buffer) resetMutated() (prev bool) {
-	prev = b._mutated
-	b._mutated = false
+// resetMutated reports whether the buffer was mutated since the last call,
+// and returns the content changes made since then, in the order they were made.
+func (b *Buffer) resetMutated() (changes []change.Item, mutated bool) {
+	changes, mutated = b._changes, b._mutated
+	b._changes, b._mutated = nil, false
 	return
 }
+
+// dropChanges forgets the content changes made so far, keeping the mutated flag.
+// The extension data made for the current content must not get them.
+func (b *Buffer) dropChanges() { b._changes = nil }
 
 type bufMutator struct {
 	content.Mutable
 	*Buffer
 }
 
+// The bufMutator methods record the changes for the extensions: every mutation goes through
+// them, including the undo and redo ones.
+
 func (bm bufMutator) Insert(pos int, lines ...content.Line) {
 	if bm.Mutable == nil {
 		return
 	}
 	bm.Mutable.Insert(pos, lines...)
+	if len(lines) > 0 {
+		bm._changes = append(bm._changes, change.Insertion(pos, slices.Clone(lines)))
+	}
 	bm.setMutated()
 }
 func (bm bufMutator) Update(pos int, line content.Line) {
 	if bm.Mutable == nil {
 		return
 	}
+	prev := bm.Mutable.Lines()[pos]
 	bm.Mutable.Update(pos, line)
+	bm._changes = append(bm._changes, change.Replacement(pos, prev, line))
 	bm.setMutated()
 }
 func (bm bufMutator) Delete(startPos, endPos int) {
 	if bm.Mutable == nil {
 		return
 	}
+	var deleted []content.Line
+	if startPos < endPos {
+		deleted = slices.Clone(bm.Mutable.Lines()[startPos:endPos])
+	}
 	bm.Mutable.Delete(startPos, endPos)
+	if len(deleted) > 0 {
+		bm._changes = append(bm._changes, change.Deletion(startPos, deleted))
+	}
 	bm.setMutated()
 }
 

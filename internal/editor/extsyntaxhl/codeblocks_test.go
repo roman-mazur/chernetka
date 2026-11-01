@@ -97,11 +97,10 @@ func TestCodeBlocks_ParsedOnce(t *testing.T) {
 	if got, want := formatBlocks(blocks.CodeBlocks()), []string{`"d2" 1:0-3:3`}; fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("CodeBlocks() after edit = %v, want %v", got, want)
 	}
-	parsed := doc.src
-
-	ext.AfterEdit(nil, buf)
-	if doc.src != parsed {
-		t.Error("the same revision is parsed again on AfterEdit")
+	editor.NotifyExtensions(nil, buf, ext)
+	doc.ensureParsed()
+	if !doc.built {
+		t.Error("the same revision is parsed again after AfterEdit")
 	}
 	if spans := doc.SyntaxSpans(0, "# Title"); len(spans) == 0 {
 		t.Error("the edited line is not highlighted")

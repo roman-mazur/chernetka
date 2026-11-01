@@ -20,8 +20,61 @@ const (
 // Item holds the details about change in a document.
 type Item struct {
 	Operation Operation
-	Span      content.Span
-	Old, New  []content.Line // old/new lines within the change span; old is empty for inserts, new is empty for deletes
+	// Span is where the change happened: the inserted lines for an insert, the deleted lines for a delete,
+	// and the changed part of the line for an update, where Start.Col is in both the old and the new
+	// line, and End.Col is in the new line.
+	Span     content.Span
+	Old, New []content.Line // old/new lines within the change span; old is empty for inserts, new is empty for deletes
+}
+
+// Insertion describes inserting the lines at pos. There must be at least one line.
+func Insertion(pos int, lines []content.Line) Item {
+	return Item{
+		Operation: OperationInsert,
+		New:       lines,
+		Span: content.Span{
+			Start: content.Position{Line: pos},
+			End:   content.Position{Line: pos + len(lines) - 1, Col: lines[len(lines)-1].Len()},
+		},
+	}
+}
+
+// Replacement describes replacing the line at pos, which was prev, with line.
+// For the text lines, the span leaves out the prefix and the suffix the lines have in common.
+func Replacement(pos int, prev, line content.Line) Item {
+	prefixLen, suffixLen := 0, 0
+	if prev.MimeType() == content.MimeTypeTextPlain {
+		// TODO: this could happen concurrently.
+		ps := prev.String()
+		cs := line.String()
+		for prefixLen < min(len(ps), len(cs)) && ps[prefixLen] == cs[prefixLen] {
+			prefixLen++
+		}
+		for suffixLen < min(len(ps), len(cs))-prefixLen && ps[len(ps)-1-suffixLen] == cs[len(cs)-1-suffixLen] {
+			suffixLen++
+		}
+	}
+	return Item{
+		Operation: OperationUpdate,
+		Span: content.Span{
+			Start: content.Position{Line: pos, Col: prefixLen},
+			End:   content.Position{Line: pos, Col: line.Len() - suffixLen},
+		},
+		Old: []content.Line{prev},
+		New: []content.Line{line},
+	}
+}
+
+// Deletion describes deleting the lines starting at pos. There must be at least one line.
+func Deletion(pos int, lines []content.Line) Item {
+	return Item{
+		Operation: OperationDelete,
+		Old:       lines,
+		Span: content.Span{
+			Start: content.Position{Line: pos},
+			End:   content.Position{Line: pos + len(lines) - 1, Col: lines[len(lines)-1].Len()},
+		},
+	}
 }
 
 func (it *Item) apply(m content.Mutable) content.Position {
@@ -176,43 +229,13 @@ func (t *tracker) Insert(pos int, lines ...content.Line) {
 	}
 
 	t.Mutable.Insert(pos, lines...)
-
-	t.trackChange(Item{
-		Operation: OperationInsert,
-		New:       newLines,
-		Span: content.Span{
-			Start: content.Position{Line: pos},
-			End:   content.Position{Line: pos + len(newLines) - 1, Col: newLines[len(newLines)-1].Len()},
-		},
-	})
+	t.trackChange(Insertion(pos, newLines))
 }
 
 func (t *tracker) Update(pos int, line content.Line) {
 	prevLine := t.Mutable.Lines()[pos]
 	t.Mutable.Update(pos, line)
-
-	prefixLen, suffixLen := 0, 0
-	if prevLine.MimeType() == content.MimeTypeTextPlain {
-		// TODO: this could happen concurrently.
-		ps := prevLine.String()
-		cs := line.String()
-		for prefixLen < min(len(ps), len(cs)) && ps[prefixLen] == cs[prefixLen] {
-			prefixLen++
-		}
-		for suffixLen < min(len(ps), len(cs))-prefixLen && ps[len(ps)-1-suffixLen] == cs[len(cs)-1-suffixLen] {
-			suffixLen++
-		}
-	}
-
-	t.trackChange(Item{
-		Operation: OperationUpdate,
-		Span: content.Span{
-			Start: content.Position{Line: pos, Col: prefixLen},
-			End:   content.Position{Line: pos, Col: line.Len() - suffixLen},
-		},
-		Old: []content.Line{prevLine},
-		New: []content.Line{content.CopyLine(line)},
-	})
+	t.trackChange(Replacement(pos, prevLine, content.CopyLine(line)))
 }
 
 func (t *tracker) Delete(startPos, endPos int) {
@@ -225,14 +248,7 @@ func (t *tracker) Delete(startPos, endPos int) {
 
 	deletedLines := slices.Clone(t.Mutable.Lines()[startPos:endPos])
 	t.Mutable.Delete(startPos, endPos)
-	t.trackChange(Item{
-		Operation: OperationDelete,
-		Old:       deletedLines,
-		Span: content.Span{
-			Start: content.Position{Line: startPos},
-			End:   content.Position{Line: endPos - 1, Col: deletedLines[len(deletedLines)-1].Len()},
-		},
-	})
+	t.trackChange(Deletion(startPos, deletedLines))
 }
 
 func (t *tracker) HasUndo() bool { return len(t.list.Edits) > 0 && t.currentPos >= 0 }

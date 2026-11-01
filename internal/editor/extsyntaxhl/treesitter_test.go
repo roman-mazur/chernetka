@@ -285,9 +285,9 @@ func TestNoHighlightForUnknownType(t *testing.T) {
 		t.Errorf("got extension data %#v for an unknown file type, want none", data)
 	}
 	// AfterEdit has to tolerate a buffer it never made data for.
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	// So does a buffer that was never passed through MakeBufferData at all.
-	ext.AfterEdit(nil, new(editor.Buffer))
+	ext.AfterEdit(nil, new(editor.Buffer), nil)
 }
 
 // TestGoRealSources runs the highlighter over this package's own sources. It is

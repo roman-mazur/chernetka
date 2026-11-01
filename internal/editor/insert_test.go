@@ -17,7 +17,7 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 		Content: &data,
 	}
 	insertInput(&buf, input.Move(input.CursorArrowRight, 0), &RenderPrefs{TabSize: 2})
-	if buf.resetMutated() {
+	if _, mutated := buf.resetMutated(); mutated {
 		t.Error("unexpected mutation")
 	}
 	if buf.c().Col != 1 {
@@ -119,7 +119,7 @@ func TestInsertInput_AutomateBrackets(t *testing.T) {
 		insertInput(&buf, input.Rune(rune(expectedBrackets[i])), &prefs)
 	}
 
-	if !buf.resetMutated() {
+	if _, mutated := buf.resetMutated(); !mutated {
 		t.Error("mutations expected but didn't seem to happen")
 	}
 
@@ -145,7 +145,7 @@ func TestInsertInput_HandleAutoClosingBracket(t *testing.T) {
 		expected += pair
 		insertInput(&buf, input.Rune(rune(pair[0])), &prefs)
 		insertInput(&buf, input.Rune(rune(pair[1])), &prefs)
-		if !buf.resetMutated() {
+		if _, mutated := buf.resetMutated(); !mutated {
 			t.Error("mutations expected but didn't seem to happen")
 		}
 		if buf.Text() != expected {
@@ -174,7 +174,7 @@ func TestInsertInput_AcceptUTF8(t *testing.T) {
 		insertInput(&buf, input.Rune(sym), &prefs)
 	}
 
-	if !buf.resetMutated() {
+	if _, mutated := buf.resetMutated(); !mutated {
 		t.Error("mutations expected but didn't seem to happen")
 	}
 
