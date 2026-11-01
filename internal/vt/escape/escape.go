@@ -21,8 +21,11 @@ func EnableAlternativeBuffer(out io.Writer) Restore {
 	return applyPair(out, "\x1b[?1049h", "\x1b[?1049l")
 }
 
+// EnableMouse asks the terminal to report the mouse events in the SGR encoding.
+// It also asks to report the events with Shift (XTSHIFTESCAPE) that the terminals
+// keep for their own selection otherwise. The terminals not supporting it ignore it.
 func EnableMouse(out io.Writer) Restore {
-	return applyPair(out, "\x1b[?1002h\x1b[?1006h", "\x1b[?1002l\x1b[?1006l")
+	return applyPair(out, "\x1b[?1002h\x1b[?1006h\x1b[>1s", "\x1b[>0s\x1b[?1002l\x1b[?1006l")
 }
 
 func ReverseVideo(out io.Writer) Restore {

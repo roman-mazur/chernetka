@@ -41,7 +41,8 @@
 // # Normal mode
 //
 // The editor starts in normal mode. The cursor moves up to the end of the line,
-// right after its last character. Shift with the arrows (or Home/End) selects the text.
+// right after its last character. Shift with the arrows (or Home/End) selects the text,
+// and Shift+click selects it from the cursor to the clicked position.
 //
 //	h / ←    move left
 //	l / →    move right

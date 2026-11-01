@@ -188,11 +188,18 @@ func (e *Editor) handleMouse(data input.Mouse) {
 			return
 		}
 
+		shiftClick := !ctrlClick && event.Mod.HasShift() && !event.Mod.HasMotion()
+		if shiftClick {
+			e.execBufferCmd(StartTextSelection) // Anchored at the cursor before it moves.
+		}
 		buf.updateCursor(buf.screenToContentPosition(data.Y-1, data.X-1, e.rPrefs.TabSize))
-		if buf.selecting && event.Mod.HasMotion() {
+		switch {
+		case shiftClick:
+			e.execBufferCmd(StopTextSelection)
+		case buf.selecting && event.Mod.HasMotion():
 			// Dragging over the line numbers or below the text still selects the closest content.
 			buf.sel[len(buf.sel)-1].End = buf.c()
-		} else if !buf.selecting {
+		case !buf.selecting:
 			buf.sel = nil
 		}
 		e.renderRequested = true

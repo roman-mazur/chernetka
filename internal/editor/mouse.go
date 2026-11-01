@@ -91,6 +91,10 @@ func (mh *mouseHandler) transformInput(in input.Mouse) mouseEvent {
 			mh.clickCount = 1
 			mh.isDragging = false
 		}
+		if in.Mod.HasShift() {
+			// Shift+clicks extend the selection, whatever the clicks before them were.
+			mh.clickCount = 0
+		}
 		mh.lastPressData = in
 		mh.lastPressAt = now
 		return mouseEvent{Mouse: in, eventType: mouseEventTypeRaw}

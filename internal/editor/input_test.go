@@ -277,6 +277,18 @@ func TestEditor_SelectionEdits(t *testing.T) {
 	click := func(col, line int) string {
 		return input.Click(left, col+3, line+1)
 	}
+	shiftPress := func(col, line int) string {
+		return input.Press(left, col+3, line+1).With(input.ModShift).Encode()
+	}
+	shiftRelease := func(col, line int) string {
+		return input.Release(left, col+3, line+1).With(input.ModShift).Encode()
+	}
+	shiftClick := func(col, line int) string {
+		return shiftPress(col, line) + shiftRelease(col, line)
+	}
+	shiftDrag := func(col, line int) string {
+		return input.Drag(left, col+3, line+1).With(input.ModShift).Encode()
+	}
 
 	for _, tc := range []struct {
 		name   string
@@ -284,6 +296,48 @@ func TestEditor_SelectionEdits(t *testing.T) {
 		inputs []string
 		want   string
 	}{
+		{
+			name:   "shift+click selects forward from the cursor",
+			text:   "hello world\nsecond line",
+			inputs: []string{"i", click(2, 0), shiftClick(3, 1), "x"},
+			want:   "hexond line",
+		},
+		{
+			name:   "shift+click selects backward from the cursor",
+			text:   "hello world\nsecond line",
+			inputs: []string{"i", click(3, 1), shiftClick(2, 0), "x"},
+			want:   "hexond line",
+		},
+		{
+			name:   "shift+click again moves the end of the selection",
+			text:   "hello world",
+			inputs: []string{"i", click(2, 0), shiftClick(4, 0), shiftClick(6, 0), "x"},
+			want:   "hexworld",
+		},
+		{
+			name:   "shift+click extends the keyboard selection",
+			text:   "hello world",
+			inputs: []string{"i" + shiftRight + shiftRight, shiftClick(5, 0), "x"},
+			want:   "x world",
+		},
+		{
+			name:   "shift+click extends the selected word",
+			text:   "hello world",
+			inputs: []string{"i", click(1, 0) + click(1, 0), shiftClick(8, 0), "x"},
+			want:   "xrld",
+		},
+		{
+			name:   "shift+drag continues from the shift+click",
+			text:   "hello world",
+			inputs: []string{"i", click(2, 0), shiftPress(5, 0) + shiftDrag(6, 0) + shiftDrag(7, 0) + shiftRelease(7, 0), "x"},
+			want:   "hexorld",
+		},
+		{
+			name:   "click after shift+click clears the selection",
+			text:   "hello world",
+			inputs: []string{"i", click(2, 0), shiftClick(4, 0), click(6, 0), "x"},
+			want:   "hello xworld",
+		},
 		{
 			name:   "select down to a shorter line",
 			text:   "hello world\nab\nlast",

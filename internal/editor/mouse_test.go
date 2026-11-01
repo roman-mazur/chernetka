@@ -119,6 +119,19 @@ func TestMouseHandlerTransformInput(t *testing.T) {
 			},
 		},
 		{
+			name: "shift clicks are not counted",
+			steps: []step{
+				{in: press(left), want: mouseEventTypeRaw},
+				{in: release(left), want: mouseEventTypeClick},
+				{advance: withinDelay, in: press(left).With(input.ModShift), want: mouseEventTypeRaw},
+				{in: release(left).With(input.ModShift), want: mouseEventTypeRaw},
+				{advance: withinDelay, in: press(left).With(input.ModShift), want: mouseEventTypeRaw},
+				{in: release(left).With(input.ModShift), want: mouseEventTypeRaw},
+				{advance: withinDelay, in: press(left), want: mouseEventTypeRaw},
+				{in: release(left), want: mouseEventTypeClick},
+			},
+		},
+		{
 			name: "scrolling",
 			steps: []step{
 				{in: scroll(input.ScrollDirectionUp), want: mouseEventTypeScroll},
