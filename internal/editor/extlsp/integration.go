@@ -31,6 +31,7 @@ type lspClient interface {
 	DidOpen(ctx context.Context, fileURI uri.URI, languageID, text string, version int32) error
 	DidChange(ctx context.Context, fileURI uri.URI, version int32, changes ...lsp.TextChange) error
 	Completion(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.CompletionItem, error)
+	SignatureHelp(ctx context.Context, fileURI uri.URI, line, character uint32) (*protocol.SignatureHelp, error)
 	Definition(ctx context.Context, fileURI uri.URI, line, character uint32) ([]protocol.Location, error)
 	OrganizeImports(ctx context.Context, fileURI uri.URI) ([]protocol.TextEdit, error)
 	Formatting(ctx context.Context, fileURI uri.URI, opts protocol.FormattingOptions) ([]protocol.TextEdit, error)
@@ -45,9 +46,10 @@ type lspStarter func(ctx context.Context, languageID, rootDir string) (lspClient
 //
 // Every edit of a buffer in a supported language (see languages) is pushed to
 // the language server, and when the cursor is in the middle of typing an
-// identifier (or right after a selector dot) the edit is followed by a
-// completion request. The best candidates are shown as an inline suggestion
-// that can be accepted with Tab.
+// identifier, right after a selector dot, or where an argument of a call
+// starts, the edit is followed by a completion request. The best candidates
+// are shown as an inline suggestion that can be accepted with Tab (see
+// suggestionsFor).
 //
 // In Go files, typing a qualified name of a package that is not imported, like
 // "strconv.Itoa(", adds the import found by the server.
@@ -163,10 +165,14 @@ func (le *Integration) AfterEdit(loop editor.Sender, buf *editor.Buffer) {
 }
 
 // shouldComplete decides whether it's worth asking for a completion with the
-// cursor after the given text: only while typing an identifier, and right
-// after a selector dot. Everywhere else (after spaces, brackets, operators)
-// the server has nothing to go on and would return an alphabetical list.
+// cursor after the given text: while typing an identifier, right after a
+// selector dot, and where an argument of a call starts. Everywhere else (after
+// spaces, operators) the server has nothing to go on and would return an
+// alphabetical list.
 func shouldComplete(beforeCursor string) bool {
+	if afterArgStart(beforeCursor) {
+		return true
+	}
 	if strings.HasSuffix(beforeCursor, ".") {
 		// Not after a number literal like "1.".
 		p := identTrailing(beforeCursor[:len(beforeCursor)-1])
@@ -321,14 +327,38 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	if !srv.lang.rankedCompletion {
 		items = rankByPrefix(items, at.line, at.cx)
 	}
-	suggestions := extractSuggestions(items, at.line, at.cx)
+	in := completionInput{
+		items:  items,
+		line:   at.line,
+		cx:     at.cx,
+		ranked: srv.lang.rankedCompletion,
+		text:   req.text,
+	}
+	if afterArgStart(at.line[:at.cx]) {
+		// The arguments are suggested by the parameter names.
+		help, err := client.SignatureHelp(ctx, docUri, pos.Line, pos.Character)
+		if err != nil {
+			le.Debugf("signature help failed: %s", err)
+		}
+		in.params = paramNames(help)
+	}
+	suggestions := suggestionsFor(in)
 	le.Debugf("completion at %d:%d: %d items, %d suggestions in %s",
 		at.cy, at.cx, len(items), len(suggestions), time.Since(started).Round(time.Millisecond))
 
 	id, buf := req.completion.id, req.buf
 	req.editor.Send(editor.CommandFunc(func(e *editor.Editor) {
-		if data.reqCompletion != id || buf.Mode() != editor.ModeInsert {
-			return // A newer edit superseded this request, or the insert is over.
+		if buf.Mode() != editor.ModeInsert {
+			return // The insert is over.
+		}
+		if data.reqCompletion != id {
+			// The user typed on while the server was busy: the suggestions
+			// are still good if they agree with what was typed.
+			if cx, cy := buf.Pos(); cy < len(buf.Content.Lines()) &&
+				data.assignLate(suggestions, at, buf.Content.Lines()[cy].String(), cx, cy) {
+				e.RequestRender()
+			}
+			return
 		}
 		if cx, cy := buf.Pos(); cx != at.cx || cy != at.cy {
 			return // The cursor moved away.

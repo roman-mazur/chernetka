@@ -66,11 +66,31 @@ func TestExtractSuggestions(t *testing.T) {
 			line:  "日本 Pri", cx: len("日本 Pri"), want: s("ntln"),
 		},
 		{name: "duplicates are merged", items: label("Println", "Println"), line: "Pri", cx: 3, want: s("ntln")},
+		{
+			name:  "a variable ranked first when nothing in common",
+			items: kinds(kv("count", protocol.CompletionItemKindVariable), kv("cap", protocol.CompletionItemKindFunction)),
+			line:  "c", cx: 1, want: s("ount", "ap"),
+		},
+		{
+			name:  "a keyword ranked first when nothing in common",
+			items: kinds(kv("return", protocol.CompletionItemKindKeyword), kv("rows", protocol.CompletionItemKindVariable)),
+			line:  "\tr", cx: 2, want: s("eturn", "ows"),
+		},
+		{
+			name:  "a function ranked first when nothing in common",
+			items: kinds(kv("cap", protocol.CompletionItemKindFunction), kv("count", protocol.CompletionItemKindVariable)),
+			line:  "c", cx: 1, want: nil,
+		},
+		{
+			name:  "a variable ranked first after a dot with nothing typed",
+			items: kinds(kv("len", protocol.CompletionItemKindVariable), kv("cap", protocol.CompletionItemKindField)),
+			line:  "x.", cx: 2, want: nil,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []string
-			for _, sug := range extractSuggestions(tc.items, tc.line, tc.cx) {
+			for _, sug := range extractSuggestions(tc.items, tc.line, tc.cx, true) {
 				got = append(got, sug.text)
 			}
 			if !reflect.DeepEqual(got, tc.want) {
@@ -88,7 +108,10 @@ func TestShouldComplete(t *testing.T) {
 		{"", false},
 		{"\t", false},
 		{"x := ", false},
-		{"foo(", false},
+		{"foo(", true},
+		{"foo(a, ", true},
+		{"foo(a,", false},
+		{"x := (", true},
 		{"f", true},
 		{"fm", true},
 		{"fmt.", true},
@@ -126,18 +149,135 @@ func TestIdentTrailing(t *testing.T) {
 
 func s(s ...string) []string { return s }
 
+// kv is a completion item of the label and kind.
+func kv(label string, kind protocol.CompletionItemKind) protocol.CompletionItem {
+	return protocol.CompletionItem{Label: label, Kind: kind}
+}
+
+func kinds(items ...protocol.CompletionItem) []protocol.CompletionItem { return items }
+
+func TestExtractSuggestions_Unranked(t *testing.T) {
+	// The first of alphabetically sorted items is no better than the others.
+	items := kinds(kv("cap", protocol.CompletionItemKindVariable), kv("count", protocol.CompletionItemKindVariable))
+	if got := extractSuggestions(items, "c", 1, false); got != nil {
+		t.Errorf("suggested %v", got)
+	}
+}
+
+func TestSuggestionsFor(t *testing.T) {
+	ctxVar := protocol.CompletionItem{Label: "ctx", Kind: protocol.CompletionItemKindVariable, Detail: "context.Context"}
+	nameVar := protocol.CompletionItem{Label: "name", Kind: protocol.CompletionItemKindVariable}
+	nameFunc := protocol.CompletionItem{Label: "name", Kind: protocol.CompletionItemKindFunction}
+	addrOf := protocol.CompletionItem{Label: "ctx", Kind: protocol.CompletionItemKindVariable, TextEdit: &protocol.TextEdit{
+		Range:   protocol.Range{Start: protocol.Position{Character: 2}, End: protocol.Position{Character: 2}},
+		NewText: "&ctx",
+	}}
+	// Monkey and Mosaic occur as often, Mo is what's typed.
+	words := "Monkey Monday Mo Mo.Mosaic Monkey (Mosaic) Mo Mosaic+Monkey Monkeys"
+	cases := []struct {
+		name   string
+		in     completionInput
+		want   []string
+		wantOK bool
+	}{
+		{
+			name: "the arguments named as the parameters",
+			in:   completionInput{items: kinds(nameVar, ctxVar), line: "f(", params: s("ctx", "name", "opts")},
+			want: s("ctx, name", "ctx"),
+		},
+		{
+			name: "the argument after a comma",
+			in:   completionInput{items: kinds(nameVar, ctxVar), line: "f(ctx, ", params: s("name")},
+			want: s("name"),
+		},
+		{
+			name: "no variable named as the parameter",
+			in:   completionInput{items: kinds(ctxVar, nameFunc), line: "f(", params: s("name", "ctx")},
+		},
+		{
+			name: "not inserted as is",
+			in:   completionInput{items: kinds(addrOf), line: "f(", params: s("ctx")},
+		},
+		{
+			name: "outside of a call",
+			in:   completionInput{items: kinds(ctxVar), line: "if ("},
+		},
+		{
+			name: "the most frequent word when the server has nothing",
+			in:   completionInput{line: "type Mo", text: words},
+			want: s("nkey"),
+		},
+		{
+			name: "not enough of the word typed",
+			in:   completionInput{line: "type M", text: words},
+		},
+		{
+			name: "no word extends it",
+			in:   completionInput{line: "type Mx", text: words},
+		},
+		{
+			name: "the server candidates over the words",
+			in:   completionInput{items: kinds(nameVar), line: "na", text: words},
+			want: s("me"),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.in.cx = len(tc.in.line)
+			tc.in.ranked = true
+			var got []string
+			for _, sug := range suggestionsFor(tc.in) {
+				got = append(got, sug.text)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("suggestionsFor(%q) = %q, want %q", tc.in.line, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParamNames(t *testing.T) {
+	help := func(active uint32, params ...string) *protocol.SignatureHelp {
+		sig := protocol.SignatureInformation{Label: "f(" + strings.Join(params, ", ") + ")"}
+		for _, p := range params {
+			sig.Parameters = append(sig.Parameters, protocol.ParameterInformation{Label: p})
+		}
+		return &protocol.SignatureHelp{Signatures: []protocol.SignatureInformation{sig}, ActiveParameter: active}
+	}
+	cases := []struct {
+		name string
+		help *protocol.SignatureHelp
+		want []string
+	}{
+		{"not in a call", nil, nil},
+		{"from the first", help(0, "ctx context.Context", "name string"), s("ctx", "name")},
+		{"from the active", help(1, "ctx context.Context", "name string"), s("name")},
+		{"unnamed", help(0, "context.Context", "string"), nil},
+		{"up to an unnamed", help(0, "ctx context.Context", "_ string", "n int"), s("ctx")},
+		{"variadic", help(3, "format string", "args ...any"), s("args")},
+		{"past the parameters", help(2, "a int"), nil},
+		{"no signatures", &protocol.SignatureHelp{}, nil},
+	}
+	for _, tc := range cases {
+		if got := paramNames(tc.help); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: paramNames = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 // fakeLSP is a stand-in lspClient that keeps the document as a server would
 // and returns canned completion items.
 type fakeLSP struct {
 	items []protocol.CompletionItem
 
 	mu          sync.Mutex
-	languageID  string           // the language of the opened document
-	version     int32            // the latest document version the server knows
-	text        string           // the latest text the server knows
-	completions []string         // line prefixes before the cursor for every completion request
-	changes     []lsp.TextChange // all the changes received
-	release     chan struct{}    // when set, completions block until it's closed
+	languageID  string              // the language of the opened document
+	version     int32               // the latest document version the server knows
+	text        string              // the latest text the server knows
+	completions []string            // line prefixes before the cursor for every completion request
+	changes     []lsp.TextChange    // all the changes received
+	release     chan struct{}       // when set, completions block until it's closed
+	gate        func(prefix string) // when set, called before a completion returns; it may block
 
 	organize  func(text string) string // what organize imports makes of the text
 	organized int                      // organize imports requests
@@ -147,6 +287,9 @@ type fakeLSP struct {
 
 	definitions []protocol.Location // what a definition request returns
 	definedAt   []string            // the text before the position of every definition request
+
+	signature *protocol.SignatureHelp // what a signature help request returns
+	signedAt  []string                // the line before the position of every signature help request
 }
 
 func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, languageID, text string, v int32) error {
@@ -177,13 +320,25 @@ func (f *fakeLSP) Completion(_ context.Context, _ uri.URI, line, char uint32) ([
 		prefix = l[:byteOffset(l, char)]
 	}
 	f.completions = append(f.completions, prefix)
-	release := f.release
+	release, gate, items := f.release, f.gate, f.items
 	f.mu.Unlock()
 
 	if release != nil {
 		<-release
 	}
-	return f.items, nil
+	if gate != nil {
+		gate(prefix)
+	}
+	return items, nil
+}
+
+func (f *fakeLSP) SignatureHelp(_ context.Context, _ uri.URI, line, char uint32) (*protocol.SignatureHelp, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if lines := strings.Split(f.text, "\n"); int(line) < len(lines) {
+		f.signedAt = append(f.signedAt, lines[line][:byteOffset(lines[line], char)])
+	}
+	return f.signature, nil
 }
 
 func (f *fakeLSP) OrganizeImports(context.Context, uri.URI) ([]protocol.TextEdit, error) {
@@ -369,6 +524,83 @@ func TestIntegration_TypeThrough(t *testing.T) {
 	_ = le.Close()
 }
 
+// TestIntegration_LateSuggestion checks that a completion arriving after the
+// user typed on is shown if it agrees with what was typed meanwhile.
+func TestIntegration_LateSuggestion(t *testing.T) {
+	first, rest := make(chan struct{}), make(chan struct{})
+	fake := &fakeLSP{items: kinds(kv("Println", protocol.CompletionItemKindFunction))}
+	fake.gate = func(prefix string) {
+		if prefix == "P" {
+			<-first
+		} else {
+			<-rest // Never answered.
+		}
+	}
+	defer close(rest) // Before the cleanups closing le.
+	var le Integration
+	h, _, data := newGoBuffer(t, &le, fake, "")
+	h.Run(t)
+	h.Post(t, editor.CommandFunc(func(*editor.Editor) { h.SetMode(editor.ModeInsert) }))
+
+	h.SendInputSequence(t, "P")
+	fake.waitCompletions(t, 1)
+	h.SendInputSequence(t, "ri")
+	close(first)
+	waitSuggestion(t, h, data, "ntln")
+}
+
+// waitCompletions waits until the server got n completion requests.
+func (f *fakeLSP) waitCompletions(t *testing.T, n int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		f.mu.Lock()
+		got := len(f.completions)
+		f.mu.Unlock()
+		if got >= n {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("got %d completion requests, want %d", got, n)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// TestIntegration_SuggestsArguments types a call and accepts the arguments
+// named as its parameters.
+func TestIntegration_SuggestsArguments(t *testing.T) {
+	fake := &fakeLSP{
+		items: kinds(kv("name", protocol.CompletionItemKindVariable), kv("ctx", protocol.CompletionItemKindVariable)),
+		signature: &protocol.SignatureHelp{Signatures: []protocol.SignatureInformation{{
+			Label:      "f(ctx context.Context, name string)",
+			Parameters: []protocol.ParameterInformation{{Label: "ctx context.Context"}, {Label: "name string"}},
+		}}},
+	}
+	var le Integration
+	h, buf, data := newGoBuffer(t, &le, fake, "")
+	h.Run(t)
+	h.Post(t, editor.CommandFunc(func(*editor.Editor) { h.SetMode(editor.ModeInsert) }))
+
+	h.SendInputSequence(t, "f(")
+	waitSuggestion(t, h, data, "ctx, name")
+	h.SendInput(t, []byte("\t"))
+	text, cx := onLoop2(t, h, func() (string, int) { cx, _ := buf.Pos(); return buf.Text(), cx })
+	if text != "f(ctx, name)" || cx != len("f(ctx, name") {
+		t.Errorf("accepted %q with the cursor at %d", text, cx)
+	}
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	for _, at := range fake.signedAt {
+		if !afterArgStart(at) {
+			t.Errorf("signature help asked after %q", at)
+		}
+	}
+	if len(fake.signedAt) == 0 {
+		t.Error("no signature help asked")
+	}
+}
+
 // TestIntegration_NewLineClearsSuggestion guards against a suggestion made for
 // one line being shown (and accepted with Tab) on the next one.
 func TestIntegration_NewLineClearsSuggestion(t *testing.T) {
@@ -479,12 +711,12 @@ func TestExtractSuggestions_Snippets(t *testing.T) {
 		}
 	}
 
-	got := extractSuggestions([]protocol.CompletionItem{snippet("Println", 4, 7, "Println(${1:})")}, "fmt.Pri", 7)
+	got := extractSuggestions([]protocol.CompletionItem{snippet("Println", 4, 7, "Println(${1:})")}, "fmt.Pri", 7, true)
 	if len(got) != 1 || got[0].text != "ntln()" || got[0].cursor != 5 {
 		t.Errorf("call snippet: got %+v, want text \"ntln()\" with the cursor at 5", got)
 	}
 
-	got = extractSuggestions([]protocol.CompletionItem{snippet("Println", 4, 11, "Println(${1:})")}, "fmt.Println", 11)
+	got = extractSuggestions([]protocol.CompletionItem{snippet("Println", 4, 11, "Println(${1:})")}, "fmt.Println", 11, true)
 	if len(got) != 0 {
 		t.Errorf("complete name: got %+v, want no suggestions", got)
 	}
