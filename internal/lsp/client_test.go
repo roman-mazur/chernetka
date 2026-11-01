@@ -48,6 +48,20 @@ func TestClient_RoundTrip(t *testing.T) {
 			return reply(ctx, &protocol.CompletionList{
 				Items: []protocol.CompletionItem{{Label: "Println", InsertText: "Println"}},
 			}, nil)
+		case protocol.MethodTextDocumentSignatureHelp:
+			var p protocol.SignatureHelpParams
+			if err := jsonrpc2DecodeParams(req, &p); err != nil || p.Position.Line != 3 {
+				return reply(ctx, nil, fmt.Errorf("unexpected params %+v (%v)", p, err))
+			}
+			if p.Position.Character == 0 {
+				return reply(ctx, nil, nil) // Not in a call.
+			}
+			return reply(ctx, &protocol.SignatureHelp{
+				Signatures: []protocol.SignatureInformation{{
+					Label:      "Itoa(i int) string",
+					Parameters: []protocol.ParameterInformation{{Label: "i int"}},
+				}},
+			}, nil)
 		case protocol.MethodTextDocumentDefinition:
 			var p protocol.DefinitionParams
 			if err := jsonrpc2DecodeParams(req, &p); err != nil || p.Position.Line != 2 || p.Position.Character != 5 {
@@ -118,6 +132,17 @@ func TestClient_RoundTrip(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Label != "Println" {
 		t.Fatalf("got items=%v, want one Println", items)
+	}
+
+	help, err := c.SignatureHelp(ctx, fileURI, 3, 5)
+	if err != nil {
+		t.Fatalf("SignatureHelp: %v", err)
+	}
+	if help == nil || len(help.Signatures) != 1 || help.Signatures[0].Parameters[0].Label != "i int" {
+		t.Errorf("got signature help %+v, want Itoa(i int)", help)
+	}
+	if help, err := c.SignatureHelp(ctx, fileURI, 3, 0); err != nil || help != nil {
+		t.Errorf("got signature help %+v (%v) outside of a call, want nil", help, err)
 	}
 
 	locs, err := c.Definition(ctx, fileURI, 2, 5)

@@ -3,9 +3,9 @@
 // server, like gopls.
 //
 // It exposes the small subset of LSP methods the editor needs: initialize,
-// didOpen, didChange, completion, definition, formatting, organize imports,
-// and shutdown. The diagnostics the server publishes are passed to a callback.
-// The transport is JSON-RPC over the server's stdio.
+// didOpen, didChange, completion, signature help, definition, formatting,
+// organize imports, and shutdown. The diagnostics the server publishes are
+// passed to a callback. The transport is JSON-RPC over the server's stdio.
 package lsp
 
 import (
@@ -252,6 +252,22 @@ func (c *Client) Completion(ctx context.Context, fileURI uri.URI, line, characte
 		return nil, err
 	}
 	return list.Items, nil
+}
+
+// SignatureHelp returns the signatures of the call around the given
+// zero-based position, with the parameter the position is at. It's nil
+// outside of calls.
+func (c *Client) SignatureHelp(ctx context.Context, fileURI uri.URI, line, character uint32) (*protocol.SignatureHelp, error) {
+	var help *protocol.SignatureHelp
+	if _, err := c.conn.Call(ctx, protocol.MethodTextDocumentSignatureHelp, &protocol.SignatureHelpParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
+			Position:     protocol.Position{Line: line, Character: character},
+		},
+	}, &help); err != nil {
+		return nil, err
+	}
+	return help, nil
 }
 
 // Definition returns the locations where the symbol at the given zero-based
