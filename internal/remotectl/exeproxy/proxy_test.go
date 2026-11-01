@@ -266,3 +266,10 @@ func TestCommandProxy_Header(t *testing.T) {
 		t.Errorf("output %q misses the start error", out)
 	}
 }
+
+func TestCmdTitle(t *testing.T) {
+	cmd := exec.Command("exeproxy-missing-command", "--flag", "arg")
+	if got, want := cmdTitle(cmd), ".> exeproxy-missing-command --flag arg"; got != want {
+		t.Errorf("cmdTitle = %q, want %q", got, want)
+	}
+}

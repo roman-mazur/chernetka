@@ -12,15 +12,23 @@ import (
 	"rmazur.io/chernetka/internal/remotectl/exeproxy"
 )
 
-// paneRunner runs the commands of the Go line actions with a command proxy in a terminal pane below,
-// launching one if none is running. A new command replaces the one still running.
+// The purposes of the command proxies che launches: each one has its own pane.
+const (
+	goRunPurpose   = "go-run"   // the Go tests and programs of the line actions
+	gitDiffPurpose = "git-diff" // the changes of a file shown with Ctrl+D
+)
+
+// paneRunner runs the external commands, like the Go tests or git diff, with the command proxy
+// for its purpose in a terminal pane, launching one if none is running. The pane is split
+// from the editor's one in the direction (see launchCommandProxy). A new command replaces the one
+// still running in the pane.
 type paneRunner struct {
 	paneProcess[remotectl.CommandData]
 }
 
-func newPaneRunner(purpose string, logf logger.Func) *paneRunner {
+func newPaneRunner(purpose, direction string, logf logger.Func) *paneRunner {
 	return &paneRunner{paneProcess[remotectl.CommandData]{
-		logf: logger.Prefix(logf, "runner: "),
+		logf: logger.Prefix(logf, "runner "+purpose+": "),
 		send: func(cmd remotectl.CommandData) error {
 			sender, err := remotectl.Client(exeproxy.Endpoint(purpose).InTab())
 			if err != nil {
@@ -29,7 +37,7 @@ func newPaneRunner(purpose string, logf logger.Func) *paneRunner {
 			defer sender.Close()
 			return sender.Send(&cmd)
 		},
-		launch:        func() error { return launchCommandProxy("down", purpose) },
+		launch:        func() error { return launchCommandProxy(direction, purpose) },
 		retryInterval: 100 * time.Millisecond,
 		launchTimeout: 10 * time.Second,
 	}}

@@ -56,6 +56,7 @@ func main() {
 		edit:   &edit,
 		logf:   logf,
 		viewer: viewer,
+		differ: newPaneRunner(gitDiffPurpose, "right", logf),
 		replaceWithViewer: func(path string) error {
 			return replaceWithImageViewer(path, func() { _ = term.Close() })
 		},
@@ -71,7 +72,7 @@ func main() {
 	edit.Extend(&extd2.Integration{Viewer: viewer})
 	edit.Extend(new(extmd.Integration))
 	edit.Extend(new(extcomment.Integration))
-	edit.Extend(&extgo.Integration{Runner: newPaneRunner("go-run", logf)})
+	edit.Extend(&extgo.Integration{Runner: newPaneRunner(goRunPurpose, "down", logf)})
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()
@@ -170,7 +171,8 @@ type editDelegate struct {
 	edit   *editor.Editor
 	logf   logger.Func
 	viewer extd2.Viewer
-	root   string // the project directory, paths passed to OpenFile are relative to it
+	differ remotectl.Executor // runs the git diff commands
+	root   string             // the project directory, paths passed to OpenFile are relative to it
 
 	// replaceWithViewer turns che into che-img showing the image at path.
 	// It returns only if che-img cannot be found.
@@ -203,27 +205,26 @@ func (ed *editDelegate) openFile(path string) {
 	}
 }
 
-// showDiff shows the git changes of the file at path in a new terminal pane.
+// showDiff shows the git changes of the file at path in the diff pane on the right.
 func (ed *editDelegate) showDiff(path string) {
-	go launchCommandViaTerminal("right", gitDiffCommand(path), ed.logf)
+	ed.differ.ExecuteCommand(gitDiffCommand(path))
 }
 
-// gitDiffCommand returns a shell command showing the changes of the file at path
-// since the last commit, both staged and not.
-func gitDiffCommand(path string) string {
-	return fmt.Sprintf("git -C %s diff HEAD -- %s", shellQuote(filepath.Dir(path)), shellQuote(path))
+// gitDiffCommand returns the command showing the changes of the file at path
+// since the last commit, both staged and not. It runs without a pager: the pane is reused
+// for the next diff, and a pager would wait for its input.
+func gitDiffCommand(path string) remotectl.CommandData {
+	return remotectl.CommandData{
+		Action:  "exe",
+		WorkDir: filepath.Dir(path),
+		Args:    []string{"git", "--no-pager", "diff", "HEAD", "--", path},
+	}
 }
 
 // shellQuote quotes s as a single word for a POSIX shell: nothing is expanded inside
 // the single quotes, and a single quote is closed, escaped, and reopened.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-}
-
-func launchCommandViaTerminal(paneDirection string, cmdLine string, logf logger.Func) {
-	if err := runInNewPane(paneDirection, cmdLine); err != nil {
-		logf("cannot run %s: %s", cmdLine, err)
-	}
 }
 
 func (ed *editDelegate) ExecuteCommand(cmd remotectl.CommandData) {

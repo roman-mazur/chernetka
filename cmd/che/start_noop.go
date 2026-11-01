@@ -20,8 +20,3 @@ func launchImageViewer() error {
 func launchCommandProxy(_, _ string) error {
 	return errorTerminalNotSupported
 }
-
-// runInNewPane reports that the terminal is not supported.
-func runInNewPane(_, _ string) error {
-	return errorTerminalNotSupported
-}
