@@ -31,12 +31,11 @@ type BufferData struct {
 
 // suggestion is a completion candidate shown inline at the cursor.
 type suggestion struct {
-	text   string                      // what gets inserted at the cursor
-	cursor int                         // where the cursor lands in the text after the insertion
-	label  string                      // the full candidate name, e.g. "Println"
-	info   string                      // details like the candidate's signature
-	kind   protocol.CompletionItemKind // what the candidate is, like a variable
-	edits  []protocol.TextEdit         // extra edits to apply on accept, e.g. an import
+	text   string              // what gets inserted at the cursor
+	cursor int                 // where the cursor lands in the text after the insertion
+	label  string              // the full candidate name, e.g. "Println"
+	info   string              // details like the candidate's signature
+	edits  []protocol.TextEdit // extra edits to apply on accept, e.g. an import
 }
 
 // anchor is a cursor position together with the line text around it.
