@@ -10,6 +10,10 @@ import (
 	"github.com/rivo/uniseg"
 )
 
+// NoTabExpansion is the tab size for text that isn't laid out with tab stops, like the status
+// bar, or when only the clusters matter and not their width: a tab takes one column.
+const NoTabExpansion = 1
+
 // Clusters iterates over the grapheme clusters of s, what a person sees as one character,
 // with the terminal columns each one takes. A mermaid emoji is 4 code points, 13 bytes, but
 // a single cluster of 2 columns. A tab takes tabSize columns.
@@ -62,7 +66,7 @@ func isASCII(s string) bool {
 // NextClusterEnd returns the byte index of the end of the cluster at col.
 func NextClusterEnd(line string, col int) int {
 	end := 0
-	for cluster := range Clusters(line, 1) {
+	for cluster := range Clusters(line, NoTabExpansion) {
 		end += len(cluster)
 		if end > col {
 			return end
@@ -75,7 +79,7 @@ func NextClusterEnd(line string, col int) int {
 // or of the cluster around it if col is in the middle of one.
 func PrevClusterStart(line string, col int) int {
 	start := 0
-	for cluster := range Clusters(line, 1) {
+	for cluster := range Clusters(line, NoTabExpansion) {
 		end := start + len(cluster)
 		if end >= col {
 			return start
@@ -94,7 +98,7 @@ func ClusterStart(line string, col int) int {
 		return col
 	}
 	start := 0
-	for cluster := range Clusters(line, 1) {
+	for cluster := range Clusters(line, NoTabExpansion) {
 		end := start + len(cluster)
 		if end > col {
 			return start
@@ -104,11 +108,20 @@ func ClusterStart(line string, col int) int {
 	return col
 }
 
+// ClusterEnd returns the byte index of the end of the cluster around col,
+// or col if a cluster starts there.
+func ClusterEnd(line string, col int) int {
+	if ClusterStart(line, col) == col {
+		return col
+	}
+	return NextClusterEnd(line, col)
+}
+
 // ClipColumns returns the part of s visible in the terminal columns from..to, s starting
 // at column x. A wide character cut by the edge can't be shown: spaces take its visible part.
 func ClipColumns(s string, x, from, to int) string {
 	var visible strings.Builder
-	for cluster, width := range Clusters(s, 1) {
+	for cluster, width := range Clusters(s, NoTabExpansion) {
 		end := x + width
 		switch {
 		case x >= from && end <= to:

@@ -359,7 +359,7 @@ func (s *simulator) stepLeft() { s.cursor.Col = symbol.PrevClusterStart(s.line()
 // typeText types the text of a line like a person with the bracket pairing on: it steps over
 // the closing brackets added by the editor, and removes those not needed.
 func (s *simulator) typeText(text string) {
-	for cluster := range symbol.Clusters(text, 1) {
+	for cluster := range symbol.Clusters(text, symbol.NoTabExpansion) {
 		if s.chance(0.03) {
 			s.typeRune(rune('a' + s.rnd.IntN(26))) // A typo.
 			s.backspace()
@@ -602,14 +602,14 @@ func (s *simulator) editLine(line int, want string) {
 	if gone != "" {
 		if typed != "" && s.chance(0.5) {
 			// The typed text replaces the selection.
-			for range symbol.Clusters(gone, 1) {
+			for range symbol.Clusters(gone, symbol.NoTabExpansion) {
 				s.key("\x1b[1;2C")
 			}
 			s.key("i")
 			selected = true
 			s.lines[line] = have[:start] + have[start+len(gone):] // The next key removes it.
 		} else {
-			for range symbol.Clusters(gone, 1) {
+			for range symbol.Clusters(gone, symbol.NoTabExpansion) {
 				s.key("x")
 			}
 			s.lines[line] = have[:start] + have[start+len(gone):]
@@ -630,7 +630,7 @@ func (s *simulator) editLine(line int, want string) {
 // commonPrefix returns the size of the start of a and b made of the same characters.
 func commonPrefix(a, b string) int {
 	n := 0
-	for cluster := range symbol.Clusters(a, 1) {
+	for cluster := range symbol.Clusters(a, symbol.NoTabExpansion) {
 		end := n + len(cluster)
 		if !strings.HasPrefix(b[n:], cluster) || symbol.NextClusterEnd(b, n) != end {
 			break

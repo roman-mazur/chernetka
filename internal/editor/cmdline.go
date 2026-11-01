@@ -123,7 +123,7 @@ func renderCmdline(out io.Writer, w int, cmd, info string) {
 	escape.ClearLine(out)
 	_, _ = io.WriteString(out, cmd)
 	if info != "" {
-		padding := max(w-symbol.DisplayWidth(cmd, 2)-symbol.DisplayWidth(info, 2)-1, 1)
+		padding := max(w-symbol.DisplayWidth(cmd, symbol.NoTabExpansion)-symbol.DisplayWidth(info, symbol.NoTabExpansion)-1, 1)
 		_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 		_, _ = io.WriteString(out, info+" ")
 	}

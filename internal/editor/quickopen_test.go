@@ -15,6 +15,27 @@ import (
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
+func TestShortenPath(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		path string
+		w    int
+		want string
+	}{
+		{name: "fits", path: "a/b.go", w: 6, want: "a/b.go"},
+		{name: "ascii", path: "abc/def.go", w: 7, want: "…def.go"},
+		{name: "cuts a wide emoji", path: "🌊🌊.go", w: 6, want: "…🌊.go"},
+		{name: "wide emoji cut to fit", path: "🌊🌊.go", w: 4, want: "….go"},
+		{name: "keeps a cluster whole", path: "ab" + testMermaid + ".go", w: 6, want: "…" + testMermaid + ".go"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shortenPath(tc.path, tc.w); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFuzzyScore(t *testing.T) {
 	for _, tc := range []struct {
 		query, candidate string

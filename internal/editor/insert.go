@@ -128,7 +128,7 @@ func insertContent(buf *Buffer, b []byte, mut content.Mutable, line string, adva
 	if len(b) > 0 {
 		mut.Update(c.Line, content.TextLine(line[:c.Col]+string(b)+line[c.Col:]))
 	}
-	buf.updateCursor(content.Position{Line: c.Line, Col: c.Col + advanceCursor})
+	buf.cursorAfterInsert(content.Position{Line: c.Line, Col: c.Col + advanceCursor})
 }
 
 func bracketPair(b byte) byte {

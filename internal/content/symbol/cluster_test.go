@@ -98,6 +98,27 @@ func TestClusterBoundaries(t *testing.T) {
 	}
 }
 
+func TestClusterEnd(t *testing.T) {
+	line := "a" + testMermaid + "b"
+	for _, tc := range []struct {
+		name string
+		col  int
+		want int
+	}{
+		{name: "line start", col: 0, want: 0},
+		{name: "cluster start", col: 1, want: 1},
+		{name: "inside a cluster", col: 5, want: 1 + len(testMermaid)},
+		{name: "after a cluster", col: 1 + len(testMermaid), want: 1 + len(testMermaid)},
+		{name: "line end", col: len(line), want: len(line)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ClusterEnd(line, tc.col); got != tc.want {
+				t.Errorf("ClusterEnd = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestClipColumns(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

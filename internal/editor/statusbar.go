@@ -5,7 +5,6 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/symbol"
@@ -42,7 +41,7 @@ func (s *StatusBar) cmdLine() *cmdLine {
 func (s *StatusBar) RenderCursorPosition(out io.Writer) {
 	var col int
 	if c := s.cmdLine(); c != nil {
-		col = symbol.DisplayWidth(c.prompt.prefix()+c.text, 2)
+		col = symbol.DisplayWidth(c.prompt.prefix()+c.text, symbol.NoTabExpansion)
 	}
 	escape.SetCursorPosition(out, s.buf.y+s.buf.h+s.Height(), col+1)
 }
@@ -77,9 +76,9 @@ func (s *StatusBar) Render(out io.Writer) {
 		pos = problems + "  " + pos
 	}
 	// Leave at least one space between the path and the cursor position.
-	pathWidth := s.buf.w - utf8.RuneCountInString(prefix+suffix+pos) - 1
+	pathWidth := s.buf.w - symbol.DisplayWidth(prefix+suffix+pos, symbol.NoTabExpansion) - 1
 	status := prefix + shortenPath(s.buf.Path, pathWidth) + suffix
-	padding := max(s.buf.w-utf8.RuneCountInString(status+pos), 0)
+	padding := max(s.buf.w-symbol.DisplayWidth(status+pos, symbol.NoTabExpansion), 0)
 	_, _ = io.WriteString(out, status)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 	_, _ = io.WriteString(out, pos)

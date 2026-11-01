@@ -7,8 +7,20 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
+
+func TestStatusBar_RenderWidePath(t *testing.T) {
+	buf := Buffer{Path: "🌊.txt", Content: &content.FullText{content.TextLine("x")}, w: 40, h: 3}
+	var out bytes.Buffer
+	(&StatusBar{buf: &buf}).Render(&out)
+	_, got, _ := strings.Cut(out.String(), "\a") // After the window title.
+	got = escape.Clean(got)
+	if width := symbol.DisplayWidth(got, symbol.NoTabExpansion); width != buf.w {
+		t.Errorf("status %q takes %d columns, want %d", got, width, buf.w)
+	}
+}
 
 func TestStatusBar_Render(t *testing.T) {
 	cases := []struct {

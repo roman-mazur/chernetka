@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"unicode/utf8"
 
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
@@ -345,7 +345,9 @@ const (
 	minInlineMatches = 3 // matches to show next to the command line, a separate row is used otherwise
 )
 
-func (q *quickOpen) cmdWidth() int { return utf8.RuneCountInString(q.prefix() + q.c.text) }
+func (q *quickOpen) cmdWidth() int {
+	return symbol.DisplayWidth(q.prefix()+q.c.text, symbol.NoTabExpansion)
+}
 
 // render prints the command line and the matches.
 func (q *quickOpen) render(out io.Writer, w int) {
@@ -371,7 +373,7 @@ func (q *quickOpen) render(out io.Writer, w int) {
 		return
 	}
 	info := q.info()
-	writePadding(out, w-q.cmdWidth()-utf8.RuneCountInString(info)-1)
+	writePadding(out, w-q.cmdWidth()-symbol.DisplayWidth(info, symbol.NoTabExpansion)-1)
 	_, _ = io.WriteString(out, info+" ")
 }
 
@@ -408,9 +410,9 @@ func (q *quickOpen) renderMatches(out io.Writer, w, from, to int, restore *escap
 
 // matchesWidth returns the number of columns taken by renderMatches.
 func (q *quickOpen) matchesWidth(w, from, to int) int {
-	sum := utf8.RuneCountInString(q.moreLabel(to))
+	sum := symbol.DisplayWidth(q.moreLabel(to), symbol.NoTabExpansion)
 	for i := from; i < to; i++ {
-		sum += utf8.RuneCountInString(q.item(i, w))
+		sum += symbol.DisplayWidth(q.item(i, w), symbol.NoTabExpansion)
 	}
 	return sum
 }
@@ -448,12 +450,19 @@ func (q *quickOpen) window(w int) (from, to int) {
 
 // shortenPath cuts the beginning of the path to fit it into w columns.
 func shortenPath(p string, w int) string {
-	n := utf8.RuneCountInString(p)
-	if n <= w || w < 2 {
+	rest := symbol.DisplayWidth(p, symbol.NoTabExpansion)
+	if rest <= w || w < 2 {
 		return p
 	}
-	runes := []rune(p)
-	return "…" + string(runes[n-w+1:])
+	start := 0
+	for cluster, clusterWidth := range symbol.Clusters(p, symbol.NoTabExpansion) {
+		if rest <= w-1 {
+			break
+		}
+		start += len(cluster)
+		rest -= clusterWidth
+	}
+	return "…" + p[start:]
 }
 
 func writePadding(out io.Writer, n int) {

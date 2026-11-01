@@ -458,6 +458,16 @@ func TestSelectWord(t *testing.T) {
 	if buf.c().Col != len(line) {
 		t.Errorf("cursor didn't move on second word selection: %s", buf.c())
 	}
+
+	t.Run("combining marks", func(t *testing.T) {
+		word := "x" + testAccent + "y"
+		ft := content.FullText{content.TextLine("- " + word + " -")}
+		buf := &Buffer{Content: &ft, _c: content.Position{Col: 2}}
+		SelectWord.DoOnBuffer(buf, prefs)
+		if res := buf.SelectedText(); res != word {
+			t.Errorf("got %q, want %q", res, word)
+		}
+	})
 }
 
 func TestMoveHome(t *testing.T) {

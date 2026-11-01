@@ -211,7 +211,7 @@ var (
 		start := b.c().Col
 		for start > 0 {
 			r, size := utf8.DecodeLastRuneInString(line[:start])
-			if unicode.IsLetter(r) {
+			if isWordRune(r) {
 				start -= size
 			} else {
 				break
@@ -221,7 +221,7 @@ var (
 		end := b.c().Col
 		for end < len(line) {
 			r, size := utf8.DecodeRuneInString(line[end:])
-			if unicode.IsLetter(r) {
+			if isWordRune(r) {
 				end += size
 			} else {
 				break
@@ -303,6 +303,9 @@ var (
 	})
 )
 
+// isWordRune reports whether r is a part of a word. A combining mark stays with its letter.
+func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsMark(r) }
+
 var clipboard clipb.Clipboard = new(clipb.System)
 
 type PasteText string
@@ -317,7 +320,7 @@ func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 			DeleteSelection.DoOnBuffer(b, prefs)
 		}
 		b.cancelSelection()
-		b.updateCursor(content.InsertText(m, b.c(), string(pt)))
+		b.cursorAfterInsert(content.InsertText(m, b.c(), string(pt)))
 	})
 }
 

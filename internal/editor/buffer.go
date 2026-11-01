@@ -137,6 +137,15 @@ func (b *Buffer) clampCursor(tabSize int) {
 	}
 }
 
+// cursorAfterInsert puts the cursor after the text inserted before p. The text may have joined
+// the character following it: the cursor then goes past that character, not back to its start.
+func (b *Buffer) cursorAfterInsert(p content.Position) {
+	if p.Line < b.Content.Len() {
+		p.Col = symbol.ClusterEnd(b.Content.Lines()[p.Line].String(), p.Col)
+	}
+	b.updateCursor(p)
+}
+
 // clampPos moves the cursor to the closest valid content position.
 func (b *Buffer) clampPos() {
 	lines := b.Content.Lines()

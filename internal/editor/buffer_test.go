@@ -856,6 +856,19 @@ func TestBuffer_Render_HorizontalScroll(t *testing.T) {
 		},
 		{name: "current line tail", text: "abc", xoff: 4, w: 10, hlLine: true, want: strings.Repeat(" ", 10)},
 		{
+			name: "selection ending inside a cluster", text: "a" + testMermaid + "bc", w: 5,
+			sel:  []content.Span{{Start: content.Position{Col: 1}, End: content.Position{Col: 5}}},
+			want: "a" + testMermaid + "bc",
+		},
+		{
+			name: "selection of the parts of a cluster", text: "a" + testMermaid + "bc", w: 5,
+			sel: []content.Span{
+				{Start: content.Position{Col: 1}, End: content.Position{Col: 5}},
+				{Start: content.Position{Col: 5}, End: content.Position{Col: 8}},
+			},
+			want: "a" + testMermaid + "bc",
+		},
+		{
 			name: "ghost suggestion", text: "Pri", xoff: 2, w: 4, mode: ModeInsert,
 			c: content.Position{Col: 3}, sug: []string{"ntln"}, want: "intl",
 		},

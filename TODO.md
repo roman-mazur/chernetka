@@ -16,7 +16,8 @@
 - [x] Unify how text content is distinguished by the buffer
 - [x] Navigation history: go to definition, go back
 - [x] Undo/redo
-- [x] mouse selection not working (mouse click with Shift)
+- [x] Mouse selection not working (mouse click with Shift)
+- [x] Grapheme clusters handling (one symbol with multiple code points)
 
 - better complete suggestions
 - create new file (with parent dirs)

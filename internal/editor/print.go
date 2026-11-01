@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 	"unsafe"
 
 	"rmazur.io/chernetka/internal/content"
@@ -160,12 +159,12 @@ func (cr *contentPrinter) renderLine(out io.Writer, ln int, line string, hlLine 
 	printSegment := func(from, to int, style styles.TextStyle) {
 		if from <= ghostAt && ghostAt < to {
 			if from < ghostAt {
-				p.print(line[from:ghostAt], style)
+				p.print(ghostAt, style)
 			}
 			p.printSuggestion(cr.suggestion.Text, styles.DefaultColors.Suggestion)
 			from, ghostAt = ghostAt, -1
 		}
-		p.print(line[from:to], style)
+		p.print(to, style)
 	}
 
 	lastIndex := 0
@@ -225,7 +224,7 @@ func (cr *contentPrinter) renderLineTail(out io.Writer, ln int, raw string, line
 	if shorten {
 		info = shortenText(info, free-gap-margin)
 	}
-	if infoLen := utf8.RuneCountInString(info); info != "" && free >= infoLen+gap+margin {
+	if infoLen := symbol.DisplayWidth(info, symbol.NoTabExpansion); info != "" && free >= infoLen+gap+margin {
 		escape.StyleText(out, strings.Repeat(" ", free-infoLen-margin), bg)
 		infoStyle := bg
 		infoStyle.TextColor = infoColor
@@ -320,17 +319,26 @@ func (clp *colorLinePrinter) currentBgIdx() int {
 	})
 }
 
-func (clp *colorLinePrinter) print(s string, style styles.TextStyle) {
+// print writes the line up to the to index. A style can't change inside a cluster, as its
+// parts would be measured and shown separately: the first style takes all of the cluster.
+func (clp *colorLinePrinter) print(to int, style styles.TextStyle) {
+	to = symbol.ClusterEnd(clp.line, to)
+	if to <= clp.li {
+		return
+	}
+	s := clp.line[clp.li:to]
 	appliedStyle := style
 	bgIdx := clp.currentBgIdx()
 	if bgIdx == -1 {
 		appliedStyle.BgColor = nil
 		clp.emitTabSplit(s, appliedStyle)
+		clp.li = to
 		return
 	}
 	for start := 0; start < len(s); {
 		bg := clp.bg[bgIdx]
-		end := min(len(s), bg.End.Col-clp.li)
+		// A span ending inside a cluster printed already has nothing left to print.
+		end := max(start, min(len(s), symbol.ClusterEnd(clp.line, bg.End.Col)-clp.li))
 		appliedStyle.BgColor = bg.color
 		clp.emitTabSplit(s[start:end], appliedStyle)
 		start = end
@@ -395,15 +403,18 @@ const minShortened = 12
 // shortenText cuts s to be no wider than w, marking the cut with an ellipsis.
 // s is returned as is if it fits or w is too small to show anything useful.
 func shortenText(s string, w int) string {
-	if w < minShortened || utf8.RuneCountInString(s) <= w {
+	if w < minShortened || symbol.DisplayWidth(s, symbol.NoTabExpansion) <= w {
 		return s
 	}
-	i := 0
-	for range w - 1 {
-		_, sz := utf8.DecodeRuneInString(s[i:])
-		i += sz
+	end, width := 0, 0
+	for cluster, clusterWidth := range symbol.Clusters(s, symbol.NoTabExpansion) {
+		if width+clusterWidth > w-1 {
+			break
+		}
+		end += len(cluster)
+		width += clusterWidth
 	}
-	return s[:i] + "…"
+	return s[:end] + "…"
 }
 
 func nlDigitsLen(x int) int {

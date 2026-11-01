@@ -424,6 +424,15 @@ func TestEditor_SelectionEdits(t *testing.T) {
 	}
 }
 
+func TestPasteText_CursorStaysAfterJoinedText(t *testing.T) {
+	ft := content.FullText{content.TextLine("\u0301z")}
+	buf := &Buffer{Content: &ft}
+	PasteText("\u0430").DoOnBuffer(buf, RenderPrefs{TabSize: 4})
+	if got, want := buf.c(), pos(0, len(testAccent)); got != want {
+		t.Errorf("cursor at %s, want %s", got, want)
+	}
+}
+
 func TestPasteText_ReplacesSelection(t *testing.T) {
 	ft := content.FullText{content.TextLine("one"), content.TextLine("two")}
 	buf := &Buffer{Content: &ft, sel: []content.Span{{Start: pos(0, 1), End: pos(1, 1)}}}

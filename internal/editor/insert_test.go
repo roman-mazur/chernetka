@@ -65,6 +65,32 @@ func TestInsertInput_BackspaceRemovesCluster(t *testing.T) {
 	}
 }
 
+func TestInsertInput_CursorStaysAfterJoinedText(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		line  string
+		typed rune
+		want  string
+	}{
+		{name: "half of a flag before the other half", line: "\U0001F1E6z", typed: '\U0001F1FA', want: testFlag},
+		{name: "letter before a combining mark", line: "\u0301z", typed: '\u0430', want: testAccent},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := Buffer{Content: &content.FullText{content.TextLine(tc.line)}}
+			prefs := RenderPrefs{TabSize: 2}
+			insertInput(&buf, input.Rune(tc.typed), &prefs)
+			if got, want := buf.c().Col, len(tc.want); got != want {
+				t.Errorf("cursor column = %d, want %d", got, want)
+			}
+			// What is typed next doesn't go before the character typed last.
+			insertInput(&buf, input.Rune('x'), &prefs)
+			if got, want := buf.Text(), tc.want+"xz"; got != want {
+				t.Errorf("got %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestInsertInput_DropsOtherFormatCharacters(t *testing.T) {
 	buf := Buffer{Content: content.Empty()}
 	insertInput(&buf, input.Rune('\u202E'), &RenderPrefs{}) // Right-to-left override.

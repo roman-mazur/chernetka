@@ -9,6 +9,42 @@ import (
 	"rmazur.io/chernetka/internal/editor/styles"
 )
 
+func TestColorLinePrinter_PrintKeepsClusters(t *testing.T) {
+	line := "a" + testMermaid + "b"
+	var out bytes.Buffer
+	clp := colorLinePrinter{out: &out, tab: "    ", line: line, to: 100}
+	clp.print(5, styles.TextStyle{}) // A style ending inside the emoji.
+	clp.print(8, styles.TextStyle{}) // One within it.
+	clp.print(len(line), styles.TextStyle{})
+	if got := out.String(); got != line {
+		t.Errorf("printed %q, want %q", got, line)
+	}
+	if clp.x != 4 {
+		t.Errorf("x = %d, want 4", clp.x)
+	}
+}
+
+func TestShortenText(t *testing.T) {
+	const w = minShortened
+	for _, tc := range []struct {
+		name string
+		text string
+		want string
+	}{
+		{name: "fits", text: "short", want: "short"},
+		{name: "ascii", text: "0123456789abcdef", want: "0123456789a…"},
+		{name: "wide emoji fits in columns", text: "🌊🌊🌊🌊🌊🌊", want: "🌊🌊🌊🌊🌊🌊"},
+		{name: "wide emoji", text: "🌊🌊🌊🌊🌊🌊a", want: "🌊🌊🌊🌊🌊…"},
+		{name: "joined emoji", text: "0123456789" + testMermaid + "ab", want: "0123456789…"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shortenText(tc.text, w); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestColorLinePrinter_EmitTabSplit(t *testing.T) {
 	bg := styles.TextStyle{BgColor: color.Gray{Y: 50}}
 	const bgSet, reset = "\x1b[48;2;50;50;50m", "\x1b[0m"
