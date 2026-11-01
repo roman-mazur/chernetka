@@ -95,6 +95,7 @@ func main() {
 		if info.IsDir() {
 			delegate.root = path
 			edit.OpenDir(path, &delegate)
+			edit.OpenPath = delegate.OpenFile // The directory tree stays, like after Enter on a file.
 			skipCtl = true
 		} else {
 			delegate.openFile(path)

@@ -12,8 +12,8 @@
 //
 // Opening a directory is also supported. Editor will display a terminal UI allowing
 // to navigate the directory tree. Pressing Enter on a file will attempt opening this
-// file in the right pane of your terminal. The main editor opened this way searches files
-// (see Quick open) in the same directory.
+// file in the right pane of your terminal, and so will picking a file with Quick open.
+// The main editor opened this way searches files (see Quick open) in the same directory.
 //
 // The -root flag sets the project directory to search files in. It defaults to the
 // opened directory or the working one.
