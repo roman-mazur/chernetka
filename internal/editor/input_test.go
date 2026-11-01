@@ -1,6 +1,8 @@
 package editor
 
 import (
+	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -137,6 +139,84 @@ func TestEditor_SendInput(t *testing.T) {
 		}
 		if buf.c().Line != 1 {
 			t.Errorf("Enter on an actionable line moved the cursor to %d", buf.c().Line)
+		}
+	})
+
+	// Getting the focus back does not scroll the text: the text is scrolled by the mouse
+	// while the terminal is in the background, often leaving the cursor out of the screen.
+	// With the focus brought by a key combination, the cursor stays where it was, and the
+	// next key reveals it. With the focus brought by a click, the cursor moves to the clicked
+	// position. The property is checked with random texts, scrolls, and clicks.
+	t.Run("focus in keeps the scroll", func(t *testing.T) {
+		const (
+			focusIn  = "\x1b[I"
+			focusOut = "\x1b[O"
+		)
+		for seed := range uint64(50) {
+			rnd := rand.New(rand.NewPCG(seed, 0))
+			lines := 1 + rnd.IntN(300)
+			cursorLine := 1 + rnd.IntN(lines)
+			scrolls := rnd.IntN(2 * lines)
+			scrollDown := rnd.IntN(4) > 0
+			byClick := rnd.IntN(2) == 0
+			row, col := 1+rnd.IntN(45), 1+rnd.IntN(80) // possibly over the status bar or past the screen
+			name := fmt.Sprintf("seed=%d/lines=%d/cursor=%d/scrolls=%d/down=%t/click=%t", seed, lines, cursorLine, scrolls, scrollDown, byClick)
+
+			t.Run(name, func(t *testing.T) {
+				h := NewTestHarness(t)
+				if err := h.OpenReader("", strings.NewReader(strings.Repeat("some text\n", lines))); err != nil {
+					t.Fatal(err)
+				}
+				h.Run(t)
+
+				// Scroll the text in the background.
+				h.SendInput(t, fmt.Appendf(nil, ":%d\r", cursorLine))
+				h.SendInput(t, []byte(focusOut))
+				wheel := "\x1b[<64;5;5M"
+				if scrollDown {
+					wheel = "\x1b[<65;5;5M"
+				}
+				h.SendInput(t, []byte(strings.Repeat(wheel, scrolls)))
+
+				type view struct {
+					offset, xoff int
+					c            content.Position
+				}
+				var before view
+				var height int
+				var clicked content.Position // where the click lands with the scroll kept
+				h.Post(t, CommandFunc(func(e *Editor) {
+					b := e.Top()
+					before, height = view{b.offset, b.xoff, b.c()}, b.h
+					clicked = b.screenToContentPosition(row-1, col-1, e.rPrefs.TabSize)
+				}))
+
+				want := before
+				if byClick {
+					h.SendInput(t, fmt.Appendf(nil, "%s\x1b[<0;%d;%dM\x1b[<0;%d;%dm", focusIn, col, row, col, row))
+					want.c = clicked
+				} else {
+					h.SendInput(t, []byte(focusIn))
+				}
+
+				var after view
+				h.Post(t, CommandFunc(func(e *Editor) {
+					b := e.Top()
+					after = view{b.offset, b.xoff, b.c()}
+				}))
+				if after != want {
+					t.Fatalf("after the focus in: %+v, want %+v", after, want)
+				}
+
+				// The next key reveals the cursor.
+				h.SendInput(t, []byte("l"))
+				h.Post(t, CommandFunc(func(e *Editor) {
+					b := e.Top()
+					if ln := b.c().Line; ln < b.offset || ln >= b.offset+height {
+						t.Errorf("cursor line %d is out of the screen after a key: offset %d, height %d", ln, b.offset, height)
+					}
+				}))
+			})
 		}
 	})
 }
