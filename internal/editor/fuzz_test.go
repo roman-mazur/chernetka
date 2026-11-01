@@ -137,33 +137,39 @@ const (
 
 // runFuzzedInput opens a file with the extension and the text in dir, and handles the input.
 func runFuzzedInput(t *testing.T, dir, ext, text string, input []byte) {
-	// A hung editor never returns: crash with the goroutines to report the input.
-	// The timer is out of the bubble: the fake clock does not move while the editor is busy.
-	// An editor blocked for good is reported by synctest as a deadlock instead.
-	hang := time.AfterFunc(fuzzHangTimeout, func() {
-		debug.SetTraceback("all")
-		panic(fmt.Sprintf("the editor does not handle the input for %s", fuzzHangTimeout))
-	})
-	defer hang.Stop()
+	stopHangCheck := failOnHang(fuzzHangTimeout)
+	defer stopHangCheck()
 
 	synctest.Test(t, func(t *testing.T) {
 		runFuzzedInputInBubble(t, dir, ext, text, input)
 	})
 }
 
-func runFuzzedInputInBubble(t *testing.T, dir, ext, text string, input []byte) {
+// failOnHang crashes the test with the goroutines if the returned function is not called in time:
+// a hung editor never returns. The timer must be out of the bubble: the fake clock does not move
+// while the editor is busy. An editor blocked for good is reported by synctest as a deadlock instead.
+func failOnHang(timeout time.Duration) (stop func() bool) {
+	return time.AfterFunc(timeout, func() {
+		debug.SetTraceback("all")
+		panic(fmt.Sprintf("the editor does not handle the input for %s", timeout))
+	}).Stop
+}
+
+// openHarnessFile returns a harness with the extensions of che and a file with the text in dir.
+func openHarnessFile(t *testing.T, dir, ext, text string) (h *editor.TestHarness, path string) {
+	t.Helper()
 	t.Chdir(dir)
 	editor.IsolateEffects(t, dir)
 	// The input may open the files with the quick open or the command line, which would watch them.
 	editor.DisableFileWatching(t)
 
-	h := editor.NewTestHarness(t)
+	h = editor.NewTestHarness(t)
 	h.Root = dir
 	for _, ext := range cheExtensions() {
 		h.Extend(ext)
 	}
 
-	path := filepath.Join(dir, "file"+ext)
+	path = filepath.Join(dir, "file"+ext)
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -171,6 +177,11 @@ func runFuzzedInputInBubble(t *testing.T, dir, ext, text string, input []byte) {
 	if err := h.OpenReader(path, strings.NewReader(text)); err != nil {
 		t.Fatal(err)
 	}
+	return h, path
+}
+
+func runFuzzedInputInBubble(t *testing.T, dir, ext, text string, input []byte) {
+	h, path := openHarnessFile(t, dir, ext, text)
 	h.Run(t)
 	for i, part := range bytes.Split(input, []byte{fuzzPause}) {
 		if i > 0 {

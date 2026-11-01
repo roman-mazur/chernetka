@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/clipb"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/vt"
@@ -176,6 +177,23 @@ func (h *TestHarness) SendInputSequence(t *testing.T, s string) {
 	for _, b := range []byte(s) {
 		h.SendInput(t, []byte{b})
 	}
+}
+
+// ScreenPosition returns the 1-based terminal cell showing the position in the top buffer,
+// the coordinates a mouse event reports, and whether it's on the screen.
+// It reads the state of the loop, so it must be called from a command.
+func (h *TestHarness) ScreenPosition(p content.Position) (x, y int, visible bool) {
+	b := h.Top()
+	if b == nil || p.Line >= b.Content.Len() {
+		return 0, 0, false
+	}
+	row := p.Line - b.offset
+	col := runeToScreenCol(b.Content.Lines()[p.Line].String(), p.Col, h.rPrefs.TabSize) - b.xoff
+	col += b.lineNumberPrefixWidth()
+	if !b.CheckContentCoordinates(row, col) {
+		return 0, 0, false
+	}
+	return col + 1, b.y + row + 1, true
 }
 
 // RenderFrame renders the whole editor UI into out the way the run loop does on
