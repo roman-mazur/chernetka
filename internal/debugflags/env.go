@@ -1,10 +1,13 @@
 // Package debugflags provides API to discover the user settings that affect chernetka behaviour
 // mainly for the debugging purposes. The flags are set in the CHEDEBUG environment variable
-// as comma separated name=value pairs, like CHEDEBUG=logdebug=1,loginputs=1.
+// as comma separated name=value pairs, like
+//
+//	CHEDEBUG=logdebug=1,loginputs=1.
+//
 // Available flags are listed below:
-// - logdebug - enables debug logging of the editor and extensions
-// - loginputs - enables dumping the input bytes received by the editor
-// - HISTORY_RING_SIZE - the number of the locations kept in the navigation history (100 by default)
+//   - logdebug - enables debug logging of the editor and extensions
+//   - loginputs - enables dumping the input bytes received by the editor
+//   - HISTORY_RING_SIZE - the number of the locations kept in the navigation history (100 by default)
 package debugflags
 
 import (
