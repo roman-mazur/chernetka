@@ -48,7 +48,7 @@ func TestExtractSuggestions(t *testing.T) {
 		{name: "cx past line end is clamped", items: label("Println"), line: "Pri", cx: 99, want: s("ntln")},
 		{name: "common part goes first", items: label("Printf", "Println", "Print", "PrintX"), line: "Pri", cx: 3, want: s("nt", "ntf", "ntln")},
 		{name: "common prefix of top ranked items", items: label("Printf", "Println", "PrintX", "Pr"), line: "P", cx: 1, want: s("rint", "rintf", "rintln", "rintX")},
-		{name: "nothing in common", items: label("Printf", "Panic"), line: "P", cx: 1, want: nil},
+		{name: "nothing in common", items: label("Printf", "Panic"), line: "P", cx: 1, want: s("rintf", "anic")},
 		{name: "text edit", items: []protocol.CompletionItem{edit("cmdChannel", 2, 5, "cmdChannel")}, line: "e.cmd", cx: 5, want: s("Channel")},
 		{
 			name:  "text edit replacing more than the identifier",
@@ -79,7 +79,7 @@ func TestExtractSuggestions(t *testing.T) {
 		{
 			name:  "a function ranked first when nothing in common",
 			items: kinds(kv("cap", protocol.CompletionItemKindFunction), kv("count", protocol.CompletionItemKindVariable)),
-			line:  "c", cx: 1, want: nil,
+			line:  "c", cx: 1, want: s("ap", "ount"),
 		},
 		{
 			name:  "a variable ranked first after a dot with nothing typed",
@@ -564,6 +564,35 @@ func (f *fakeLSP) waitCompletions(t *testing.T, n int) {
 			t.Fatalf("got %d completion requests, want %d", got, n)
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// TestIntegration_FirstOfDisagreeingCandidates types a word the best ranked
+// candidates have nothing in common for: the first one is suggested, and the
+// others are cycled to with the arrows.
+func TestIntegration_FirstOfDisagreeingCandidates(t *testing.T) {
+	fake := &fakeLSP{items: kinds(
+		kv("Printf", protocol.CompletionItemKindFunction),
+		kv("Panic", protocol.CompletionItemKindFunction),
+		kv("Pos", protocol.CompletionItemKindVariable),
+	)}
+	var le Integration
+	h, buf, data := newGoBuffer(t, &le, fake, "")
+	h.Run(t)
+	h.Post(t, editor.CommandFunc(func(*editor.Editor) { h.SetMode(editor.ModeInsert) }))
+
+	h.SendInputSequence(t, "P")
+	waitSuggestion(t, h, data, "rintf")
+	if got := onLoop(t, h, data.TextSuggestion).Info; !strings.Contains(got, "1/3") {
+		t.Errorf("info = %q, want the position among 3", got)
+	}
+	h.SendInput(t, []byte("\x1b[B")) // ↓
+	if got := onLoop(t, h, data.TextSuggestion).Text; got != "anic" {
+		t.Errorf("after ↓: suggestion = %q, want %q", got, "anic")
+	}
+	h.SendInput(t, []byte("\t"))
+	if got := onLoop(t, h, buf.Text); got != "Panic" {
+		t.Errorf("accepted %q", got)
 	}
 }
 

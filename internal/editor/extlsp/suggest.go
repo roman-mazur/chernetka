@@ -65,8 +65,9 @@ func suggestionsFor(in completionInput) []suggestion {
 //
 // When the best candidates disagree, their common prefix is suggested first
 // (see withCommonPrefix). When they have nothing in common, the best ranked
-// one is suggested only if it is of a kind the server is usually right about
-// (see isConfidentKind); otherwise nothing is.
+// one is, with the others to cycle to: unless nothing of the word is typed
+// yet, as after a selector dot, or the server doesn't rank the candidates.
+// Then the first one is just the first in the alphabetical order.
 func extractSuggestions(items []protocol.CompletionItem, line string, cx int, ranked bool) []suggestion {
 	cx = min(cx, len(line))
 	typed := identTrailing(line[:cx])
@@ -87,31 +88,16 @@ func extractSuggestions(items []protocol.CompletionItem, line string, cx int, ra
 			cursor: cursor,
 			label:  item.Label,
 			info:   item.Detail,
-			kind:   item.Kind,
 			edits:  item.AdditionalTextEdits,
 		})
 	}
 	if len(res) < 2 {
 		return res
 	}
-	if common := withCommonPrefix(res); common != nil || !ranked || typed == "" || !isConfidentKind(res[0].kind) {
+	if common := withCommonPrefix(res); common != nil || !ranked || typed == "" {
 		return common
 	}
 	return res // The best ranked first, the others to cycle to.
-}
-
-// isConfidentKind reports whether the server's best candidate of the kind is
-// likely what the user is typing even when the next candidates disagree with
-// it. It's true for the local names (variables and constants), the keywords,
-// and the types. The functions, methods, fields and packages are often ranked
-// first just because they come first in the scope.
-func isConfidentKind(k protocol.CompletionItemKind) bool {
-	switch k {
-	case protocol.CompletionItemKindVariable, protocol.CompletionItemKindConstant,
-		protocol.CompletionItemKindKeyword, protocol.CompletionItemKindClass:
-		return true
-	}
-	return false
 }
 
 // rankByPrefix orders completion items of a server that doesn't rank them
@@ -137,8 +123,8 @@ func rankByPrefix(items []protocol.CompletionItem, line string, cx int) []protoc
 // withCommonPrefix makes the common prefix of the candidates the first
 // suggestion when they disagree, so what is shown by default is right no
 // matter which candidate the user is after. The candidates themselves remain
-// available to cycle through. When the candidates have nothing in common,
-// nothing is suggested: whatever is picked is more likely wrong than right.
+// available to cycle through. When the candidates have nothing in common, it
+// returns nil.
 func withCommonPrefix(res []suggestion) []suggestion {
 	if len(res) < 2 {
 		return res
@@ -253,10 +239,10 @@ func argSuggestions(items []protocol.CompletionItem, params []string, line strin
 		return nil // Not inserted as is, like with an address taken.
 	}
 	all := strings.Join(args, ", ")
-	res := []suggestion{{text: all, cursor: len(all), label: all, info: found[0].Detail, kind: found[0].Kind}}
+	res := []suggestion{{text: all, cursor: len(all), label: all, info: found[0].Detail}}
 	if len(args) > 1 {
 		res[0].info = "arguments"
-		res = append(res, suggestion{text: args[0], cursor: len(args[0]), label: args[0], info: found[0].Detail, kind: found[0].Kind})
+		res = append(res, suggestion{text: args[0], cursor: len(args[0]), label: args[0], info: found[0].Detail})
 	}
 	return res
 }

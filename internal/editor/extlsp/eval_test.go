@@ -22,24 +22,35 @@ package extlsp
 //		-args -eval.sessions=prod -eval.cache=/tmp/eval -eval.strategies='/(ident|FINAL)$' \
 //		-eval.breakdown=FINAL -eval.seed=2 -eval.lines=150
 //
+// The samples depend on the files of the repository: the cache keeps the
+// results of the lines they are for, and the ones of other lines are run again.
+//
 // Findings on this repository (2 samples of 120 and 150 lines):
+//   - What shipped before the arguments saves ~25% of the keystrokes with ~90%
+//     of the suggestions right, FINAL ~34% with ~81% right.
 //   - The server latency (~15ms) is far below the typing pace: the late
 //     completions barely matter here (saveT%, saveTR%).
 //   - Where an argument starts, the server ranks by the type only, and its best
 //     candidate is right ~10% of the time; the variables named as the
-//     parameters are right ~95% of the time, though they are rarely there.
-//     The only variable of the parameter type is right ~65% of the time.
-//   - When the best candidates disagree, the best one is right ~70% of the
-//     time if it's a variable, a constant, a keyword, or a type, and ~20%
-//     otherwise.
+//     parameters are right ~80% of the time, at ~10% of the argument starts.
+//     The only variable of the parameter type is right 55-75% of the time.
+//   - When the best candidates have nothing in common, suggesting the best
+//     ranked one saves 4-5 points with ~83% right; only if it's a variable, a
+//     constant, a keyword, or a type, 3 points with ~88% right. Suggesting the
+//     best ranked one even when they have a common prefix is worse.
 //   - Ranking the candidates by their occurrences in the document makes it
 //     worse.
-//   - The server has no candidates in a fifth of the identifier positions:
-//     strings, trailing comments, the names being declared. The words of the
-//     document help there.
+//   - The words of the document where the server has no candidates (strings,
+//     comments, the names being declared) save ~5 points; also where no
+//     candidate extends the typed word, unless it's complete, ~0.6 more.
+//   - Writing sampled function bodies from the top, with the rest of the body
+//     missing and the brackets the editor closes, scores within a point of
+//     retyping the lines, and ranks the strategies the same: the lines are
+//     retyped only.
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -262,6 +273,12 @@ func TestEvalCompletion(t *testing.T) {
 		add("ident+args+top1+wordsE2", trigIdentOrArgs, paramFirst(wordsIfNoItems(2, lift(top1IfDisagree(1, extractIdent)))))
 		add("ident+args+top1vck+wordsE2", trigIdentOrArgs, paramFirst(wordsIfNoItems(2, lift(top1IfKind(vck, extractIdent)))))
 		add("ident+args+top1vckc+wordsE2", trigIdentOrArgs, paramFirst(wordsIfNoItems(2, lift(top1IfKind(vckc, extractIdent)))))
+		add("ident+args+top1vckc+words2", trigIdentOrArgs, paramFirst(wordsFallback(2, lift(top1IfKind(vckc, extractIdent)))))
+		add("ident+args+top1vckc+wordsC2", trigIdentOrArgs, paramFirst(wordsUnlessComplete(2, lift(top1IfKind(vckc, extractIdent)))))
+		add("ident+args+top1vckc+wordsC3", trigIdentOrArgs, paramFirst(wordsUnlessComplete(3, lift(top1IfKind(vckc, extractIdent)))))
+		add("ident+args+top1+wordsC2", trigIdentOrArgs, paramFirst(wordsUnlessComplete(2, lift(top1IfDisagree(1, extractIdent)))))
+		add("ident+argstart+top1+wordsE2", trigIdentOrArgs, argsAtStart(wordsIfNoItems(2, lift(top1IfDisagree(1, extractIdent)))))
+		add("ident+args+first+wordsE2", trigIdentOrArgs, paramFirst(wordsIfNoItems(2, lift(firstAlways(extractIdent)))))
 		add("FINAL", trigFinal, extractFinal)
 	}
 	if *evalStrategies != "" {
@@ -781,7 +798,7 @@ func trigIdent(line string, _ int) bool {
 func top1IfDisagree(minTyped int, next itemsCandidate) itemsCandidate {
 	return func(items []protocol.CompletionItem, line string, cx int) []string {
 		res := next(items, line, cx)
-		if len(res) > 0 || len(identTrailing(line)) < minTyped {
+		if len(res) > 0 || len(identTrailing(line)) < minTyped || completeWord(items, line) {
 			return res
 		}
 		for _, it := range items[:min(maxCandidates, len(items))] {
@@ -798,7 +815,7 @@ func top1IfDisagree(minTyped int, next itemsCandidate) itemsCandidate {
 func top1IfKind(kinds []protocol.CompletionItemKind, next itemsCandidate) itemsCandidate {
 	return func(items []protocol.CompletionItem, line string, cx int) []string {
 		res := next(items, line, cx)
-		if len(res) > 0 || identTrailing(line) == "" {
+		if len(res) > 0 || identTrailing(line) == "" || completeWord(items, line) {
 			return res
 		}
 		for _, it := range items[:min(maxCandidates, len(items))] {
@@ -810,6 +827,32 @@ func top1IfKind(kinds []protocol.CompletionItemKind, next itemsCandidate) itemsC
 			}
 		}
 		return nil
+	}
+}
+
+// completeWord reports whether the best candidate is the word typed: it's
+// not extended with another one.
+func completeWord(items []protocol.CompletionItem, line string) bool {
+	typed := identTrailing(line)
+	return len(items) > 0 && typed != "" && isComplete(items[0], typed)
+}
+
+// firstAlways puts the best candidate first, instead of the common prefix.
+func firstAlways(next itemsCandidate) itemsCandidate {
+	return func(items []protocol.CompletionItem, line string, cx int) []string {
+		if identTrailing(line) == "" || completeWord(items, line) {
+			return next(items, line, cx)
+		}
+		var res []string
+		for _, it := range items[:min(maxCandidates, len(items))] {
+			if g := next([]protocol.CompletionItem{it}, line, cx); len(g) > 0 && !slices.Contains(res, g[0]) {
+				res = append(res, g[0])
+			}
+		}
+		if len(res) == 0 {
+			return next(items, line, cx)
+		}
+		return res
 	}
 }
 
@@ -851,6 +894,21 @@ func wordsFallback(minTyped int, next candidate) candidate {
 	}
 }
 
+// wordsUnlessComplete is wordsFallback unless the best candidate is what's
+// typed.
+func wordsUnlessComplete(minTyped int, next candidate) candidate {
+	fallback := wordsFallback(minTyped, func(evalInput) []string { return nil })
+	return func(in evalInput) []string {
+		if res := next(in); len(res) > 0 {
+			return res
+		}
+		if typed := identTrailing(in.Line); len(in.Items) > 0 && typed != "" && isComplete(in.Items[0], typed) {
+			return nil
+		}
+		return fallback(in)
+	}
+}
+
 // wordsIfNoItems is wordsFallback only when the server has no candidates at
 // all, like in strings or for the names being declared.
 func wordsIfNoItems(minTyped int, next candidate) candidate {
@@ -874,6 +932,17 @@ func paramFirst(next candidate) candidate {
 		}
 		if names := paramNames(in.Sig); len(names) > 0 {
 			in.Items = moveFirst(in.Items, names[0])
+		}
+		return next(in)
+	}
+}
+
+// argsAtStart suggests the arguments named as the parameters where an
+// argument starts, and leaves the rest to next.
+func argsAtStart(next candidate) candidate {
+	return func(in evalInput) []string {
+		if afterArgStart(in.Line) {
+			return argsOnly(in)
 		}
 		return next(in)
 	}
@@ -1023,22 +1092,56 @@ func isASCII(s string) bool {
 	return true
 }
 
+// cachedLine is the result of a line in the cache of a session.
+type cachedLine struct {
+	Path   string // relative to the repository root
+	Line   int
+	Doc    string  // the hash of the document
+	Points []point // as typed
+}
+
 // cachedSession runs a session appending every line result to a JSONL cache
-// file, so an interrupted evaluation resumes where it stopped.
+// file, so an interrupted evaluation resumes where it stopped. The cached
+// results are used while they are of the sampled lines, in the same
+// documents: the rest is run again.
 func cachedSession(t *testing.T, root string, s evalSession, samples []sample) [][]point {
 	var (
 		res  [][]point
 		out  *os.File
 		path string
 	)
+	key := func(sm sample) cachedLine {
+		rel, _ := filepath.Rel(root, sm.path)
+		return cachedLine{Path: filepath.ToSlash(rel), Line: sm.line, Doc: fmt.Sprintf("%x", sha256.Sum256([]byte(sm.text)))}
+	}
 	if *evalCache != "" {
 		path = filepath.Join(*evalCache, fmt.Sprintf("%s-%d.jsonl", s.name, *evalSeed))
+		var cached []string
 		if b, err := os.ReadFile(path); err == nil {
-			for l := range strings.SplitSeq(string(b), "\n") {
-				var pts []point
-				if l != "" && json.Unmarshal([]byte(l), &pts) == nil {
-					res = append(res, pts)
-				}
+			cached = strings.Split(strings.TrimSuffix(string(b), "\n"), "\n")
+		}
+		for _, l := range cached {
+			var cl cachedLine
+			if len(res) == len(samples) || json.Unmarshal([]byte(l), &cl) != nil {
+				break
+			}
+			if k := key(samples[len(res)]); cl.Path != k.Path || cl.Line != k.Line || cl.Doc != k.Doc {
+				break
+			}
+			res = append(res, cl.Points)
+		}
+		if len(res) == len(samples) {
+			return res
+		}
+		if len(res) < len(cached) {
+			// The rest is for other lines, or other documents.
+			t.Logf("%s: the cache is for other lines from line %d on, they are run again", s.name, len(res))
+			data := strings.Join(cached[:len(res)], "\n")
+			if data != "" {
+				data += "\n"
+			}
+			if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+				t.Fatal(err)
 			}
 		}
 		var err error
@@ -1057,10 +1160,12 @@ func cachedSession(t *testing.T, root string, s evalSession, samples []sample) [
 	const restartEvery = 20 // gopls slows down with many versions of the files
 	for from := len(res); from < len(samples); from += restartEvery {
 		batch := samples[from:min(from+restartEvery, len(samples))]
-		for _, pts := range runSession(t, root, s, batch, from) {
+		for i, pts := range runSession(t, root, s, batch, from) {
 			res = append(res, pts)
 			if out != nil {
-				b, _ := json.Marshal(pts)
+				cl := key(batch[i])
+				cl.Points = pts
+				b, _ := json.Marshal(cl)
 				_, _ = out.Write(append(b, '\n'))
 			}
 		}
@@ -1082,6 +1187,19 @@ func runSession(t *testing.T, root string, s evalSession, samples []sample, offs
 		res    [][]point
 		opened = map[string]int32{}
 	)
+	if len(samples) > 0 {
+		// The first completions wait for the workspace to load: they would
+		// time out, and look like the server has nothing.
+		sm := samples[0]
+		u := uri.File(sm.path)
+		if err := c.DidOpen(ctx, u, "go", sm.text, 1); err != nil {
+			t.Fatal(err)
+		}
+		opened[sm.path] = 1
+		wctx, cancel := context.WithTimeout(ctx, time.Minute)
+		_, _ = c.Completion(wctx, u, uint32(sm.line), uint32(sm.start))
+		cancel()
+	}
 	for si, sm := range samples {
 		started := time.Now()
 		u := uri.File(sm.path)
