@@ -96,7 +96,7 @@ func cmdTitle(cmd *exec.Cmd) string {
 	if err != nil {
 		p = cmd.Dir
 	}
-	return fmt.Sprintf("%s> %s %s", p, filepath.Base(cmd.Path), strings.Join(cmd.Args, " "))
+	return fmt.Sprintf("%s> %s", p, strings.Join(append([]string{filepath.Base(cmd.Path)}, cmd.Args[1:]...), " "))
 }
 
 // stop interrupts the running command and waits for it to exit, killing it after the grace period.

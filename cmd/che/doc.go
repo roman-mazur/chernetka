@@ -19,7 +19,8 @@
 // opened directory or the working one.
 //
 // With -exeproxy purpose, che does not edit: it runs the commands the editors of the terminal tab
-// send for the purpose, like the Go tests (the purpose "go-run"), in the terminal pane it is started in.
+// send for the purpose in the terminal pane it is started in: the Go tests and programs of the line
+// actions (the purpose "go-run"), and the git diff shown with Ctrl+D (the purpose "git-diff").
 // The editor starts it itself when needed.
 //
 // Each terminal tab has its own main editor and che-img: the directory browser opens files
@@ -28,8 +29,9 @@
 // In other terminals, all the tabs share one main editor and one che-img.
 //
 // The new panes are split with Ghostty on macOS only. Elsewhere, the directory browser
-// opens the files itself, and che-img and the command proxy are to be started in another
-// pane by hand (che-img, and che -exeproxy go-run for the Go line actions).
+// opens the files itself, and che-img and the command proxies are to be started in other
+// panes by hand (che-img, che -exeproxy go-run for the Go line actions, and
+// che -exeproxy git-diff for Ctrl+D).
 //
 // # Images and diagrams
 //
@@ -71,7 +73,8 @@
 //	Ctrl+O   quick open a file or switch to a buffer (in any mode)
 //	Ctrl+F   search (in any mode)
 //	Ctrl+L   open the command line to go to a line with :n (in any mode)
-//	Ctrl+D   save the current file and show its git diff in a new pane on the right (in any mode)
+//	Ctrl+D   save the current file and show its git diff in a terminal pane on the right (in any mode);
+//	         the pane is opened once and reused for the next diff, like the pane of the Go line actions
 //	Ctrl+S   save the current buffer (in any mode)
 //	Ctrl+C   copy the selected text to the clipboard (in any mode)
 //	Ctrl+X   cut the selected text to the clipboard (in any mode)

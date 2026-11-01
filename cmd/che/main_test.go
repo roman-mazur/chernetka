@@ -174,7 +174,13 @@ func TestGitDiffCommand(t *testing.T) {
 	write("staged\nunstaged\n")
 
 	t.Chdir(t.TempDir()) // The editor may run outside the repository.
-	out, err := exec.Command("sh", "-c", gitDiffCommand(path)).CombinedOutput()
+	cmd := gitDiffCommand(path)
+	if cmd.Action != "exe" {
+		t.Errorf("action %q, want exe", cmd.Action)
+	}
+	diff := exec.Command(cmd.Args[0], cmd.Args[1:]...)
+	diff.Dir = cmd.WorkDir
+	out, err := diff.CombinedOutput()
 	if err != nil {
 		t.Fatalf("%s: %s", err, out)
 	}
