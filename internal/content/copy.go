@@ -2,6 +2,7 @@ package content
 
 // Copy makes a new content instance that won't be mutated when the passed instance is edited.
 // The returned copy can still be Mutable, just independent.
+// A document that is not Mutable is returned as is.
 // nil is returned if making a copy is not possible.
 func Copy(cnt Document) Document {
 	if c, ok := cnt.(copyable); ok {

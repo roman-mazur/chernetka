@@ -1,5 +1,6 @@
 // Package lsp is a minimal LSP client used by the editor to obtain completion
-// suggestions and formatting from a language server, like gopls.
+// suggestions, definitions, formatting, imports, and diagnostics from a language
+// server, like gopls.
 //
 // It exposes the small subset of LSP methods the editor needs: initialize,
 // didOpen, didChange, completion, definition, formatting, organize imports,

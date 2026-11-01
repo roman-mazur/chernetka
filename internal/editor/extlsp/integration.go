@@ -49,6 +49,9 @@ type lspStarter func(ctx context.Context, languageID, rootDir string) (lspClient
 // completion request. The best candidates are shown as an inline suggestion
 // that can be accepted with Tab.
 //
+// In Go files, typing a qualified name of a package that is not imported, like
+// "strconv.Itoa(", adds the import found by the server.
+//
 // Saving a buffer formats it with the server first.
 //
 // Ctrl+click on a symbol goes to its definition found by the server.
@@ -557,7 +560,7 @@ func (srv *server) close() error {
 
 // syncReq is the state of a buffer to be sent to the server.
 type syncReq struct {
-	editor  editor.Sender // nil for a format request
+	editor  editor.Sender // nil for the format requests and the first sync of a buffer
 	buf     *editor.Buffer
 	bufData *BufferData
 

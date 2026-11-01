@@ -29,8 +29,8 @@ const (
 	mouseEventTypeClick                             // quick press and release of the same button
 	mouseEventTypeDoubleClick                       // press/release that happen twice quickly
 	mouseEventTypeTripleClick                       // three press/release cycles
-	mouseEventTypeDragStart                         // long press and start moving
-	mouseEventTypeDragEnd                           // release after a long press and move
+	mouseEventTypeDragStart                         // press and start moving
+	mouseEventTypeDragEnd                           // release after a press and move
 	mouseEventTypeScroll
 )
 

@@ -16,7 +16,7 @@ import (
 	"rmazur.io/watch/dirwatch"
 )
 
-// Mode represents that editor mode (normal vs insert).
+// Mode represents the editor mode (normal vs insert).
 type Mode int
 
 const (
@@ -40,7 +40,7 @@ type Editor struct {
 	// Root is the project directory. Files to open are searched in it.
 	// The current working directory is used if it's empty.
 	Root string
-	// OpenPath opens the file picked with the :e command.
+	// OpenPath opens the file picked with the :e command or jumped to with GoTo.
 	// The file is opened as a text buffer if it's not set.
 	OpenPath func(path string)
 	// ShowDiff shows the version control changes of the file at the absolute path.
@@ -52,7 +52,7 @@ type Editor struct {
 
 	bufs    []*Buffer // stack of open buffers, the active one is the last
 	status  StatusBar // shown below the top buffer
-	toolBuf *Buffer   // buffer used by tooling, e.g. to visualize search results
+	toolBuf *Buffer   // buffer shown at the bottom for the tooling output, not set by the editor yet
 
 	nav navigation.History
 

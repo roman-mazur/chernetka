@@ -14,7 +14,7 @@ type language struct {
 	syntax *code.Syntax // with the root finder
 
 	// start launches the server for the workspace in rootDir. The problems the
-	// server finds are passed to diagnostics.
+	// server finds are passed to opts.Diagnostics.
 	start func(ctx context.Context, le *Integration, rootDir string, opts lsp.Options) (lspClient, error)
 
 	// rankedCompletion is set if the server sorts completion items by

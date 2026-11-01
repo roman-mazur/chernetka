@@ -27,7 +27,7 @@ type Buffer struct {
 	dirty      bool // if buffer content is different from the source file
 	noKeyboard bool // a flag that indicates that the last input was not from the keyboard
 
-	_c     content.Position // cursor position, user updateCursor() and c()
+	_c     content.Position // cursor position, use updateCursor() and c()
 	offset int              // first visible row (scroll)
 	reveal bool             // scroll the cursor line to the upper part of the screen on the next render
 	xoff   int              // first visible screen column of the text (horizontal scroll)
@@ -65,7 +65,7 @@ func NewScratchBuffer() *Buffer {
 func (b *Buffer) ExtensionData(id string) BufferExtData { return b.ext.data(id) }
 
 // Pos provides a pair of coordinates pointing to the current cursor location.
-// cx is the symbol offset within the content line.
+// cx is the byte offset within the content line.
 // cy is the line index in the Content.
 func (b *Buffer) Pos() (cx, cy int) { return b._c.Col, b._c.Line }
 
@@ -201,7 +201,7 @@ func (b *Buffer) screenToContentPosition(row, col int, tabSize int) content.Posi
 }
 
 // runeToScreenCol returns the visual column at the given byte index, expanding
-// tabs by tabSize. Used once per render to project cx onto the terminal.
+// tabs by tabSize.
 func runeToScreenCol(line string, runeIdx, tabSize int) int {
 	if runeIdx > len(line) {
 		runeIdx = len(line)
@@ -414,7 +414,7 @@ func (b *Buffer) HasSelection() bool {
 }
 
 // updateSelection extends the selection being made to the cursor.
-// The cursor is clamped first: the selection must not refer to positions outside the content.
+// The cursor must be clamped first: the selection must not refer to positions outside the content.
 func (b *Buffer) updateSelection() {
 	if b.selecting {
 		b.sel[len(b.sel)-1].End = b.c()

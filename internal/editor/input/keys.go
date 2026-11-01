@@ -14,7 +14,7 @@ type Key struct {
 	Special Special  // Text for a typed character
 	Rune    rune     // the typed character, or the letter pressed with Ctrl
 	Cursor  Cursor   // the cursor key if Special is CursorMove
-	Mod     Modifier // Shift, Ctrl, etc. for the cursor keys, Ctrl for the letters
+	Mod     Modifier // Shift, Ctrl, etc.; only Ctrl for the letters without the kitty keyboard protocol
 }
 
 // Special tells the keys that don't type text apart.
@@ -23,7 +23,7 @@ type Special byte
 //go:generate go run golang.org/x/tools/cmd/stringer -type=Special
 
 const (
-	Text       Special = iota // a character in Key.Rune, which is a control one with ModCtrl
+	Text       Special = iota // a character in Key.Rune, the letter pressed with ModCtrl
 	Enter                     // Enter (\r)
 	Tab                       // Tab
 	Backtab                   // Shift+Tab

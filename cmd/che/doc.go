@@ -19,13 +19,17 @@
 // opened directory or the working one.
 //
 // With -exeproxy purpose, che does not edit: it runs the commands the editors of the terminal tab
-// send for the purpose, like the Go tests (the purpose "run"), in the terminal pane it is started in.
+// send for the purpose, like the Go tests (the purpose "go-run"), in the terminal pane it is started in.
 // The editor starts it itself when needed.
 //
 // Each terminal tab has its own main editor and che-img: the directory browser opens files
 // in the main editor of its tab. In Ghostty, the tab is the one selected when che starts;
 // the panes che creates remember their tab in the CHE_TAB environment variable.
 // In other terminals, all the tabs share one main editor and one che-img.
+//
+// The new panes are split with Ghostty on macOS only. Elsewhere, the directory browser
+// opens the files itself, and che-img and the command proxy are to be started in another
+// pane by hand (che-img, and che -exeproxy go-run for the Go line actions).
 //
 // # Images and diagrams
 //
@@ -45,7 +49,9 @@
 //	k / ↑    move up
 //	0        jump to the first non-blank character of the line, or to its start
 //	         if the cursor is already there or within the indentation (same for Home)
-//	$        jump to end of line
+//	$        jump to end of line (same for End)
+//	Ctrl+A / Ctrl+E
+//	         same as Home / End (in any mode)
 //	g / G    jump to the first / last line
 //	Space    scroll one screen down
 //	b        scroll one screen up

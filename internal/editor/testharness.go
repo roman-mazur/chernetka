@@ -15,7 +15,7 @@ import (
 )
 
 // TestHarness wraps an Editor so tests — including those in extension packages —
-// can drive it without the terminal event loop. It exposes the internals (the
+// can drive it without a real terminal. It exposes the internals (the
 // active buffer, the command queue, input dispatch) that the production Editor
 // keeps private to Run.
 type TestHarness struct {
@@ -27,7 +27,8 @@ type TestHarness struct {
 }
 
 // NewTestHarness returns a harness around a fresh editor with an initialized
-// command queue, so Post never blocks even without a running event loop.
+// command queue, so a command can be sent before Run starts the event loop.
+// Post waits for the loop to run the command.
 // The clipboard is kept in memory until the test ends.
 func NewTestHarness(t testing.TB) *TestHarness {
 	// Registered before the cleanups of Run, so that it's restored once the loop is over.

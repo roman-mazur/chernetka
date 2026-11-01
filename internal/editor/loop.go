@@ -184,7 +184,7 @@ func (e *Editor) RequestRender() {
 	e.renderRequested = true
 }
 
-// layout selects the next buffer to render configuring its dimensions.
+// layout iterates over the buffers to render, configuring their dimensions.
 func (e *Editor) layout() iter.Seq[*Buffer] {
 	state := layoutState{e}
 	return state.Pass()

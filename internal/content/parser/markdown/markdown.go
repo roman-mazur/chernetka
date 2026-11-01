@@ -542,8 +542,8 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 	token := code.TtStrong
 	switch {
 	case c == '~':
-		// The terminal writer only sets colors, not text attributes, so struck
-		// text borrows the dimmed color comments use.
+		// The text styles have no strikethrough, so struck text borrows the
+		// dimmed color comments use.
 		token = code.TtComment
 	case n == 1:
 		token = code.TtEmphasis

@@ -21,7 +21,7 @@ const (
 type Item struct {
 	Operation Operation
 	Span      content.Span
-	Old, New  []content.Line // old/new lines within the change span; old is empty for inserts, new is empty for inserts
+	Old, New  []content.Line // old/new lines within the change span; old is empty for inserts, new is empty for deletes
 }
 
 func (it *Item) apply(m content.Mutable) content.Position {

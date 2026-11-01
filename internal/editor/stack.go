@@ -12,6 +12,7 @@ import (
 )
 
 // OpenReader adds a new buffer to the Editor by reading the full content.
+// If a buffer with the same path is open already, it's activated instead, and in is not read.
 func (e *Editor) OpenReader(path string, in io.Reader) error {
 	if e.findAndActivateBuffer(path) {
 		return nil

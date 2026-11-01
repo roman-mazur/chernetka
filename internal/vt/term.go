@@ -119,8 +119,8 @@ func runCleanup(ops []func()) {
 	}
 }
 
-// TestTerminal produces a test Terminal that never emits a window change event.
-// Reader and writer are provided in the arguments. If it's also an io.Closer, it will be closed in Close.
+// TestTerminal produces a test Terminal of w columns and h rows that never emits a window change event.
+// The input is read from rw, and the output is written to it. If it's also an io.Closer, it will be closed in Close.
 // The terminal does not report its size in pixels, set SizeFunc to change it.
 // Configure writes the escape sequences to the writer, and Close writes the restoring ones.
 func TestTerminal(w, h int, rw io.ReadWriter) *MockTerminal {

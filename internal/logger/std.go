@@ -2,7 +2,7 @@ package logger
 
 import "io"
 
-// Func represents a basic function that can be used for logging: it matching log.Printf and fmt.Printf.
+// Func represents a basic function that can be used for logging: it matches log.Printf and fmt.Printf.
 type Func func(format string, args ...any)
 
 // Prefix returns a logging Func that logs with a predefined prefix.

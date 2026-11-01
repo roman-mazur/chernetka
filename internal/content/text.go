@@ -21,7 +21,8 @@ const MimeTypeTextPlain = "text/plain"
 // FullText implements the Document exposing a text file fully loaded in the memory.
 type FullText []Line
 
-// LoadFullText reads the input reader until the end using the system line delimiter.
+// LoadFullText reads the input reader until the end, splitting it into lines at "\n"
+// and dropping a "\r" before it.
 // In the success scenario the input reader is fully consumed.
 func LoadFullText(in io.Reader) (doc FullText, fingerprint string, err error) {
 	hasher := newFingerprintHasher()

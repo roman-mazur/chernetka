@@ -1,7 +1,7 @@
 // Package exeproxy implements a server that can accept remotectl commands
-// to execute some command piping it output. It can be used to maintain a single process
-// for a helper pane of the editor: running tests or git diff, other executables in general
-// that don't implement remotectl protocol themself.
+// to execute some command piping its output. It can be used to maintain a single process
+// for a helper pane of the editor: running the Go tests and programs of the line actions,
+// other executables in general that don't implement remotectl protocol themselves.
 package exeproxy
 
 import (
@@ -21,7 +21,7 @@ import (
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
-// Endpoint returns the endpoint of the proxy serving the purpose, like running tests or showing diffs:
+// Endpoint returns the endpoint of the proxy serving the purpose, like running the Go tests and programs:
 // each purpose has its own proxy process, so the commands of one don't replace the commands of another.
 func Endpoint(purpose string) remotectl.Endpoint {
 	return remotectl.Endpoint("exeproxy").Scoped(purpose)

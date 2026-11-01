@@ -1,5 +1,5 @@
 // Package content exposes an interface that represents the data visualized by a text editor.
-// Implementations include maintaining all text lines in a memory or loading a part of a big file.
+// Implementations include a text file loaded into the memory, a directory tree, and an error message.
 package content
 
 import (
@@ -34,7 +34,7 @@ type Mutable interface {
 	Delete(startPos, endPos int)
 }
 
-// UndoRedo extends a Mutable document with under/redo operations.
+// UndoRedo extends a Mutable document with undo/redo operations.
 type UndoRedo interface {
 	Mutable
 
@@ -56,7 +56,7 @@ func Print(out io.Writer, data Document, i, j int) {
 	}
 }
 
-// IsText returns true if the document holds text. It false for a file system document, for example.
+// IsText returns true if the document holds text. It's false for a file system document, for example.
 func IsText(d Document) bool {
 	switch d.(type) {
 	case *FsContent, *ErrorContent:

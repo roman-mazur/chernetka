@@ -6,22 +6,22 @@ import "errors"
 
 var errorTerminalNotSupported = errors.New("terminal not supported")
 
-// openMainEditor does nothing
+// openMainEditor reports that the terminal is not supported: panes are split in Ghostty on macOS only.
 func openMainEditor(_, _ string) error {
 	return errorTerminalNotSupported
 }
 
-// launchImageViewer does nothing
+// launchImageViewer reports that the terminal is not supported.
 func launchImageViewer() error {
 	return errorTerminalNotSupported
 }
 
-// launchCommandProxy does nothing
+// launchCommandProxy reports that the terminal is not supported.
 func launchCommandProxy(_, _ string) error {
 	return errorTerminalNotSupported
 }
 
-// runInNewPane does nothing
+// runInNewPane reports that the terminal is not supported.
 func runInNewPane(_, _ string) error {
 	return errorTerminalNotSupported
 }

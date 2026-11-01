@@ -104,8 +104,9 @@ func guessPackageName(importPath string) string {
 
 // addImports inserts imports into src without touching the existing ones:
 // into the import block (next to the imports of the same kind, standard
-// library or not, in sorted order), turning a single import into a block, or
-// after the package clause if there are no imports. It returns src unchanged
+// library or not, in sorted order), turning a single import into a block, after
+// the last of several single imports, or after the package clause if there are
+// no imports. It returns src unchanged
 // if it can't be parsed.
 func addImports(src string, specs []importSpec) string {
 	fset, f, err := parseImports(src)

@@ -33,8 +33,7 @@ var DefaultColors = ColorTheme{
 		code.TtField:           parseColor("BCBEC4"),
 		code.TtEscape:          parseColor("CF8E6D"),
 
-		// Markup. Emphasis and strong text only differ by color: the terminal
-		// writer sets foreground and background, not text attributes.
+		// Markup. Emphasis and strong text are also italic and bold, see ResolveTokenStyle.
 		code.TtPunctuation: parseColor("7A7E85"),
 		code.TtHeading:     parseColor("56A8F5"),
 		code.TtEmphasis:    parseColor("BCBEC4"),
