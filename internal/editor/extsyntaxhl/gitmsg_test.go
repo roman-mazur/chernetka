@@ -1,6 +1,11 @@
 package extsyntaxhl
 
-import "testing"
+import (
+	"slices"
+	"testing"
+
+	"rmazur.io/chernetka/internal/content/code"
+)
 
 func TestGitMessageHighlight(t *testing.T) {
 	for _, tc := range []struct {
@@ -48,5 +53,24 @@ func TestGitMessageHighlight(t *testing.T) {
 			buf, ext := openDoc(t, ".git/COMMIT_EDITMSG", tc.doc.text())
 			tc.doc.check(t, highlighterOf(t, buf, ext))
 		})
+	}
+}
+
+func TestGitRebaseReparse(t *testing.T) {
+	var gr gitRebase
+	for _, text := range []string{"pick 1234 change\n# comment", "pick 1234 change"} {
+		if err := gr.reparse(newSource(text)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Only the spans of the last text: no comment line left over from the first one.
+	var spans []rawSpan
+	gr.spans(nil, func(s rawSpan) { spans = append(spans, s) })
+	want := []rawSpan{
+		{EndCol: 4, TokenType: code.TtKeyword},
+		{StartCol: 5, EndCol: 16, TokenType: code.TtNumberLiteral},
+	}
+	if !slices.Equal(spans, want) {
+		t.Errorf("got spans %v, want %v", spans, want)
 	}
 }

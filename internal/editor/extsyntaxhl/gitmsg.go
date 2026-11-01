@@ -104,6 +104,7 @@ type gitRebase struct {
 }
 
 func (gr *gitRebase) reparse(s *source) error {
+	gr.parts = nil
 	for i, line := range s.lines {
 		if strings.HasPrefix(line, "#") {
 			gr.parts = append(gr.parts, rawSpan{
