@@ -25,6 +25,39 @@ func TestInsertInput_HandleCursor(t *testing.T) {
 	}
 }
 
+func TestInsertInput_KeepsEmojiJoiners(t *testing.T) {
+	buf := Buffer{Content: content.Empty()}
+	const mermaid = "\U0001F9DC\u200D\u2640\uFE0F"
+	for _, r := range mermaid {
+		insertInput(&buf, input.Rune(r), &RenderPrefs{})
+	}
+	if got := buf.Content.Lines()[0].String(); got != mermaid {
+		t.Errorf("got %q, want %q", got, mermaid)
+	}
+	if got, want := buf.c().Col, len(mermaid); got != want {
+		t.Errorf("cursor column = %d, want %d", got, want)
+	}
+}
+
+func TestInsertInput_KeepsNonJoiner(t *testing.T) {
+	buf := Buffer{Content: content.Empty()}
+	const word = "\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645" // Persian "I want".
+	for _, r := range word {
+		insertInput(&buf, input.Rune(r), &RenderPrefs{})
+	}
+	if got := buf.Content.Lines()[0].String(); got != word {
+		t.Errorf("got %q, want %q", got, word)
+	}
+}
+
+func TestInsertInput_DropsOtherFormatCharacters(t *testing.T) {
+	buf := Buffer{Content: content.Empty()}
+	insertInput(&buf, input.Rune('\u202E'), &RenderPrefs{}) // Right-to-left override.
+	if got := buf.Content.Lines()[0].String(); got != "" {
+		t.Errorf("got %q, want no text", got)
+	}
+}
+
 func TestInsertInput_AutomateBrackets(t *testing.T) {
 	const firstLineContent = "line 1"
 	data, _, err := content.LoadFullText(strings.NewReader(

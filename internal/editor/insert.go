@@ -95,11 +95,26 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		}
 
 	default:
-		if unicode.IsPrint(ch) {
+		if isTypedText(ch) {
 			text := []byte(string(ch))
 			insertContent(buf, text, mut, line, len(text))
 		}
 	}
+}
+
+const (
+	// zeroWidthJoiner joins the characters around it into one emoji, like a mermaid from
+	// a merperson and a female sign. It's invisible, so unicode.IsPrint rejects it.
+	zeroWidthJoiner = '\u200d'
+	// zeroWidthNonJoiner keeps the letters around it apart, like in Persian words,
+	// whose keyboard layout has a key for it. It's invisible too.
+	zeroWidthNonJoiner = '\u200c'
+)
+
+// isTypedText reports whether typing r adds it to the text.
+// The other invisible format characters, like the ones reordering the text, are left out.
+func isTypedText(r rune) bool {
+	return unicode.IsPrint(r) || r == zeroWidthJoiner || r == zeroWidthNonJoiner
 }
 
 func isRepeatedBracket(buf *Buffer, line string, ch byte) bool {

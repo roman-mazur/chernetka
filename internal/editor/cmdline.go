@@ -3,7 +3,6 @@ package editor
 import (
 	"io"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/editor/input"
@@ -100,7 +99,7 @@ func (e *Editor) cmdLineInput(k input.Key) (quit bool) {
 		c.text = c.text[:len(c.text)-sz]
 		c.prompt.changed(e)
 	case input.Text:
-		if k.Mod == 0 && unicode.IsPrint(k.Rune) {
+		if k.Mod == 0 && isTypedText(k.Rune) {
 			c.text += string(k.Rune)
 			c.prompt.changed(e)
 		}

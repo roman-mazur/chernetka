@@ -83,6 +83,15 @@ func TestCommandInput_UTF8(t *testing.T) {
 	}
 }
 
+func TestCommandInput_KeepsEmojiJoiners(t *testing.T) {
+	e, input := newCmdEditor(&Buffer{Content: content.Empty()})
+	const mermaid = "\U0001F9DC\u200D\u2640\uFE0F"
+	input(":w " + mermaid)
+	if got, want := e.status.cmd.text, "w "+mermaid; got != want {
+		t.Errorf("text = %q, want %q", got, want)
+	}
+}
+
 func TestCommandInput_ResumesInsertMode(t *testing.T) {
 	buf := &Buffer{Content: content.Empty()}
 	e, input := newCmdEditor(buf)
