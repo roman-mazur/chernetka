@@ -19,11 +19,14 @@ const (
 	dirChangeDelay = 100 * time.Millisecond
 )
 
+// newWatcher starts a file system watcher. Tests may replace it to not watch the files.
+var newWatcher = dirwatch.New
+
 // fsWatcher returns the watcher shared by the buffers, starting it on the first use.
 // It returns nil if the watcher cannot be started.
 func (e *Editor) fsWatcher() *dirwatch.Watcher {
 	if e.watcher == nil {
-		w, err := dirwatch.New(func(err error) { e.Logf("watch: %s", err) })
+		w, err := newWatcher(func(err error) { e.Logf("watch: %s", err) })
 		if err != nil {
 			e.Logf("cannot watch files: %s", err)
 			return nil

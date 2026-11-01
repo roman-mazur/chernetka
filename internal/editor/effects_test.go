@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/watch/dirwatch"
 )
 
 // IsolateEffects lets the files be saved only in dir, until the test ends. With the clipboard
@@ -24,5 +25,17 @@ func IsolateEffects(t testing.TB, dir string) {
 			return "", errors.New("saving outside the test directory")
 		}
 		return content.Save(doc, dst)
+	}
+}
+
+// DisableFileWatching keeps the editor from watching the files and directories it opens, until
+// the test ends: the changes made outside the editor are not reloaded. The watcher waits for
+// the file system events in a goroutine that synctest never sees as blocked, so a test bubble
+// opening a file with the watching would never settle.
+func DisableFileWatching(t testing.TB) {
+	prev := newWatcher
+	t.Cleanup(func() { newWatcher = prev })
+	newWatcher = func(func(error)) (*dirwatch.Watcher, error) {
+		return nil, errors.New("file watching is disabled in the test")
 	}
 }

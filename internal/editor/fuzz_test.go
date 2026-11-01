@@ -154,6 +154,8 @@ func runFuzzedInput(t *testing.T, dir, ext, text string, input []byte) {
 func runFuzzedInputInBubble(t *testing.T, dir, ext, text string, input []byte) {
 	t.Chdir(dir)
 	editor.IsolateEffects(t, dir)
+	// The input may open the files with the quick open or the command line, which would watch them.
+	editor.DisableFileWatching(t)
 
 	h := editor.NewTestHarness(t)
 	h.Root = dir
