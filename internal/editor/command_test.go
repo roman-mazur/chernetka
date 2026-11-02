@@ -2,6 +2,8 @@ package editor
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -554,6 +556,29 @@ func TestOpenFile_Errors(t *testing.T) {
 			t.Errorf("content %#v", e.Top().Content)
 		}
 	})
+}
+
+func TestCheckCreatable(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		path      string
+		creatable bool
+	}{
+		{path: filepath.Join(dir, "new.txt"), creatable: true},
+		{path: filepath.Join(dir, "x", "y", "new.txt"), creatable: true},
+		// Windows reports these as missing paths, not as ENOTDIR.
+		{path: filepath.Join(file, "b.txt"), creatable: false},
+		{path: filepath.Join(file, "x", "b.txt"), creatable: false},
+	} {
+		err := checkCreatable(tc.path)
+		if got := errors.Is(err, fs.ErrNotExist); got != tc.creatable {
+			t.Errorf("checkCreatable(%q) = %v, want creatable %t", tc.path, err, tc.creatable)
+		}
+	}
 }
 
 func TestNewFilePrompt_Render(t *testing.T) {
