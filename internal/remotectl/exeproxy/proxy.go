@@ -125,10 +125,11 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd, title string) {
 	}
 
 	p := newProcessTree(exeCmd)
+	// The header is written before the command starts: once it runs, its output is copied to stdout concurrently.
+	cp.publishNewProcessStart(title)
 	start := time.Now()
-	err := exeCmd.Start()
-	cp.publishNewProcessStart(title, err)
-	if err != nil {
+	if err := exeCmd.Start(); err != nil {
+		cp.publishStartError(err)
 		cp.logf("cannot run command %q: %s", exeCmd.Path, err)
 		return
 	}
@@ -152,24 +153,30 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd, title string) {
 	}
 }
 
-func (cp *CommandProxy) publishNewProcessStart(title string, err error) {
+func (cp *CommandProxy) publishNewProcessStart(title string) {
 	out := cp.stdout()
 	if cp.Clear {
 		escape.ClearScreen(out)
 	}
 	if cp.Header {
-		if err == nil {
-			escape.StyleText(out, title, styles.TextStyle{Bold: true})
-			escape.UpdateProgress(out, escape.ProgressStateIndeterminate, 0)
-		} else {
-			escape.StyleText(
-				out,
-				fmt.Sprintf("cannot start: %s", err),
-				styles.TextStyle{TextColor: styles.DefaultColors.Error},
-			)
-		}
+		escape.StyleText(out, title, styles.TextStyle{Bold: true})
+		escape.UpdateProgress(out, escape.ProgressStateIndeterminate, 0)
 		fmt.Fprintln(out)
 	}
+}
+
+func (cp *CommandProxy) publishStartError(err error) {
+	if !cp.Header {
+		return
+	}
+	out := cp.stdout()
+	escape.UpdateProgress(out, escape.ProgressStateDefault, 0)
+	escape.StyleText(
+		out,
+		fmt.Sprintf("cannot start: %s", err),
+		styles.TextStyle{TextColor: styles.DefaultColors.Error},
+	)
+	fmt.Fprintln(out)
 }
 
 func (cp *CommandProxy) publishProcessFinish(duration time.Duration, err error) {
