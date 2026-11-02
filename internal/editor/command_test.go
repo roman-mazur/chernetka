@@ -276,9 +276,13 @@ func TestCommandInput_NewFile(t *testing.T) {
 
 	t.Run("buffer without a file uses the project root", func(t *testing.T) {
 		root := newFileTree(t)
+		t.Chdir(filepath.Join(root, "sub")) // Not the working directory.
 		e := newFileEditor(root)
 		e.New()
 		e.handleInput([]byte(ctrlN))
+		if c := e.status.cmd; c == nil || c.text != "n " {
+			t.Fatalf("command line %+v", c)
+		}
 		typeKeys(e, "new.txt\r")
 		assertTop(t, e, filepath.Join(root, "new.txt"), ModeNormal)
 	})
@@ -492,6 +496,38 @@ func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
 		typeKeys(e, "new.txt\r")
 		// The path is passed to a process that may run in another directory.
 		if want := []string{filepath.Join(root, "sub", "new.txt")}; !slices.Equal(opened, want) {
+			t.Errorf("opened %q, want %q", opened, want)
+		}
+	})
+
+	t.Run("working directory inside the project", func(t *testing.T) {
+		e, root := open(t) // The lines are: sub, a.txt.
+		t.Chdir(filepath.Join(root, "sub"))
+		e.handleInput([]byte(ctrlN))
+		if got, want := e.status.cmd.text, "n sub/"; got != want {
+			t.Errorf("on the directory: text = %q, want %q", got, want)
+		}
+		e.handleInput([]byte{0x1b})
+
+		e.Top().updateCursor(content.Position{Line: 1})
+		e.handleInput([]byte(ctrlN))
+		if got, want := e.status.cmd.text, "n "; got != want {
+			t.Errorf("on the root file: text = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("tree below the project root", func(t *testing.T) {
+		root := newFileTree(t)
+		e := &Editor{Root: root}
+		e.OpenDir(filepath.Join(root, "sub"), nil) // The lines are: deep, b.txt.
+		var opened []string
+		e.OpenPath = func(path string) { opened = append(opened, path) }
+		e.handleInput([]byte(ctrlN))
+		if got, want := e.status.cmd.text, "n sub/deep/"; got != want {
+			t.Errorf("text = %q, want %q", got, want)
+		}
+		typeKeys(e, "new.txt\r")
+		if want := []string{filepath.Join(root, "sub", "deep", "new.txt")}; !slices.Equal(opened, want) {
 			t.Errorf("opened %q, want %q", opened, want)
 		}
 	})

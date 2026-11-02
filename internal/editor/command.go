@@ -83,7 +83,8 @@ func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
 	return false
 }
 
-// newFilePrompt asks for the path of a new file, relative to the directory of the buffer.
+// newFilePrompt asks for the path of a new file, relative to the project root.
+// The path starts with the directory of the buffer, see selectedDirPrefix.
 // The buffer of the file is started on Enter, and the file is written when it's saved.
 type newFilePrompt struct {
 	c *cmdLine
@@ -140,21 +141,29 @@ func (p *newFilePrompt) render(out io.Writer, w int) {
 	renderCmdline(out, w, cmd, info)
 }
 
+// filePathFromSlash returns the path of the file typed as the slash-separated p,
+// resolving it against the project root. It's empty if p does not name a file.
 func filePathFromSlash(e *Editor, p string) string {
 	if p == "" || strings.HasSuffix(p, "/") {
 		return ""
 	}
 	res := filepath.FromSlash(p)
 	if !filepath.IsAbs(res) {
-		res = filepath.Join(e.root(), p)
+		res = filepath.Join(e.root(), res)
 	}
 	return res
 }
 
+// selectedDirPrefix returns the slash-separated directory of the buffer relative to the project
+// root, with a trailing slash: the directory of the file, or the directory selected in the tree.
+// It's empty for the project root and for a buffer without a file.
 func selectedDirPrefix(e *Editor, buf *Buffer) string {
-	dir := filepath.Dir(buf.Path)
+	dir := e.root()
 	if fc, isDir := buf.Content.(*content.FsContent); isDir {
-		dir = fc.DirAt(buf.c().Line)
+		// The tree paths are relative to its root, not to the working directory.
+		dir = filepath.Join(fc.RootPath(), filepath.FromSlash(fc.DirAt(buf.c().Line)))
+	} else if buf.Path != "" {
+		dir = filepath.Dir(buf.Path)
 	}
 	dir = displayPath(e.root(), dir)
 	if dir == "." {

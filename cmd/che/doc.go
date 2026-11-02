@@ -206,12 +206,13 @@
 //
 // # New files
 //
-// Ctrl+N types :n in the command line. The path that follows is relative to the directory
-// of the current file, or to the project directory in a buffer without a file. The resolved
-// path is shown on the right. Enter starts a new buffer, or opens the file if it exists.
-// The file is written when the buffer is saved, together with its missing parent directories.
+// Ctrl+N types :n in the command line, followed by the directory of the current file.
+// The path is relative to the project directory, and an absolute path can be typed too.
+// Enter starts a new buffer, or opens the file if it exists: the command line marks such
+// a path with (exists), and a directory with (dir). The file is written when the buffer
+// is saved, together with its missing parent directories.
 //
-// In the directory tree, the path is relative to the opened directory and starts with the
-// selected directory: the one under the cursor, or the one holding the file under the cursor.
-// The buffer is started in the main editor, like the opened files.
+// In the directory tree, the path starts with the selected directory: the one under the cursor,
+// or the one holding the file under the cursor. The buffer is started in the main editor,
+// like the opened files.
 package main
