@@ -410,8 +410,7 @@ func TestEditor_RenderQuickOpen(t *testing.T) {
 	}
 
 	e.handleInput([]byte{0x1b})
-	for range e.layout() {
-	}
+	e.layout()
 	if top.h != 39 || top.offset != 0 {
 		t.Errorf("content height %d, offset %d after the picker is closed", top.h, top.offset)
 	}

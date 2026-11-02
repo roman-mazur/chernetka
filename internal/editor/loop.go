@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"io"
-	"iter"
 	"slices"
 	"time"
 
@@ -113,7 +112,7 @@ func (e *Editor) render(out *bufio.Writer) {
 	// The layout needs the status bar height.
 	e.status.buf = topBuf
 
-	for buf := range e.layout() {
+	for _, buf := range e.layout() {
 		buf.clampCursor(e.rPrefs.TabSize)
 		escape.SetCursorPosition(out, buf.y+1, 1)
 		buf.Render(out, &e.rPrefs)
@@ -185,14 +184,16 @@ func (e *Editor) RequestRender() {
 	e.renderRequested = true
 }
 
-// layout iterates over the buffers to render, configuring their dimensions.
-func (e *Editor) layout() iter.Seq[*Buffer] {
-	state := layoutState{e}
-	return state.Pass()
+// layout returns the buffers to render, configuring their dimensions.
+// The slice is reused by the next layout.
+func (e *Editor) layout() []*Buffer {
+	e.lState.editor = e
+	return e.lState.Pass()
 }
 
 type layoutState struct {
 	editor *Editor
+	lBufs  [2]*Buffer
 }
 
 func (lps *layoutState) resolveWindowSize() (w int, h int) {
@@ -206,13 +207,11 @@ func (lps *layoutState) resolveWindowSize() (w int, h int) {
 	return size.Cols, size.Rows
 }
 
-func (lps *layoutState) Pass() iter.Seq[*Buffer] {
+// Pass returns the buffers to render, the top one first. The slice is reused by the next pass.
+func (lps *layoutState) Pass() []*Buffer {
 	w, h := lps.resolveWindowSize()
 
-	var (
-		lBufs [2]*Buffer
-		res   = lBufs[:0]
-	)
+	res := lps.lBufs[:0]
 	availableHeight := func() int {
 		rh := h - lps.editor.status.Height()
 		if rh <= 0 {
@@ -242,11 +241,7 @@ func (lps *layoutState) Pass() iter.Seq[*Buffer] {
 		}
 	}
 
-	return func(yield func(*Buffer) bool) {
-		for _, re := range slices.Backward(res) {
-			if !yield(re) {
-				return
-			}
-		}
-	}
+	// The top buffer goes first.
+	slices.Reverse(res)
+	return res
 }

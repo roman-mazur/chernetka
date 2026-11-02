@@ -50,8 +50,7 @@ func (s *StatusBar) RenderCursorPosition(out io.Writer) {
 func (s *StatusBar) Render(out io.Writer) {
 	// Set terminal title.
 	if s.buf.Path != "" {
-		title := "che: " + filepath.Base(s.buf.Path)
-		escape.SetTermTitle(out, title)
+		escape.SetTermTitle(out, "che: ", filepath.Base(s.buf.Path))
 	}
 
 	if c := s.cmdLine(); c != nil {
@@ -62,7 +61,7 @@ func (s *StatusBar) Render(out io.Writer) {
 	restoreColors := escape.ReverseVideo(out)
 	defer restoreColors.Undo()
 
-	prefix := " " + s.buf.mode.String() + "  "
+	contentWidth := s.renderPrefix(out)
 	suffix := ""
 	if s.buf.dirty {
 		suffix = " [*]"
@@ -77,18 +76,33 @@ func (s *StatusBar) Render(out io.Writer) {
 		pos = problems + "  " + pos
 	}
 
-	contentWidth := symbol.DisplayWidth(prefix, symbol.NoTabExpansion) +
-		symbol.DisplayWidth(suffix, symbol.NoTabExpansion) +
-		symbol.DisplayWidth(pos, symbol.NoTabExpansion)
+	contentWidth += s.measureWidth(suffix, pos)
 	// Leave at least one space between the path and the cursor position.
-	leftPart := prefix + shortenPath(s.buf.Path, s.buf.w-contentWidth-1) + suffix
+	renderedPath := shortenPath(s.buf.Path, s.buf.w-contentWidth-1)
+	contentWidth += s.measureWidth(renderedPath)
 
-	contentWidth = symbol.DisplayWidth(leftPart, symbol.NoTabExpansion) + symbol.DisplayWidth(pos, symbol.NoTabExpansion)
 	padding := max(s.buf.w-contentWidth, 0)
 
-	_, _ = io.WriteString(out, leftPart)
+	_, _ = io.WriteString(out, renderedPath)
+	_, _ = io.WriteString(out, suffix)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 	_, _ = io.WriteString(out, pos)
+}
+
+func (s *StatusBar) renderPrefix(out io.Writer) (width int) {
+	m := s.buf.mode.String()
+	_, _ = io.WriteString(out, " ")
+	_, _ = io.WriteString(out, m)
+	_, _ = io.WriteString(out, "  ")
+	return len(m) + 3
+}
+
+func (s *StatusBar) measureWidth(parts ...string) int {
+	res := 0
+	for _, part := range parts {
+		res += symbol.DisplayWidth(part, symbol.NoTabExpansion)
+	}
+	return res
 }
 
 // problems summarizes the problems found in the buffer, like "E2 W1".

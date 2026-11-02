@@ -111,8 +111,7 @@ func screenRows(output string, height int) []string {
 func BenchmarkLayoutState_Pass(b *testing.B) {
 	ls := layoutState{editor: setupBenchmarkEditor(b)}
 	for b.Loop() {
-		for range ls.Pass() {
-		}
+		ls.Pass()
 	}
 }
 

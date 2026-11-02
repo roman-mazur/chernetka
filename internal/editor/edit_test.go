@@ -77,10 +77,7 @@ func TestEditor_OpenReader_ReuseSamePath(t *testing.T) {
 
 func assertLayoutTop(t *testing.T, e *Editor, wantPath string) {
 	t.Helper()
-	var bufs []*Buffer
-	for buf := range e.layout() {
-		bufs = append(bufs, buf)
-	}
+	bufs := e.layout()
 	if len(bufs) != 1 {
 		t.Fatalf("layout returned %d buffers, want 1", len(bufs))
 	}
@@ -322,7 +319,7 @@ func TestEditor_LayoutWindowSize(t *testing.T) {
 				t.Fatalf("OpenReader: %v", err)
 			}
 
-			for buf := range e.layout() {
+			for _, buf := range e.layout() {
 				// One row is left for the status bar.
 				if buf.w != tc.wantW || buf.h != tc.wantH-1 {
 					t.Errorf("buffer size = %dx%d, want %dx%d", buf.w, buf.h, tc.wantW, tc.wantH-1)

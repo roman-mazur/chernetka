@@ -181,9 +181,11 @@ func Clean(s string) string {
 }
 
 // SetTermTitle uses escape sequence to instruct the terminal what tab/window title should be.
-func SetTermTitle(out io.Writer, title string) {
+func SetTermTitle(out io.Writer, title ...string) {
 	_, _ = io.WriteString(out, "\x1b]0;")
-	_, _ = io.WriteString(out, title)
+	for _, t := range title {
+		_, _ = io.WriteString(out, t)
+	}
 	_, _ = io.WriteString(out, "\x07")
 }
 

@@ -55,7 +55,8 @@ type Editor struct {
 	status  StatusBar // shown below the top buffer
 	toolBuf *Buffer   // buffer shown at the bottom for the tooling output, not set by the editor yet
 
-	nav navigation.History
+	lState layoutState
+	nav    navigation.History
 
 	renderRequested bool
 	cmdChannel      chan Command

@@ -31,6 +31,8 @@ type contentPrinter struct {
 	lnDigits int      // number of digits for line numbers
 	lnBuf    [10]byte // buffer for line numbers
 	tab      string   // what to render for \t
+
+	_singleBgSpanBuf [1]colorSpan
 }
 
 func (cr *contentPrinter) prepare(b *Buffer, i, j int, prefs *RenderPrefs) {
@@ -264,7 +266,8 @@ func (cr *contentPrinter) buildBgSpans(line int, lineLen int, hlLine bool) []col
 		cs := colorSpan{color: styles.DefaultColors.LineSelectedBg,
 			Start: content.Position{Col: 0, Line: line},
 			End:   content.Position{Col: lineLen, Line: line}}
-		return []colorSpan{cs}
+		cr._singleBgSpanBuf[0] = cs
+		return cr._singleBgSpanBuf[:]
 	}
 	slices.SortFunc(spans, func(a, b colorSpan) int { return a.Start.Col - b.Start.Col })
 
