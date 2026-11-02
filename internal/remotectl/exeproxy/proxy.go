@@ -160,6 +160,7 @@ func (cp *CommandProxy) publishNewProcessStart(title string, err error) {
 	if cp.Header {
 		if err == nil {
 			escape.StyleText(out, title, styles.TextStyle{Bold: true})
+			escape.UpdateProgress(out, escape.ProgressStateIndeterminate, 0)
 		} else {
 			escape.StyleText(
 				out,
@@ -175,20 +176,22 @@ func (cp *CommandProxy) publishProcessFinish(duration time.Duration, err error) 
 	if !cp.Header {
 		return
 	}
+	out := cp.stdout()
+	escape.UpdateProgress(out, escape.ProgressStateDefault, 0)
 	if err == nil {
 		escape.StyleText(
-			cp.stdout(),
+			out,
 			fmt.Sprintf("✓ done in %s", duration),
 			styles.TextStyle{TextColor: styles.DefaultColors.LineAction},
 		)
 	} else {
 		escape.StyleText(
-			cp.stdout(),
+			out,
 			fmt.Sprintf("✗ %s after %s", err, duration),
 			styles.TextStyle{TextColor: styles.DefaultColors.Error},
 		)
 	}
-	fmt.Fprintln(cp.stdout())
+	fmt.Fprintln(out)
 }
 
 type exeFunc func(cmd remotectl.CommandData)

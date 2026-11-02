@@ -2,10 +2,7 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
-
-	"golang.org/x/term"
 
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/remotectl"
@@ -54,7 +51,7 @@ func runCommandProxy(purpose string) {
 	cp := exeproxy.CommandProxy{
 		Logf:   logger.Prefix(logf, "exeproxy "+purpose+": "),
 		Header: true,
-		Clear:  term.IsTerminal(int(os.Stdout.Fd())),
+		Clear:  true,
 	}
 	if err := cp.Run(exeproxy.Endpoint(purpose).InTab()); err != nil {
 		log.Fatal("cannot start the command proxy: ", err)
