@@ -21,37 +21,63 @@ import (
 // the syntax highlighting, and with all the extensions of cmd/che but the LSP:
 // it would start a language server, which reports to the editor loop.
 func BenchmarkEditor_Render(b *testing.B) {
-	for _, bc := range []struct {
-		name string
-		exts func() []editor.Extension
-	}{
-		{name: "plain", exts: func() []editor.Extension { return nil }},
-		{name: "syntaxhl", exts: func() []editor.Extension {
-			return []editor.Extension{new(extsyntaxhl.Integration)}
-		}},
-		{name: "all", exts: cheExtensions},
-	} {
+	for _, bc := range renderTestConfigs() {
 		b.Run(bc.name, func(b *testing.B) {
-			f, err := os.Open("loop.go")
-			if err != nil {
-				b.Fatal(err)
-			}
-			b.Cleanup(func() { _ = f.Close() })
-
-			h := editor.NewTestHarness(b)
-			for _, ext := range bc.exts() {
-				h.Extend(ext)
-			}
-			if err := h.OpenReader("loop.go", f); err != nil {
-				b.Fatal(err)
-			}
-
-			out := bufio.NewWriter(io.Discard)
+			h, out := prepareRenderTest(b, &bc)
 			for b.Loop() {
 				h.RenderFrame(out)
 			}
 		})
 	}
+}
+
+func TestEditor_Render_Allocations(t *testing.T) {
+	for _, tc := range renderTestConfigs() {
+		t.Run(tc.name, func(t *testing.T) {
+			h, out := prepareRenderTest(t, &tc)
+			n := testing.AllocsPerRun(100, func() {
+				h.RenderFrame(out)
+			})
+			t.Log("avg allocations", n, "per 100 calls")
+			if n > 1 {
+				t.Errorf("allocations number is too big: %f", n)
+			}
+		})
+	}
+}
+
+func prepareRenderTest(t testing.TB, cfg *renderTestConfig) (*editor.TestHarness, *bufio.Writer) {
+	t.Helper()
+	f, err := os.Open("loop.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+
+	h := editor.NewTestHarness(t)
+	for _, ext := range cfg.exts() {
+		h.Extend(ext)
+	}
+	if err := h.OpenReader("loop.go", f); err != nil {
+		t.Fatal(err)
+	}
+	out := bufio.NewWriter(io.Discard)
+	return h, out
+}
+
+func renderTestConfigs() []renderTestConfig {
+	return []renderTestConfig{
+		{name: "plain", exts: func() []editor.Extension { return nil }},
+		{name: "syntaxhl", exts: func() []editor.Extension {
+			return []editor.Extension{new(extsyntaxhl.Integration)}
+		}},
+		{name: "all", exts: cheExtensions},
+	}
+}
+
+type renderTestConfig struct {
+	name string
+	exts func() []editor.Extension
 }
 
 // cheExtensions returns new extensions of cmd/che but the LSP: it would start a language server,
