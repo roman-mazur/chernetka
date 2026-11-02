@@ -2,14 +2,23 @@ package editor
 
 import (
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
 )
 
+const (
+	cmdPrefixNewFile   = "n "
+	cmdPrefixQuickOpen = "e "
+)
+
 // exPrompt runs the typed command on Enter, see runExCommand.
-// Typing ":e " turns it into the file picker.
+// Typing ":e " turns it into the file picker, and ":n " into the new file prompt.
 type exPrompt struct {
 	c *cmdLine
 }
@@ -21,8 +30,13 @@ func (p *exPrompt) prefix() string { return ":" }
 func (p *exPrompt) input(*Editor, input.Key) bool { return false }
 
 func (p *exPrompt) changed(e *Editor) {
-	if strings.HasPrefix(p.c.text, quickOpenPrefix) {
+	switch {
+	case strings.HasPrefix(p.c.text, cmdPrefixQuickOpen):
 		p.c.prompt = newQuickOpen(p.c)
+		p.c.prompt.changed(e)
+	case strings.HasPrefix(p.c.text, cmdPrefixNewFile):
+		p.c.text += selectedDirPrefix(e, p.c.buf)
+		p.c.prompt = &newFilePrompt{c: p.c}
 		p.c.prompt.changed(e)
 	}
 }
@@ -67,4 +81,88 @@ func runExCommand(buf *Buffer, cmd string, prefs *RenderPrefs) (quit bool) {
 		}
 	}
 	return false
+}
+
+// newFilePrompt asks for the path of a new file, relative to the directory of the buffer.
+// The buffer of the file is started on Enter, and the file is written when it's saved.
+type newFilePrompt struct {
+	c *cmdLine
+
+	path string // the absolute path of the file to create or open, empty if the text does not name a file
+	info string // what is shown on the right of the command line
+}
+
+func (p *newFilePrompt) prefix() string { return ":" }
+
+func (p *newFilePrompt) input(*Editor, input.Key) bool { return false }
+
+// changed resolves the typed path. The prompt turns back into the ex command if the prefix is deleted.
+func (p *newFilePrompt) changed(e *Editor) {
+	inputPath, active := strings.CutPrefix(p.c.text, cmdPrefixNewFile)
+	if !active {
+		p.c.prompt = newExPrompt(p.c)
+		return
+	}
+	p.path, p.info = filePathFromSlash(e, inputPath), ""
+	if p.path == "" {
+		return
+	}
+
+	if info, err := os.Stat(p.path); err == nil {
+		if info.IsDir() {
+			p.path = ""
+			p.info = "(dir)"
+		} else {
+			p.info = "(exists)"
+		}
+	}
+}
+
+func (p *newFilePrompt) submit(e *Editor) (quit bool) {
+	if p.path != "" {
+		e.open(p.path)
+	}
+	return false
+}
+
+func (p *newFilePrompt) cancel(*Editor) {}
+
+func (p *newFilePrompt) height(int) int { return 1 }
+
+func (p *newFilePrompt) render(out io.Writer, w int) {
+	cmd := p.prefix() + p.c.text
+	const margins = 3 // A gap after the command, and a space with the cursor at the end.
+	info := ""
+	avail := w - symbol.DisplayWidth(cmd, symbol.NoTabExpansion) - margins
+	if avail >= symbol.DisplayWidth(p.info, symbol.NoTabExpansion) {
+		info = p.info
+	}
+	renderCmdline(out, w, cmd, info)
+}
+
+func filePathFromSlash(e *Editor, p string) string {
+	if p == "" || strings.HasSuffix(p, "/") {
+		return ""
+	}
+	res := filepath.FromSlash(p)
+	if !filepath.IsAbs(res) {
+		res = filepath.Join(e.root(), p)
+	}
+	return res
+}
+
+func selectedDirPrefix(e *Editor, buf *Buffer) string {
+	dir := filepath.Dir(buf.Path)
+	if fc, isDir := buf.Content.(*content.FsContent); isDir {
+		dir = fc.DirAt(buf.c().Line)
+	}
+	dir = displayPath(e.root(), dir)
+	if dir == "." {
+		return ""
+	}
+	dir = filepath.ToSlash(dir)
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+	return dir
 }

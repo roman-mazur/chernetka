@@ -40,7 +40,8 @@ type Editor struct {
 	// Root is the project directory. Files to open are searched in it.
 	// The current working directory is used if it's empty.
 	Root string
-	// OpenPath opens the file picked with the :e command or jumped to with GoTo.
+	// OpenPath opens the file picked with the :e or :n command or jumped to with GoTo.
+	// The file may not exist yet, see OpenFile.
 	// The file is opened as a text buffer if it's not set.
 	OpenPath func(path string)
 	// ShowDiff shows the version control changes of the file at the absolute path.

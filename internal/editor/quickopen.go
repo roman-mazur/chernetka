@@ -2,11 +2,9 @@ package editor
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -16,9 +14,6 @@ import (
 	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
-
-// quickOpenPrefix starts the command line of the file picker: ":e query".
-const quickOpenPrefix = "e "
 
 const (
 	maxQuickMatches = 50    // matches kept for display
@@ -49,17 +44,12 @@ type quickMatch struct {
 
 func newQuickOpen(c *cmdLine) *quickOpen { return &quickOpen{c: c, offset: c.buf.offset} }
 
-// startQuickOpen shows the command line with the :e command typed.
-func (e *Editor) startQuickOpen(buf *Buffer) {
-	e.openCmdLine(buf, quickOpenPrefix, newExPrompt)
-}
-
 func (q *quickOpen) prefix() string { return ":" }
 
 // changed lists the matches for the query typed after ":e ".
 // The picker turns back into the ex command if the prefix is deleted.
 func (q *quickOpen) changed(e *Editor) {
-	query, active := strings.CutPrefix(q.c.text, quickOpenPrefix)
+	query, active := strings.CutPrefix(q.c.text, cmdPrefixQuickOpen)
 	if !active {
 		q.cancel(e)
 		q.c.prompt = newExPrompt(q.c)
@@ -128,19 +118,8 @@ func (q *quickOpen) submit(e *Editor) (quit bool) {
 	case q.query != "":
 		path = filepath.Join(e.root(), q.query)
 	}
-	if path == "" || e.findAndActivateBuffer(path) {
-		return false
-	}
-	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
-		buf := NewScratchBuffer()
-		buf.Path = path
-		e.push(buf)
-		return false
-	}
-	if e.OpenPath != nil {
-		e.OpenPath(path)
-	} else {
-		(&OpenFile{Path: path}).DoOnEditor(e)
+	if path != "" {
+		e.open(path)
 	}
 	return false
 }

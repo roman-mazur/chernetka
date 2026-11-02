@@ -8,7 +8,7 @@
 //
 // When no file is given and stdin is a pipe, edit opens the piped content in a
 // read-only buffer. When no file and no pipe are present, a blank scratch
-// buffer is opened instead.
+// buffer is opened instead. A file that does not exist is created when it's saved.
 //
 // Opening a directory is also supported. Editor will display a terminal UI allowing
 // to navigate the directory tree. Pressing Enter on a file will attempt opening this
@@ -71,8 +71,9 @@
 //	n / N    move to the next / previous search match
 //	Esc      clear the selection and the search highlights
 //	Ctrl+O   quick open a file or switch to a buffer (in any mode)
+//	Ctrl+N   create a new file (in any mode, see New files)
 //	Ctrl+F   search (in any mode)
-//	Ctrl+L   open the command line to go to a line with :n (in any mode)
+//	Ctrl+L   open the command line to go to a line with :N (in any mode)
 //	Ctrl+D   save the current file and show its git diff in a terminal pane on the right (in any mode);
 //	         the pane is opened once and reused for the next diff, like the pane of the Go line actions
 //	Ctrl+S   save the current buffer (in any mode)
@@ -183,7 +184,8 @@
 //	:wq      save and close the buffer
 //	:pbcopy  copy the selected text to the clipboard (also :pbcut and :pbpaste)
 //	:e query quick open a file (see below)
-//	:n       go to line n
+//	:n path  create a new file (see below)
+//	:N       go to line N
 //	Esc      cancel
 //
 // # Quick open
@@ -201,4 +203,15 @@
 //	Esc                cancel
 //
 // Ctrl+O and Enter switch to the previous buffer.
+//
+// # New files
+//
+// Ctrl+N types :n in the command line. The path that follows is relative to the directory
+// of the current file, or to the project directory in a buffer without a file. The resolved
+// path is shown on the right. Enter starts a new buffer, or opens the file if it exists.
+// The file is written when the buffer is saved, together with its missing parent directories.
+//
+// In the directory tree, the path is relative to the opened directory and starts with the
+// selected directory: the one under the cursor, or the one holding the file under the cursor.
+// The buffer is started in the main editor, like the opened files.
 package main

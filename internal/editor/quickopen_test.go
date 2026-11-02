@@ -94,7 +94,7 @@ func TestQuickOpen_Refresh(t *testing.T) {
 		return
 	}
 
-	e.startQuickOpen(e.Top())
+	e.openCmdLine(e.Top(), cmdPrefixQuickOpen, newExPrompt)
 	runQueuedCommand(t, e)
 	// Open buffers from the most recent one, the current buffer is the last one;
 	// then the other files.

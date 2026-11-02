@@ -19,8 +19,8 @@
 - [x] Mouse selection not working (mouse click with Shift)
 - [x] Grapheme clusters handling (one symbol with multiple code points)
 - [x] Unify how external commands are run (consider a helper process that receives commands to execute): d2, go run, git diff
+- [x] Create new file (with parent dirs)
 
-- create new file (with parent dirs)
 - project search (render with the tool buffer)
 - project search inter-process (dir + main editor)
 - find references (render with the tool buffer), call hierarchy, diagnostics using the tool buffer

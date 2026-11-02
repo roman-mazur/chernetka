@@ -259,9 +259,16 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	// Show the file picker. The picker itself selects the next match with it.
 	case input.Ctrl('o'):
 		if !prompting[*quickOpen](e) {
-			e.startQuickOpen(buf)
+			e.openCmdLine(buf, cmdPrefixQuickOpen, newExPrompt)
 			return false
 		}
+
+	// Start typing the path of a new file.
+	case input.Ctrl('n'):
+		if !prompting[*newFilePrompt](e) {
+			e.openCmdLine(buf, cmdPrefixNewFile, newExPrompt)
+		}
+		return false
 
 	// Open the command line to type the line number to go to.
 	case input.Ctrl('l'):

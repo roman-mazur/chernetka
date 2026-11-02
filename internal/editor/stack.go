@@ -1,7 +1,9 @@
 package editor
 
 import (
+	"errors"
 	"io"
+	"io/fs"
 	"iter"
 	"os"
 	"path/filepath"
@@ -54,6 +56,8 @@ func (e *Editor) navigateHistory(forward bool) {
 
 // OpenFile opens a new file via Editor.OpenReader.
 // The buffer content is reloaded when the file is changed outside the editor.
+// If the file does not exist, an empty buffer is started: the file is created when it's saved,
+// together with its parent directories.
 type OpenFile struct {
 	Path string
 }
@@ -65,6 +69,12 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 	}
 
 	f, err := os.Open(of.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		buf := NewScratchBuffer()
+		buf.Path = of.Path
+		e.push(buf)
+		return
+	}
 	if err != nil {
 		of.handleError(e, err)
 		return
@@ -89,6 +99,18 @@ func (of *OpenFile) handleError(e *Editor, err error) {
 	})
 }
 
+// open activates the buffer of the file at path, or opens the file with the OpenPath hook if it's set.
+func (e *Editor) open(path string) {
+	if e.findAndActivateBuffer(path) {
+		return
+	}
+	if e.OpenPath != nil {
+		e.OpenPath(path)
+	} else {
+		(&OpenFile{Path: path}).DoOnEditor(e)
+	}
+}
+
 // GoTo opens the file at Path, unless it's open already, and moves the cursor to Position.
 // If Position is not visible, it's scrolled to the upper third of the screen.
 // The jump is recorded in the navigation history unless SkipRecording is set.
@@ -103,13 +125,7 @@ func (g *GoTo) DoOnEditor(e *Editor) {
 	curLocation := bufferToLocation(e.Top())
 
 	e.nav.EnableRecording(false)
-	if !e.findAndActivateBuffer(g.Path) {
-		if e.OpenPath != nil {
-			e.OpenPath(g.Path)
-		} else {
-			(&OpenFile{Path: g.Path}).DoOnEditor(e)
-		}
-	}
+	e.open(g.Path)
 	e.nav.EnableRecording(true)
 
 	buf := e.Top()
