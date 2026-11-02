@@ -10,7 +10,8 @@
 // The bindings are v0.25.0: its tag is removed upstream, the commit is the one
 // the Go module proxy has for it.
 //
-// The package adds UseLibcAllocator to the bindings, which allocate through Go.
+// The package adds UseLibcAllocator to the bindings, which allocate through Go,
+// and Parser.ParseBuffer, which parses a slice without copying it on every read.
 package tree_sitter
 
 //go:generate go run ./fetchcore adc13ffd8b2c0b01b878fda9f7c422ce0df5fad3 v0.25.10
