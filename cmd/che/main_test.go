@@ -118,6 +118,20 @@ func TestEditDelegate_OpenFile(t *testing.T) {
 		}
 	})
 
+	t.Run("missing files are opened for editing", func(t *testing.T) {
+		for _, name := range []string{"new.txt", "new.d2", "new.png"} {
+			path := filepath.Join(dir, name)
+			ed, viewer, replaced := newTestDelegate(t)
+			ed.openFile(path)
+			if len(*viewer) != 0 || len(*replaced) != 0 {
+				t.Errorf("%s sent to che-img: shown %v, replaced %v", name, *viewer, *replaced)
+			}
+			if got := topPath(ed.edit); got != path {
+				t.Errorf("active buffer = %q, want %q", got, path)
+			}
+		}
+	})
+
 	t.Run("relative paths are shown as absolute", func(t *testing.T) {
 		t.Chdir(dir)
 		ed, viewer, _ := newTestDelegate(t)

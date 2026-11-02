@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -88,16 +89,16 @@ func main() {
 		path := flag.Arg(0)
 
 		info, err := os.Stat(path)
-		if err != nil {
+		switch {
+		case err != nil && !errors.Is(err, fs.ErrNotExist):
 			_ = term.Close() // log.Fatal skips deferred calls.
 			log.Fatal("cannot get path info:", err)
-		}
-		if info.IsDir() {
+		case err == nil && info.IsDir():
 			delegate.root = path
 			edit.OpenDir(path, &delegate)
 			edit.OpenPath = delegate.OpenFile // The directory tree stays, like after Enter on a file.
 			skipCtl = true
-		} else {
+		default:
 			delegate.openFile(path)
 		}
 	}
@@ -183,9 +184,13 @@ type editDelegate struct {
 // openFile opens the file at path in the editor. Images are shown with che-img instead,
 // and diagrams are shown with che-img in addition to being opened for editing.
 // If nothing is open in the editor yet, che turns into che-img to show an image.
+// A file that does not exist has nothing to show, so it's always opened for editing.
 // It must be called on the editor goroutine or before the editor runs.
 func (ed *editDelegate) openFile(path string) {
 	imgKind := cheimg.KindOf(path)
+	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		imgKind = cheimg.KindUnsupported
+	}
 	if imgKind == cheimg.KindImage && ed.edit.Top() == nil {
 		ed.logf("replacing the editor with che-img for %s", path)
 		err := fmt.Errorf("cannot start che-img: %w", ed.replaceWithViewer(path))
