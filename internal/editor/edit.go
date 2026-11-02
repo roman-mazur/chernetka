@@ -153,12 +153,18 @@ func (e *Editor) handleAfterEdit(buf *Buffer) {
 	if buf.selecting {
 		e.renderRequested = true
 	}
-	if !buf.resetMutated() {
+	notifyExtensions(e, buf, e.x)
+}
+
+// notifyExtensions passes the changes made to the buffer since the previous notification to the extensions.
+func notifyExtensions(loop Sender, buf *Buffer, exts []Extension) {
+	changes, mutated := buf.resetMutated()
+	if !mutated {
 		// No edits since the last time.
 		return
 	}
-	for _, ext := range e.x {
-		ext.AfterEdit(e, buf)
+	for _, ext := range exts {
+		ext.AfterEdit(loop, buf, changes)
 	}
 }
 

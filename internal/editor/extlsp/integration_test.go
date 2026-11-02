@@ -426,7 +426,7 @@ func TestIntegration_AfterEditSetsSuggestion(t *testing.T) {
 
 	h.Run(t)
 	h.Post(t, editor.CommandFunc(func(e *editor.Editor) {
-		le.AfterEdit(e, buf)
+		le.AfterEdit(e, buf, nil)
 	}))
 
 	waitSuggestion(t, h, data, "ntln")
@@ -458,7 +458,7 @@ func TestIntegration_AfterEditDropsStaleSuggestion(t *testing.T) {
 	h.SetMode(editor.ModeInsert)
 	h.MoveCursorToLineEnd()
 
-	le.AfterEdit(h.Editor, buf)
+	le.AfterEdit(h.Editor, buf, nil)
 	// A newer edit bumps the request counter before the in-flight completion
 	// result is applied, marking that result stale.
 	data.reqCompletion++
@@ -714,7 +714,7 @@ func TestIntegration_NoCompletionOutsideInsertMode(t *testing.T) {
 	h, buf, data := newGoBuffer(t, &le, fake, "Pri")
 	h.MoveCursorToLineEnd()
 
-	le.AfterEdit(h.Editor, buf) // normal mode edit, like x or a paste
+	le.AfterEdit(h.Editor, buf, nil) // normal mode edit, like x or a paste
 	fake.waitVersion(t, 2)
 	_ = le.Close() // waits for the sync loop
 

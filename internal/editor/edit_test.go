@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/editor/input"
 	"rmazur.io/chernetka/internal/vt"
 	"rmazur.io/chernetka/internal/vt/escape"
@@ -544,8 +545,8 @@ func (ae *actionsExt) MakeBufferData(Sender, *Buffer) BufferExtData { return ae.
 
 type noopExt struct{}
 
-func (noopExt) ID() string                { return "actions" }
-func (noopExt) AfterEdit(Sender, *Buffer) {}
+func (noopExt) ID() string                               { return "actions" }
+func (noopExt) AfterEdit(Sender, *Buffer, []change.Item) {}
 
 func TestEditor_RerunAction(t *testing.T) {
 	const ctrlR = 0x12
@@ -723,7 +724,7 @@ type definitionExt struct {
 
 func (de *definitionExt) ID() string                                   { return "definition" }
 func (de *definitionExt) MakeBufferData(Sender, *Buffer) BufferExtData { return definitionFinder{de} }
-func (de *definitionExt) AfterEdit(Sender, *Buffer)                    {}
+func (de *definitionExt) AfterEdit(Sender, *Buffer, []change.Item)     {}
 
 type definitionFinder struct{ *definitionExt }
 

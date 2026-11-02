@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
@@ -39,7 +40,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	return &goFile{Integration: in, buf: buf, test: strings.HasSuffix(buf.Path, "_test.go")}
 }
 
-func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer) {}
+func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {}
 
 // goFile is the per-buffer extension data.
 type goFile struct {

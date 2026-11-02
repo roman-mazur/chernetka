@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/input"
 )
@@ -38,7 +39,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	return &document{buf: buf}
 }
 
-func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer) {}
+func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {}
 
 // HandleInsertKey implements editor.InsertKeyHandler: it splits the line with Enter, and changes
 // the indentation of the selected lines with Tab and Shift+Tab. The editor replaces a selection

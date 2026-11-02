@@ -173,6 +173,7 @@ func openHarnessFile(t *testing.T, dir, ext, text string) (h *editor.TestHarness
 	for _, ext := range cheExtensions() {
 		h.Extend(ext)
 	}
+	h.Extend(changesCheckExt{t: t})
 
 	path = filepath.Join(dir, "file"+ext)
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {

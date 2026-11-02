@@ -17,6 +17,7 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
@@ -124,7 +125,7 @@ func (le *Integration) serverFor(loop editor.Sender, lang *language, dir string)
 }
 
 // AfterEdit runs on the editor loop after every buffer mutation.
-func (le *Integration) AfterEdit(loop editor.Sender, buf *editor.Buffer) {
+func (le *Integration) AfterEdit(loop editor.Sender, buf *editor.Buffer, _ []change.Item) {
 	data, active := le.activeOn(buf)
 	if !active {
 		return

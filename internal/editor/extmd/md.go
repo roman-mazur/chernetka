@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/parser/markdown"
 	"rmazur.io/chernetka/internal/editor"
@@ -32,7 +33,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	return &document{buf: buf}
 }
 
-func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer) {}
+func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {}
 
 // document is the per-buffer extension data.
 type document struct {
