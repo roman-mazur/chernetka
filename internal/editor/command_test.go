@@ -411,7 +411,6 @@ func TestCommandInput_NewFile(t *testing.T) {
 }
 
 func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
-	sep := string(filepath.Separator)
 	open := func(t *testing.T) (*Editor, string) {
 		root := newFileTree(t)
 		e := &Editor{Root: root}
@@ -426,7 +425,7 @@ func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
 	t.Run("cursor on a directory", func(t *testing.T) {
 		e, root := open(t)
 		e.handleInput([]byte(ctrlN)) // The lines are: sub, a.txt.
-		if got, want := e.status.cmd.text, "n sub"+sep; got != want {
+		if got, want := e.status.cmd.text, "n sub/"; got != want {
 			t.Fatalf("text = %q, want %q", got, want)
 		}
 		typeKeys(e, "new.txt\r")
@@ -451,21 +450,21 @@ func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
 
 		e.Top().updateCursor(content.Position{Line: 1})
 		e.handleInput([]byte(ctrlN))
-		if got, want := e.status.cmd.text, "n "+filepath.Join("sub", "deep")+sep; got != want {
+		if got, want := e.status.cmd.text, "n sub/deep/"; got != want {
 			t.Errorf("on the directory: text = %q, want %q", got, want)
 		}
 		e.handleInput([]byte{0x1b})
 
 		e.Top().updateCursor(content.Position{Line: 2})
 		e.handleInput([]byte(ctrlN))
-		if got, want := e.status.cmd.text, "n "+filepath.Join("sub", "deep")+sep; got != want {
+		if got, want := e.status.cmd.text, "n sub/deep/"; got != want {
 			t.Errorf("on the file: text = %q, want %q", got, want)
 		}
 		e.handleInput([]byte{0x1b})
 
 		e.Top().updateCursor(content.Position{Line: 3})
 		e.handleInput([]byte(ctrlN))
-		if got, want := e.status.cmd.text, "n sub"+sep; got != want {
+		if got, want := e.status.cmd.text, "n sub/"; got != want {
 			t.Errorf("on the file in the parent: text = %q, want %q", got, want)
 		}
 	})
@@ -473,7 +472,7 @@ func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
 	t.Run("typed command", func(t *testing.T) {
 		e, _ := open(t)
 		typeKeys(e, ":n ")
-		if got, want := e.status.cmd.text, "n sub"+sep; got != want {
+		if got, want := e.status.cmd.text, "n sub/"; got != want {
 			t.Fatalf("text = %q, want %q", got, want)
 		}
 	})
