@@ -3,7 +3,6 @@ package extsyntaxhl
 import (
 	"slices"
 
-	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/change"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
@@ -14,32 +13,30 @@ import (
 const maxIncrementalChanges = 256
 
 // textEdits converts the changes of the document into the edits of its text, telling a parser
-// what was edited in the tree it built for the old revision. lens are the lengths of the lines of
-// the old revision, and lines are the ones of the new revision. The changes must be in the order
-// they were made, and they must turn the old revision into the new one: ok is false otherwise,
-// and the new revision is to be parsed from scratch.
+// what was edited in the tree it built for the old revision. The old revision is given by the
+// lengths of its lines, which are changed. The changes must be in the order they were made,
+// and they must turn the old revision into the new one: ok is false otherwise, and the new
+// revision is to be parsed from scratch. There are no edits if there are no changes,
+// and the line lengths match the new revision.
 //
 // The text of a document is its lines joined with "\n" (see Buffer.Text), so a change of whole
 // lines takes the line breaks around them too. An edit is located with the lengths of the lines
 // left by the previous edits, which are checked against the lines of the new revision at the end.
-func textEdits(lens []int, changes []change.Item, lines []content.Line) (edits []treesitter.InputEdit, ok bool) {
-	if len(changes) == 0 || len(changes) > maxIncrementalChanges {
+func textEdits(oldLens []int, cur *source, changes []change.Item) (edits []treesitter.InputEdit, ok bool) {
+	if len(changes) > maxIncrementalChanges {
 		return nil, false
 	}
-	return lineEdits(slices.Clone(lens), changes, lines)
-}
-
-// lineLengths returns the lengths of the lines.
-func lineLengths(lines []content.Line) []int {
-	lens := make([]int, len(lines))
-	for i, line := range lines {
-		lens[i] = line.Len()
+	emptyText := len(oldLens) == 1 && oldLens[0] == 0
+	if edits, ok = lineEdits(oldLens, cur, changes); !ok && emptyText {
+		// An empty text is also the text of a document without lines.
+		edits, ok = lineEdits(nil, cur, changes)
 	}
-	return lens
+	return edits, ok
 }
 
-// lineEdits implements textEdits, changing lens.
-func lineEdits(lens []int, changes []change.Item, lines []content.Line) (edits []treesitter.InputEdit, ok bool) {
+// lineEdits implements textEdits for the old revision with the lines of the given lengths.
+// The lengths are changed.
+func lineEdits(lens []int, cur *source, changes []change.Item) (edits []treesitter.InputEdit, ok bool) {
 	// lineStart returns the offset of the start of the line, which may be the end of the text.
 	lineStart := func(ln int) (offset int) {
 		for _, l := range lens[:ln] {
@@ -136,11 +133,15 @@ func lineEdits(lens []int, changes []change.Item, lines []content.Line) (edits [
 		edits = append(edits, e)
 	}
 
-	if len(lens) != len(lines) {
+	// An empty text is one empty line, while the document may have no lines at all.
+	if len(lens) == 0 {
+		lens = append(lens, 0)
+	}
+	if len(lens) != len(cur.lines) {
 		return nil, false
 	}
-	for i, line := range lines {
-		if line.Len() != lens[i] {
+	for i, line := range cur.lines {
+		if len(line) != lens[i] {
 			return nil, false
 		}
 	}

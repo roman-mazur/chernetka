@@ -84,10 +84,8 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	}
 
 	in.Logf("highlighting %s as %s", buf.Path, lang.name())
-	doc := &document{LogEmbed: &in.LogEmbed, buf: buf, lang: lang, hl: lang.newHighlighter()}
-	doc.notified = buf.Version()
-	doc.parse(nil)
-	return doc
+	// The document is parsed when it's rendered the first time.
+	return &document{LogEmbed: &in.LogEmbed, buf: buf, lang: lang, hl: lang.newHighlighter(), notified: buf.Version()}
 }
 
 func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer, changes []change.Item) {
@@ -97,111 +95,118 @@ func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer, changes []
 }
 
 // document is the per-buffer extension data. It owns the language highlighter
-// and caches the flattened spans of the whole document until the next edit.
+// and the flattened spans of the whole document.
 //
 // The document is parsed when its spans or code blocks are requested, not on every edit:
-// the keys typed between two renders are parsed at once, with the changes they made.
-// It keeps no text of its own: the buffer's text is parsed, and the changes locate
-// the edits in it with the lengths of the lines of the revision parsed the last time.
+// the keys typed between two renders are parsed at once, with all their changes.
+// The text is not kept between the parses: the changes are located in the text
+// with the lengths of the lines parsed the last time.
 type document struct {
 	*logger.LogEmbed
 	buf  *editor.Buffer
 	lang *language
 	hl   highlighter
 
-	parsed   uint64 // the buffer version parsed the last time
-	lens     []int  // the lengths of the lines of the parsed version
+	parsed   uint64 // the version of the buffer parsed the last time
+	lineLens []int  // the lengths of the lines parsed the last time, nil until the first parse
 	parseErr error  // of the last parse
+	parses   int    // counts the parses
 
-	// pending are the changes made since the parsed version, up to the notified one,
-	// unless changesLost is set: then the next parse is from scratch.
+	// notified is the version of the buffer the last AfterEdit was called for.
+	// The pending changes turn the parsed revision into the notified one, unless changesLost is set.
+	notified    uint64
 	pending     []change.Item
-	notified    uint64 // the buffer version of the last AfterEdit
 	changesLost bool
 
 	builder spanBuilder
 	spans   []editor.SyntaxSpan // sorted by line number, then by start offset
-	built   bool
 }
 
 // edited records the changes made to the buffer, the document is parsed again when
 // the highlights are requested.
 func (d *document) edited(changes []change.Item) {
 	d.notified = d.buf.Version()
-	if d.changesLost {
-		if d.notified == d.parsed {
-			// The changes were parsed with the code blocks requested before the notification.
-			d.changesLost = false
-		}
-		return
-	}
-	if len(d.pending)+len(changes) > maxIncrementalChanges {
-		// So many changes are parsed from scratch anyway.
-		clear(d.pending)
-		d.pending, d.changesLost = d.pending[:0], true
-		return
-	}
-	d.pending = append(d.pending, changes...)
-}
-
-// ensureParsed brings the document up to date with the buffer.
-func (d *document) ensureParsed() {
 	switch {
-	case d.buf.Version() == d.parsed:
-		return
-	case d.buf.Version() != d.notified:
-		// The code blocks are requested before the edit notification reached this extension,
-		// so not all the changes are known. The ones coming with it are parsed already.
-		d.parse(nil)
-		d.changesLost = true
+	case d.lineLens == nil:
+		// Not parsed yet, the first parse is from scratch.
+	case d.notified == d.parsed:
+		// The changes are parsed already: the code blocks were requested before the notification.
+		d.dropPending()
 	case d.changesLost:
-		d.parse(nil)
+	case len(d.pending)+len(changes) > maxIncrementalChanges:
+		// So many changes are parsed from scratch anyway.
+		d.dropPending()
+		d.changesLost = true
 	default:
-		d.parse(d.pending)
+		d.pending = append(d.pending, changes...)
 	}
 }
 
-// parse brings the document up to date with the buffer. The changes, if known, are the ones
-// made since the version parsed the last time, they let the highlighter parse incrementally.
-// The pending changes are dropped.
+func (d *document) dropPending() {
+	clear(d.pending) // Don't hold the lines.
+	d.pending, d.changesLost = d.pending[:0], false
+}
+
+// ensureParsed brings the document up to date with the buffer. The changes are parsed
+// incrementally if they are all known, the text is parsed from scratch otherwise.
+func (d *document) ensureParsed() {
+	v := d.buf.Version()
+	if d.lineLens != nil && v == d.parsed {
+		return
+	}
+	var changes []change.Item
+	if d.lineLens != nil && !d.changesLost && d.notified == v {
+		changes = d.pending
+	}
+	d.parse(changes)
+}
+
+// parse brings the document up to date with the buffer, and builds its spans.
+// The changes, unless nil, are the ones made to the revision parsed the last time,
+// they let the highlighter parse incrementally.
 func (d *document) parse(changes []change.Item) {
-	lines := d.buf.Content.Lines()
+	src := newSource(d.buf.Text())
 	var edits []treesitter.InputEdit
+	incremental := false
 	if changes != nil && d.parseErr == nil {
-		var ok bool
-		if edits, ok = textEdits(d.lens, changes, lines); !ok {
-			d.Debugf("%d changes don't match the last parsed version of %s, parsing from scratch", len(changes), d.buf.Path)
+		if edits, incremental = textEdits(d.lineLens, src, changes); !incremental {
+			d.Debugf("%d changes don't match the last parsed revision of %s, parsing from scratch", len(changes), d.buf.Path)
 		}
 	}
-	err := d.hl.reparse(newSource(d.buf.Text()), edits)
+
+	d.parsed = d.buf.Version()
+	d.dropPending()
+	// The changes the next notification brings are parsed already, if they are not
+	// the ones of this revision.
+	d.changesLost = d.parsed != d.notified
+	if d.lineLens == nil {
+		d.lineLens = make([]int, 0, len(src.lines))
+	}
+	d.lineLens = d.lineLens[:0]
+	for _, line := range src.lines {
+		d.lineLens = append(d.lineLens, len(line))
+	}
+	if incremental && len(edits) == 0 {
+		return // The text is the same.
+	}
+
+	d.parses++
+	err := d.hl.reparse(src, edits)
 	if err != nil && d.parseErr == nil {
 		// Logged once: the document may stay broken for many edits.
 		d.Logf("cannot highlight %s: %s", d.buf.Path, err)
 	}
 	d.parseErr = err
-	d.parsed, d.lens = d.buf.Version(), lineLengths(lines)
-	clear(d.pending) // Don't hold the lines.
-	d.pending, d.changesLost = d.pending[:0], false
-	// Spans are rebuilt lazily: a document that is never rendered never gets flattened.
-	d.spans, d.built = d.spans[:0], false
-}
 
-// build flattens the spans of the parsed version, which must be the buffer's.
-func (d *document) build() {
-	d.built = true
-	src := newSource(d.buf.Text())
 	d.builder.reset()
 	d.hl.spans(src, func(rs rawSpan) { d.builder.add(src, rs) })
-	d.spans = d.builder.build(d.spans)
+	d.spans = d.builder.build(d.spans[:0])
 	d.Debugf("built %d spans for %d %s lines", len(d.spans), len(src.lines), d.lang.name())
 }
 
 // SyntaxSpans implements editor.SyntaxHighlighter.
 func (d *document) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
 	d.ensureParsed()
-	if !d.built {
-		d.build()
-	}
 	return clipSpans(spansOfLine(d.spans, ln), line)
 }
 
@@ -214,9 +219,6 @@ func (d *document) CodeBlocks() []code.Block {
 		return nil
 	}
 	d.ensureParsed()
-	if !d.built {
-		d.build()
-	}
 	return blocks.CodeBlocks()
 }
 

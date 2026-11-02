@@ -134,7 +134,7 @@ func TestTextEdits(t *testing.T) {
 
 	rnd := rand.New(rand.NewPCG(1, 2))
 	for i := range 2000 {
-		old, oldLens := buf.Text(), lineLengths(buf.Content.Lines())
+		old := buf.Text()
 		var lines []string // the document may have no lines, unlike the text split by "\n"
 		for _, line := range buf.Content.Lines() {
 			lines = append(lines, line.String())
@@ -149,7 +149,7 @@ func TestTextEdits(t *testing.T) {
 		}
 		cur := buf.Text()
 
-		edits, ok := textEdits(oldLens, rec.changes, buf.Content.Lines())
+		edits, ok := textEdits(lineLens(old), newSource(cur), rec.changes)
 		if !ok {
 			t.Fatalf("edit %d: changes %+v are not converted, turning\n%q\ninto\n%q", i, rec.changes, old, cur)
 		}
@@ -176,8 +176,16 @@ func TestTextEdits(t *testing.T) {
 	}
 }
 
+// lineLens returns the lengths of the lines of the text.
+func lineLens(text string) (lens []int) {
+	for _, line := range newSource(text).lines {
+		lens = append(lens, len(line))
+	}
+	return lens
+}
+
 func TestTextEdits_Mismatch(t *testing.T) {
-	lens, lines := []int{3, 3}, []content.Line{content.TextLine("one"), content.TextLine("two!")}
+	old, cur := "one\ntwo", newSource("one\ntwo!")
 	for _, tc := range []struct {
 		name    string
 		changes []change.Item
@@ -188,9 +196,12 @@ func TestTextEdits_Mismatch(t *testing.T) {
 		{"out of the text", []change.Item{change.Deletion(2, []content.Line{content.TextLine("three")})}},
 		{"not all changes", []change.Item{change.Insertion(2, []content.Line{content.TextLine("three")})}},
 	} {
-		if edits, ok := textEdits(lens, tc.changes, lines); ok {
+		if edits, ok := textEdits(lineLens(old), cur, tc.changes); ok {
 			t.Errorf("%s: got edits %+v for the changes that don't match the texts", tc.name, edits)
 		}
+	}
+	if edits, ok := textEdits(lineLens("one\ntwo"), newSource("one\ntwo"), nil); !ok || len(edits) > 0 {
+		t.Errorf("got edits %+v, %t for the same text, want none", edits, ok)
 	}
 }
 
@@ -224,10 +235,11 @@ func TestIncrementalParse(t *testing.T) {
 			if _, ok := doc.hl.(*tsHighlighter); !ok {
 				t.Fatalf("%s is not highlighted with tree-sitter", tc.path)
 			}
+			doc.ensureParsed() // Like the first render does.
 
 			rnd := rand.New(rand.NewPCG(3, 4))
 			for i := range 200 {
-				oldLens := doc.lens
+				oldLens, oldText, parses := slices.Clone(doc.lineLens), buf.Text(), doc.parses
 				// The keys handled between two renders.
 				rec.changes = nil
 				for range 1 + rnd.IntN(3) {
@@ -236,24 +248,23 @@ func TestIncrementalParse(t *testing.T) {
 					}
 					editor.NotifyExtensions(nil, buf, ext, rec)
 				}
+				if doc.changesLost || doc.notified != buf.Version() {
+					t.Fatalf("edit %d: the document does not have all the changes", i)
+				}
 				doc.ensureParsed() // Like the render does.
-				if rec.changes == nil {
-					continue // Not mutated, like deleting an empty span.
+				if buf.Text() == oldText {
+					continue // Like a line deleted and inserted back.
 				}
-				if doc.parsed != buf.Version() {
-					t.Fatalf("edit %d: the document is not parsed", i)
+				if doc.parses != parses+1 {
+					t.Fatalf("edit %d: the document is parsed %d times", i, doc.parses-parses)
 				}
-				if _, ok := textEdits(oldLens, rec.changes, buf.Content.Lines()); !ok {
+				if _, ok := textEdits(oldLens, newSource(buf.Text()), rec.changes); !ok {
 					t.Fatalf("edit %d: the document is parsed from scratch", i)
 				}
 
 				fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
 				fresh.parse(nil)
-				fresh.build()
 				_ = fresh.Close()
-				if !doc.built {
-					doc.build()
-				}
 				if !slices.Equal(doc.spans, fresh.spans) {
 					t.Fatalf("edit %d: the incremental parse highlights the text differently:\n%s", i, buf.Text())
 				}
@@ -262,7 +273,7 @@ func TestIncrementalParse(t *testing.T) {
 	}
 }
 
-// BenchmarkKeystroke measures typing a character into a Go file: the edit, and the parse.
+// BenchmarkKeystroke measures typing a character into a Go file: the edit, the parse, and building the spans.
 func BenchmarkKeystroke(b *testing.B) {
 	data, err := os.ReadFile("treesitter.go")
 	if err != nil {
@@ -277,6 +288,7 @@ func BenchmarkKeystroke(b *testing.B) {
 	buf := edit.Top()
 	b.Cleanup(func() { _ = buf.Close() })
 	doc := buf.ExtensionData(ext.ID()).(*document)
+	doc.ensureParsed() // Like the first render does.
 	ln := buf.Content.Len() / 2
 
 	for i := 0; b.Loop(); i++ {
@@ -308,12 +320,42 @@ func TestCodeBlocksBeforeAfterEdit(t *testing.T) {
 
 	fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
 	fresh.parse(nil)
-	fresh.build()
 	doc.SyntaxSpans(0, "```d2")
 	if !slices.Equal(doc.spans, fresh.spans) {
 		t.Errorf("got spans\n%v\nwant\n%v", doc.spans, fresh.spans)
 	}
 	if blocks := doc.CodeBlocks(); len(blocks) != 2 {
 		t.Errorf("got %d code blocks, want 2", len(blocks))
+	}
+}
+
+// TestIncrementalParse_EditedBuffer checks that the changes are parsed incrementally in a buffer
+// edited before its document was made.
+func TestIncrementalParse_EditedBuffer(t *testing.T) {
+	rec := new(changesRecorder)
+	var edit editor.Editor
+	if err := edit.OpenReader("edited.go", strings.NewReader("package main\n\nfunc main() {}\n")); err != nil {
+		t.Fatal(err)
+	}
+	buf := edit.Top()
+	t.Cleanup(func() { _ = buf.Close() })
+	buf.Mutate().Insert(1, content.TextLine("// Edited."))
+	editor.NotifyExtensions(nil, buf, rec)
+
+	ext := new(Integration)
+	doc := ext.MakeBufferData(nil, buf).(*document)
+	doc.ensureParsed()
+	parses := doc.parses
+
+	buf.Mutate().Update(0, content.TextLine("package edited"))
+	rec.changes = nil
+	editor.NotifyExtensions(nil, buf, rec)
+	doc.edited(rec.changes)
+	if doc.changesLost || len(doc.pending) != len(rec.changes) {
+		t.Fatalf("the document has %d changes of %d", len(doc.pending), len(rec.changes))
+	}
+	doc.ensureParsed()
+	if doc.parses != parses+1 || len(doc.pending) != 0 {
+		t.Errorf("the edit is parsed %d times, with %d changes left", doc.parses-parses, len(doc.pending))
 	}
 }

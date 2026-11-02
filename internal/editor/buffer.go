@@ -41,7 +41,7 @@ type Buffer struct {
 
 	ext bufExtensions // extensions registered for this buffer
 
-	version uint64 // the revision of the content, see Version
+	version uint64 // internal edits version
 
 	srcFingerprint string // the fingerprint of the content loaded from the source
 	unwatch        func() // stops reloading the content changed outside the editor
@@ -75,6 +75,10 @@ func (b *Buffer) Pos() (cx, cy int) { return b._c.Col, b._c.Line }
 // Mode returns the current editing mode.
 func (b *Buffer) Mode() Mode { return b.mode }
 
+// Version changes with every edit of the content, including replacing it.
+// The extensions can tell with it whether the content changed since they saw it.
+func (b *Buffer) Version() uint64 { return b.version }
+
 // Close propagates the call to the Content and extension objects if they implement io.Closer.
 // It also stops watching the file changes.
 func (b *Buffer) Close() error {
@@ -88,11 +92,6 @@ func (b *Buffer) Close() error {
 	b.ext.close(&allErrors)
 	return errors.Join(allErrors...)
 }
-
-// Version identifies the revision of the content: it changes with every edit, so an extension
-// can tell whether the content is still the one it has seen, like before it's notified about
-// the changes with AfterEdit.
-func (b *Buffer) Version() uint64 { return b.version }
 
 // HoldsTextFile reports whether the buffer is backed by a file and its content is plain text.
 // It returns false for scratch and tool buffers (no Path), as well as for non-text documents
