@@ -22,6 +22,8 @@ package extlsp
 //		-args -eval.sessions=prod -eval.cache=/tmp/eval -eval.strategies='/(ident|FINAL)$' \
 //		-eval.breakdown=FINAL -eval.seed=2 -eval.lines=150
 //
+// Add -eval.comments to sample the comment lines instead of the code lines.
+//
 // The samples depend on the files of the repository: the cache keeps the
 // results of the lines they are for, and the ones of other lines are run again.
 //
@@ -43,6 +45,16 @@ package extlsp
 //   - The words of the document where the server has no candidates (strings,
 //     comments, the names being declared) save ~5 points; also where no
 //     candidate extends the typed word, unless it's complete, ~0.6 more.
+//   - The comment lines were not sampled until -eval.comments. In the comments
+//     (2 samples of 120 and 150 lines), suggesting like in the code saves ~16%
+//     of the keystrokes with ~64% right, a wrong one every 7 characters typed.
+//     Most wrong ones extend a complete word ("the" to "them", "line" to
+//     "lineNumberPrefixWidth"), or follow a single letter (gopls has the names
+//     of the package there). Requiring 2 characters for the candidates and 3
+//     for the words, and nothing if the typed word occurs at least as often as
+//     the suggested one, saves ~12.5% with ~80% right, a wrong one every 22
+//     characters. The words of the comments only, or a longer prefix only, are
+//     right less often for the same savings.
 //   - Writing sampled function bodies from the top, with the rest of the body
 //     missing and the brackets the editor closes, scores within a point of
 //     retyping the lines, and ranks the strategies the same: the lines are
@@ -104,12 +116,13 @@ type candidate func(in evalInput) []string
 
 // evalInput is what is known at a typing position when the completion arrives.
 type evalInput struct {
-	Items []protocol.CompletionItem
-	Line  string // the line up to the cursor
-	Cx    int
-	Sig   *protocol.SignatureHelp
-	Words map[string]int // identifiers of the document, except the line being typed
-	Doc   string         // the document, except the line being typed
+	Items        []protocol.CompletionItem
+	Line         string // the line up to the cursor
+	Cx           int
+	Sig          *protocol.SignatureHelp
+	Words        map[string]int // identifiers of the document, except the line being typed
+	CommentWords map[string]int // identifiers of the comments of the document, except the line being typed
+	Doc          string         // the document, except the line being typed
 }
 
 // count is how many times word occurs in the document.
@@ -160,7 +173,7 @@ func TestEvalCompletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	samples := sampleLines(t, root, *evalLines, *evalSeed)
+	samples := sampleLines(t, root, *evalLines, *evalSeed, *evalComments)
 	t.Logf("sampled %d lines", len(samples))
 
 	deep := map[string]any{"deepCompletion": false}
@@ -211,6 +224,14 @@ func TestEvalCompletion(t *testing.T) {
 		docs[i].words = map[string]int{}
 		for w := range identsSeq(docs[i].text) {
 			docs[i].words[w]++
+		}
+		docs[i].commentWords = map[string]int{}
+		for l := range strings.SplitSeq(docs[i].text, "\n") {
+			if _, comment, ok := strings.Cut(l, "//"); ok {
+				for w := range identsSeq(comment) {
+					docs[i].commentWords[w]++
+				}
+			}
 		}
 	}
 
@@ -280,6 +301,24 @@ func TestEvalCompletion(t *testing.T) {
 		add("ident+argstart+top1+wordsE2", trigIdentOrArgs, argsAtStart(wordsIfNoItems(2, lift(top1IfDisagree(1, extractIdent)))))
 		add("ident+args+first+wordsE2", trigIdentOrArgs, paramFirst(wordsIfNoItems(2, lift(firstAlways(extractIdent)))))
 		add("FINAL", trigFinal, extractFinal)
+		add("FINAL-old", trigFinal, extractOld)
+		// In the comments: nothing, the words of the document typed further
+		// (FINAL+wordsN), or the words of its comments (FINAL+cwordsN).
+		add("FINAL-comments", trigFinal, inComments(nil, extractFinal))
+		for _, n := range []int{3, 4} {
+			add(fmt.Sprintf("FINAL+words%d", n), trigFinal, inComments(wordsOf(n, 1, false), extractFinal))
+		}
+		for _, n := range []int{2, 3, 4} {
+			add(fmt.Sprintf("FINAL+cwords%d", n), trigFinal, inComments(wordsOf(n, 1, true), extractFinal))
+		}
+		add("FINAL+cwords3x2", trigFinal, inComments(wordsOf(3, 2, true), extractFinal))
+		add("FINAL+words3x2", trigFinal, inComments(wordsOf(3, 2, false), extractFinal))
+		// The server candidates once minItems characters are typed, or the words, unless the
+		// typed word is complete: it's at least as frequent as the suggested one (FINAL+cI.W.c).
+		// With .2, the typed word must occur in the document to be complete.
+		for _, v := range [][3]int{{1, 2, 1}, {2, 2, 1}, {3, 2, 1}, {2, 2, 0}, {2, 3, 1}, {3, 3, 1}, {2, 3, 2}} {
+			add(fmt.Sprintf("FINAL+c%d.%d.%d", v[0], v[1], v[2]), trigFinal, inComments(commentCandidate(v[0], v[1], v[2]), extractFinal))
+		}
 	}
 	if *evalStrategies != "" {
 		re := regexp.MustCompile(*evalStrategies)
@@ -326,6 +365,7 @@ var (
 	evalTyping     = flag.Duration("eval.typing", 120*time.Millisecond, "interval between keystrokes in the latency-aware simulation")
 	evalStrategies = flag.String("eval.strategies", "", "regexp of the strategies to score (all when empty)")
 	evalBreakdown  = flag.String("eval.breakdown", "", "regexp of the strategies to break down by the typing context")
+	evalComments   = flag.Bool("eval.comments", false, "sample the comment lines instead of the code lines, typed from after the //")
 )
 
 type metrics struct {
@@ -345,12 +385,13 @@ type lineGhosts struct {
 
 // evalDoc is the document of a sampled line, except the line.
 type evalDoc struct {
-	text  string
-	words map[string]int // the identifiers of text
+	text         string
+	words        map[string]int // the identifiers of text
+	commentWords map[string]int // the identifiers of the comments of text
 }
 
 func (d evalDoc) input(p point) evalInput {
-	return evalInput{Items: p.Items, Line: p.Line[:p.Cx], Cx: p.Cx, Sig: p.Sig, Words: d.words, Doc: d.text}
+	return evalInput{Items: p.Items, Line: p.Line[:p.Cx], Cx: p.Cx, Sig: p.Sig, Words: d.words, CommentWords: d.commentWords, Doc: d.text}
 }
 
 func ghostsOf(st evalStrategy, pts []point, doc evalDoc) lineGhosts {
@@ -563,6 +604,8 @@ func simulateTimed(line string, start int, lg lineGhosts, interval time.Duration
 func typingContext(before string) string {
 	p := identTrailing(before)
 	switch {
+	case inLineComment(before):
+		return "comment"
 	case p != "" && startsWithDigit(p):
 		return "number"
 	case p != "":
@@ -1020,11 +1063,94 @@ func extractFinal(in evalInput) []string {
 		cx:     in.Cx,
 		params: paramNames(in.Sig),
 		ranked: true,
-		text:   in.Doc,
+		// Like the buffer, with the line typed so far.
+		text: in.Doc + "\n" + in.Line,
 	}))
 }
 
+// extractOld is extractFinal before the comments were told apart.
+func extractOld(in evalInput) []string {
+	return ghostTexts(codeSuggestions(completionInput{
+		items:  in.Items,
+		line:   in.Line,
+		cx:     in.Cx,
+		params: paramNames(in.Sig),
+		ranked: true,
+		text:   in.Doc + "\n" + in.Line,
+	}, in.Line))
+}
+
 func trigFinal(line string, _ int) bool { return shouldComplete(line) }
+
+// commentCandidate suggests the server candidates once minItems characters of the word are
+// typed, or the words of the document once minWords are, if the server has no candidates.
+// With complete 1, nothing is suggested if the typed word occurs in the document at least
+// as many times as the suggested one: the typed word is likely complete. With 2, the typed
+// word must occur too.
+func commentCandidate(minItems, minWords, complete int) candidate {
+	words := wordsOf(minWords, 1, false)
+	return func(in evalInput) []string {
+		typed := identTrailing(in.Line)
+		var res []string
+		if len(in.Items) > 0 {
+			if len(typed) < minItems {
+				return nil
+			}
+			res = extractFinal(in)
+		} else {
+			res = words(in)
+		}
+		if complete > 0 && len(res) > 0 && typed != "" && in.count(typed) >= in.count(typed+res[0]) &&
+			(complete == 1 || in.count(typed) > 0) {
+			return nil
+		}
+		return res
+	}
+}
+
+// inComments uses comment in the comments, and next elsewhere. A nil comment suggests nothing.
+func inComments(comment, next candidate) candidate {
+	return func(in evalInput) []string {
+		if !inLineComment(in.Line) {
+			return next(in)
+		}
+		if comment == nil {
+			return nil
+		}
+		return comment(in)
+	}
+}
+
+// wordsOf suggests the most frequent word of the document, or of its comments,
+// extending the typed one, once minTyped characters of it are typed, if it occurs
+// at least minCount times. The word being typed is counted too, as typed so far.
+func wordsOf(minTyped, minCount int, comments bool) candidate {
+	return func(in evalInput) []string {
+		typed := identTrailing(in.Line)
+		if len(typed) < minTyped || startsWithDigit(typed) {
+			return nil
+		}
+		words := in.Words
+		if comments {
+			words = in.CommentWords
+		}
+		before := in.Line[:len(in.Line)-len(typed)]
+		best, n := "", 0
+		for w, c := range words {
+			if len(w) <= len(typed) || !strings.HasPrefix(w, typed) {
+				continue
+			}
+			c += countWord(before, w)
+			if c >= minCount && (c > n || (c == n && w < best)) {
+				best, n = w, c
+			}
+		}
+		if best == "" {
+			return nil
+		}
+		return []string{best[len(typed):]}
+	}
+}
 
 // --- plumbing -----------------------------------------------------------
 
@@ -1035,7 +1161,8 @@ type sample struct {
 	start int // column where typing starts (after indentation)
 }
 
-func sampleLines(t *testing.T, root string, n int, seed int64) []sample {
+// sampleLines samples the code lines of the repository files, or the comment lines if comments is set.
+func sampleLines(t *testing.T, root string, n int, seed int64, comments bool) []sample {
 	var files []string
 	_ = filepath.Walk(filepath.Join(root, "internal"), func(p string, info os.FileInfo, err error) error {
 		if err == nil && strings.HasSuffix(p, ".go") && !strings.HasSuffix(p, "eval_test.go") {
@@ -1065,6 +1192,14 @@ func sampleLines(t *testing.T, root string, n int, seed int64) []sample {
 		texts[f] = string(b)
 		for i, l := range strings.Split(string(b), "\n") {
 			tl := strings.TrimSpace(l)
+			if comments {
+				// Prose comment lines, not the directives, nor the code examples.
+				if len(tl) >= 16 && strings.HasPrefix(tl, "// ") && !strings.HasPrefix(tl, "//  ") &&
+					!strings.HasPrefix(tl, "// +") && isASCII(l) {
+					all = append(all, cand{f, i})
+				}
+				continue
+			}
 			// Code lines only, ASCII to keep column math simple.
 			if len(tl) < 8 || strings.HasPrefix(tl, "//") || strings.HasPrefix(tl, "import") ||
 				strings.HasPrefix(tl, "package") || strings.HasPrefix(tl, "\"") || !isASCII(l) {
@@ -1078,7 +1213,11 @@ func sampleLines(t *testing.T, root string, n int, seed int64) []sample {
 	var res []sample
 	for _, c := range all[:min(n, len(all))] {
 		l := strings.Split(texts[c.file], "\n")[c.ln]
-		res = append(res, sample{c.file, texts[c.file], c.ln, len(l) - len(strings.TrimLeft(l, " \t"))})
+		start := len(l) - len(strings.TrimLeft(l, " \t"))
+		if comments {
+			start += len("// ")
+		}
+		res = append(res, sample{c.file, texts[c.file], c.ln, start})
 	}
 	return res
 }

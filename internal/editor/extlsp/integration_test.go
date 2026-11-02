@@ -220,6 +220,43 @@ func TestSuggestionsFor(t *testing.T) {
 			in:   completionInput{items: kinds(nameVar), line: "na", text: words},
 			want: s("me"),
 		},
+		// In the comments, the text holds the line being typed, like the buffer does.
+		{
+			name: "a word in a comment",
+			in:   completionInput{line: "// The Mon", text: words + "\n// The Mon"},
+			want: s("key"),
+		},
+		{
+			name: "not enough of the word typed in a comment",
+			in:   completionInput{line: "// Mo", text: words + "\n// Mo"},
+		},
+		{
+			name: "a complete word in a comment",
+			in:   completionInput{line: "// the", text: "the the them\n// the"},
+		},
+		{
+			name: "a rarer word in a comment",
+			in:   completionInput{line: "// the", text: "the them them\n// the"},
+			want: s("m"),
+		},
+		{
+			name: "a candidate in a comment",
+			in:   completionInput{items: kinds(nameVar), line: "// na", text: "// na"},
+			want: s("me"),
+		},
+		{
+			name: "a candidate after a single letter in a comment",
+			in:   completionInput{items: kinds(nameVar), line: "// n", text: "// n"},
+		},
+		{
+			name: "no arguments in a comment",
+			in:   completionInput{items: kinds(nameVar, ctxVar), line: "// f(", params: s("ctx")},
+		},
+		{
+			name: "a // in a string is not a comment",
+			in:   completionInput{items: kinds(nameVar), line: `s := "http://" + n`, text: words},
+			want: s("ame"),
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -233,6 +270,25 @@ func TestSuggestionsFor(t *testing.T) {
 				t.Errorf("suggestionsFor(%q) = %q, want %q", tc.in.line, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestInLineComment(t *testing.T) {
+	for line, want := range map[string]bool{
+		"x := 1":                       false,
+		"x := 1 // one":                true,
+		"// a comment":                 true,
+		`s := "http://example.com"`:    false,
+		`s := "http://example.com" //`: true,
+		`s := "a \" // b"`:             false,
+		"s := `raw \\` // c":           true, // No escapes in a raw string.
+		`r := '/' // slash`:            true,
+		`s := "unterminated //`:        false,
+		"x := 1 / 2":                   false,
+	} {
+		if got := inLineComment(line); got != want {
+			t.Errorf("inLineComment(%q) = %t, want %t", line, got, want)
+		}
 	}
 }
 
