@@ -41,7 +41,7 @@ func (s *StatusBar) cmdLine() *cmdLine {
 func (s *StatusBar) RenderCursorPosition(out io.Writer) {
 	var col int
 	if c := s.cmdLine(); c != nil {
-		col = symbol.DisplayWidth(c.prompt.prefix()+c.text, symbol.NoTabExpansion)
+		col = symbol.DisplayWidth(c.prompt.prefix(), symbol.NoTabExpansion) + symbol.DisplayWidth(c.text, symbol.NoTabExpansion)
 	}
 	escape.SetCursorPosition(out, s.buf.y+s.buf.h+s.Height(), col+1)
 }
@@ -70,16 +70,23 @@ func (s *StatusBar) Render(out io.Writer) {
 	if re := s.buf.search; re != nil {
 		suffix += "  /" + re.String()
 	}
+
 	// The problems are aligned to the right, next to the cursor position.
 	pos := fmt.Sprintf("%d:%d ", s.buf.c().Line+1, s.buf.c().Col+1)
 	if problems := s.problems(); problems != "" {
 		pos = problems + "  " + pos
 	}
+
+	contentWidth := symbol.DisplayWidth(prefix, symbol.NoTabExpansion) +
+		symbol.DisplayWidth(suffix, symbol.NoTabExpansion) +
+		symbol.DisplayWidth(pos, symbol.NoTabExpansion)
 	// Leave at least one space between the path and the cursor position.
-	pathWidth := s.buf.w - symbol.DisplayWidth(prefix+suffix+pos, symbol.NoTabExpansion) - 1
-	status := prefix + shortenPath(s.buf.Path, pathWidth) + suffix
-	padding := max(s.buf.w-symbol.DisplayWidth(status+pos, symbol.NoTabExpansion), 0)
-	_, _ = io.WriteString(out, status)
+	leftPart := prefix + shortenPath(s.buf.Path, s.buf.w-contentWidth-1) + suffix
+
+	contentWidth = symbol.DisplayWidth(leftPart, symbol.NoTabExpansion) + symbol.DisplayWidth(pos, symbol.NoTabExpansion)
+	padding := max(s.buf.w-contentWidth, 0)
+
+	_, _ = io.WriteString(out, leftPart)
 	_, _ = io.WriteString(out, strings.Repeat(" ", padding))
 	_, _ = io.WriteString(out, pos)
 }

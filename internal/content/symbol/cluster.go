@@ -46,8 +46,19 @@ func DisplayWidth(s string, tabSize int) int {
 	if isASCII(s) {
 		return len(s) + strings.Count(s, "\t")*(tabSize-1)
 	}
+	// Repeats the logic in Clusters, so s can stay on the stack.
 	total := 0
-	for _, width := range Clusters(s, tabSize) {
+	for len(s) > 0 {
+		var cluster string
+		width := 1
+		if s[0] < utf8.RuneSelf && (len(s) == 1 || s[1] < utf8.RuneSelf) {
+			cluster, s = s[:1], s[1:]
+		} else {
+			cluster, s, width, _ = uniseg.FirstGraphemeClusterInString(s, -1)
+		}
+		if cluster == "\t" {
+			width = tabSize
+		}
 		total += width
 	}
 	return total
