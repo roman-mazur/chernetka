@@ -32,6 +32,7 @@
 - Allow selecting the path in the status bar to copy
 - code structure selection
 - key bindings / commands registry
+- simplify prompts logic (too much state tracking and switching prompts)
 
 - [x] Right col after return (understand tabs)
 
