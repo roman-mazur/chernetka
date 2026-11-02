@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"rmazur.io/chernetka/internal/content/code"
+	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
 
 type gitMessage struct {
@@ -25,7 +26,7 @@ const (
 // reparse finds the subject, the trailers, and the comments of the message. Like git,
 // it treats the lines starting with '#' as comments wherever they are, and ignores
 // them together with the leading empty lines when looking for the subject and the body.
-func (gm *gitMessage) reparse(s *source) error {
+func (gm *gitMessage) reparse(s *source, _ []treesitter.InputEdit) error {
 	gm.subject, gm.parts = nil, nil
 	state := gmBeforeSubject
 	afterEmptyLine, insideTags := false, false
@@ -103,7 +104,7 @@ type gitRebase struct {
 	parts []rawSpan
 }
 
-func (gr *gitRebase) reparse(s *source) error {
+func (gr *gitRebase) reparse(s *source, _ []treesitter.InputEdit) error {
 	gr.parts = nil
 	for i, line := range s.lines {
 		if strings.HasPrefix(line, "#") {

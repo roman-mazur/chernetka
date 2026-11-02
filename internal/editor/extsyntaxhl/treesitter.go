@@ -172,9 +172,11 @@ func tokenForCapture(tokens map[string]code.TokenType, name string) code.TokenTy
 }
 
 // tsHighlighter highlights a document by running the grammar's highlight query
-// over a full tree-sitter parse.
+// over a tree-sitter parse. The tree of the previous revision is reused for
+// parsing the next one when the edits between them are known.
 type tsHighlighter struct {
 	grammar *tsGrammar
+	parser  *treesitter.Parser
 	tree    *treesitter.Tree
 }
 
@@ -182,19 +184,35 @@ func newTreeSitter(g *tsGrammar) func() highlighter {
 	return func() highlighter { return &tsHighlighter{grammar: g} }
 }
 
-func (h *tsHighlighter) reparse(src *source) error {
-	h.closeTree()
+func (h *tsHighlighter) reparse(src *source, edits []treesitter.InputEdit) error {
 	if err := h.grammar.prepare(); err != nil {
+		h.closeTree()
 		return err
+	}
+	if h.parser == nil {
+		parser := treesitter.NewParser()
+		if err := parser.SetLanguage(h.grammar.lang); err != nil {
+			parser.Close()
+			h.closeTree()
+			return err
+		}
+		h.parser = parser
 	}
 
-	parser := treesitter.NewParser()
-	defer parser.Close()
-	if err := parser.SetLanguage(h.grammar.lang); err != nil {
-		return err
+	// The old tree is reused only if it's edited to match the new text:
+	// the parser takes it as the parse of the new text otherwise.
+	old := h.tree
+	if old != nil && len(edits) > 0 {
+		for i := range edits {
+			old.Edit(&edits[i])
+		}
+	} else {
+		h.closeTree()
+		old = nil
 	}
-	// TODO: feed the edited ranges to Parse to reparse incrementally.
-	h.tree = parser.Parse([]byte(src.text), nil)
+	tree := h.parser.ParseBuffer([]byte(src.text), old)
+	h.closeTree()
+	h.tree = tree
 	return nil
 }
 
@@ -231,6 +249,10 @@ func (h *tsHighlighter) spans(src *source, emit func(rawSpan)) {
 
 func (h *tsHighlighter) Close() error {
 	h.closeTree()
+	if h.parser != nil {
+		h.parser.Close()
+		h.parser = nil
+	}
 	return nil
 }
 

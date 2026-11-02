@@ -59,7 +59,7 @@ func TestGitMessageHighlight(t *testing.T) {
 func TestGitRebaseReparse(t *testing.T) {
 	var gr gitRebase
 	for _, text := range []string{"pick 1234 change\n# comment", "pick 1234 change"} {
-		if err := gr.reparse(newSource(text)); err != nil {
+		if err := gr.reparse(newSource(text), nil); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -12,16 +12,21 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
+	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	"rmazur.io/chernetka/internal/logger"
 )
 
 // highlighter reports the highlighted regions of a document in one language.
 type highlighter interface {
 	// reparse rebuilds whatever state the highlighter keeps for a new revision
-	// of the document. It is called on every edit, so it holds the expensive
-	// work, while spans is called during rendering. On an error, the document
-	// has no highlighting until the next successful reparse.
-	reparse(src *source) error
+	// of the document. It is called once for the edits made between two renders,
+	// so it holds the expensive work, while spans is called during rendering.
+	// On an error, the document has no highlighting until the next successful reparse.
+	//
+	// The edits turn the previous revision into the new one, if they are known,
+	// letting the highlighter reuse what it found in the unchanged parts. They
+	// are nil for the first revision, and when the whole text is to be parsed.
+	reparse(src *source, edits []treesitter.InputEdit) error
 	// spans reports every highlighted region of the document. Reported spans may
 	// cover several lines and may be nested inside one another; the caller
 	// flattens them.
@@ -79,49 +84,62 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 
 	in.Logf("highlighting %s as %s", buf.Path, lang.name())
 	doc := &document{LogEmbed: &in.LogEmbed, buf: buf, lang: lang, hl: lang.newHighlighter()}
-	doc.ensureParsed(buf.Text())
+	doc.parse(buf.Text())
 	return doc
 }
 
 func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer) {
-	doc, ok := buf.ExtensionData(in.ID()).(*document)
-	if !ok {
-		return
+	if doc, ok := buf.ExtensionData(in.ID()).(*document); ok {
+		doc.stale = true
 	}
-	in.Debugf("AfterEdit(_, %q)", buf.Path)
-	doc.ensureParsed(buf.Text())
 }
 
 // document is the per-buffer extension data. It owns the language highlighter
 // and caches the flattened spans of the whole document until the next edit.
+//
+// The document is parsed when its spans or code blocks are requested, not on every edit:
+// the keys typed between two renders are parsed at once.
 type document struct {
 	*logger.LogEmbed
 	buf  *editor.Buffer
 	lang *language
 	hl   highlighter
 
-	src      *source
-	parseErr error // of the last reparse
-	builder  spanBuilder
-	spans    []editor.SyntaxSpan // sorted by line number, then by start offset
-	built    bool
+	src      *source // the revision parsed the last time
+	parseErr error   // of the last parse
+	stale    bool    // the buffer is edited after src was parsed
+
+	builder spanBuilder
+	spans   []editor.SyntaxSpan // sorted by line number, then by start offset
+	built   bool
 }
 
-func (d *document) ensureParsed(text string) {
+// ensureParsed brings the document up to date with the buffer.
+func (d *document) ensureParsed() {
+	if d.stale {
+		d.parse(d.buf.Text())
+	}
+}
+
+// parse brings the document up to date with the text, reusing the last parse
+// for the text both revisions share.
+func (d *document) parse(text string) {
+	d.stale = false
 	if d.src != nil && d.src.text == text {
-		// Already parsed, e.g. code blocks were requested before the edit notification reached this extension.
-		return
+		return // Like a line deleted and inserted back.
+	}
+	var edits []treesitter.InputEdit
+	if d.src != nil && d.parseErr == nil {
+		edits = []treesitter.InputEdit{textEdit(d.src.text, text)}
 	}
 	d.src = newSource(text)
-	err := d.hl.reparse(d.src)
+	err := d.hl.reparse(d.src, edits)
 	if err != nil && d.parseErr == nil {
 		// Logged once: the document may stay broken for many edits.
 		d.Logf("cannot highlight %s: %s", d.buf.Path, err)
 	}
 	d.parseErr = err
-	// Spans are rebuilt lazily: a buffer that is edited several times between
-	// two renders is only flattened once, and one that is never rendered never
-	// gets flattened at all.
+	// Spans are rebuilt lazily: a document that is never rendered never gets flattened.
 	d.spans, d.built = d.spans[:0], false
 }
 
@@ -135,6 +153,7 @@ func (d *document) build() {
 
 // SyntaxSpans implements editor.SyntaxHighlighter.
 func (d *document) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
+	d.ensureParsed()
 	if !d.built {
 		d.build()
 	}
@@ -145,14 +164,16 @@ func (d *document) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
 // The document is brought up to date with the buffer first. So, another extension can use the
 // blocks in its AfterEdit regardless of whether this extension has been notified about the edit yet.
 func (d *document) CodeBlocks() []code.Block {
-	d.ensureParsed(d.buf.Text())
+	blocks, ok := d.hl.(code.Blocks)
+	if !ok {
+		return nil
+	}
+	// The edit notification may not have reached this extension yet.
+	d.parse(d.buf.Text())
 	if !d.built {
 		d.build()
 	}
-	if blocks, ok := d.hl.(code.Blocks); ok {
-		return blocks.CodeBlocks()
-	}
-	return nil
+	return blocks.CodeBlocks()
 }
 
 func (d *document) Close() error { return d.hl.Close() }
