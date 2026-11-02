@@ -17,6 +17,14 @@ const maxCandidates = 3
 // words of the document are suggested.
 const minWordTyped = 2
 
+// In the comments, more of a word must be typed before something is suggested:
+// the server candidates there are the names of the package, and the words of
+// the document are mostly code, while the comments are mostly prose.
+const (
+	minCommentItemTyped = 2
+	minCommentWordTyped = 3
+)
+
 // completionInput is what the suggestions at the cursor are made of.
 type completionInput struct {
 	items []protocol.CompletionItem
@@ -44,19 +52,92 @@ type completionInput struct {
 // rarely to be shown on its own.
 //
 // While typing an identifier, the server candidates are suggested (see
-// extractSuggestions). Where the server has nothing, like in strings and
-// comments or for the names being declared, the most frequent word of the
-// document extending what's typed is suggested.
+// extractSuggestions). Where the server has nothing, like in strings or for
+// the names being declared, the most frequent word of the document extending
+// what's typed is suggested. In the comments, see commentSuggestions.
 func suggestionsFor(in completionInput) []suggestion {
 	in.cx = min(in.cx, len(in.line))
 	before := in.line[:in.cx]
+	if inLineComment(before) {
+		return commentSuggestions(in, before)
+	}
+	return codeSuggestions(in, before)
+}
+
+// codeSuggestions implements suggestionsFor outside of the comments.
+func codeSuggestions(in completionInput, before string) []suggestion {
 	if afterArgStart(before) {
 		return argSuggestions(in.items, in.params, in.line, in.cx)
 	}
 	if len(in.items) == 0 {
-		return wordSuggestions(in.text, before)
+		return wordSuggestions(in.text, before, minWordTyped)
 	}
 	return extractSuggestions(in.items, in.line, in.cx, in.ranked)
+}
+
+// commentSuggestions makes the suggestions in a comment like suggestionsFor does
+// elsewhere, once more of the word is typed. Nothing is suggested when the typed
+// word occurs in the document at least as many times as the suggested one: then
+// it's likely complete, like "the" is, and "them" is not what's being typed.
+//
+// On samples of the comment lines of the repository (see eval_test.go), this
+// saves ~12% of the keystrokes instead of ~16%, with ~80% of the suggestions
+// right instead of ~63%: a wrong one is shown about every 20 characters typed
+// instead of 7.
+func commentSuggestions(in completionInput, before string) []suggestion {
+	typed := identTrailing(before)
+	var res []suggestion
+	if len(in.items) > 0 {
+		if len(typed) < minCommentItemTyped {
+			return nil
+		}
+		res = extractSuggestions(in.items, in.line, in.cx, in.ranked)
+	} else {
+		res = wordSuggestions(in.text, before, minCommentWordTyped)
+	}
+	if len(res) == 0 || typed == "" {
+		return res
+	}
+	// The document holds the word being typed too, as typed so far.
+	// The label is the suggested word, without what a snippet adds to it.
+	if n := wordCount(in.text, typed) - 1; n > 0 && n >= wordCount(in.text, res[0].label) {
+		return nil
+	}
+	return res
+}
+
+// wordCount counts the occurrences of the word in text.
+func wordCount(text, word string) int {
+	n := 0
+	for w := range identsSeq(text) {
+		if w == word {
+			n++
+		}
+	}
+	return n
+}
+
+// inLineComment reports whether the cursor after before is in a // comment,
+// which starts the line comments of the languages with a server (Go and CUE).
+// The // in the string literals is skipped, the block comments are not seen.
+func inLineComment(before string) bool {
+	var quote byte // of the string literal the cursor is in
+	for i := 0; i < len(before); i++ {
+		c := before[i]
+		switch {
+		case quote != 0:
+			if c == '\\' && quote != '`' {
+				i++ // The escaped character.
+			} else if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'' || c == '`':
+			quote = c
+		case c == '/' && strings.HasPrefix(before[i:], "//"):
+			return true
+		}
+	}
+	return false
 }
 
 // extractSuggestions turns completion items into inline suggestions for the
@@ -288,12 +369,12 @@ func isIdentifier(s string) bool {
 }
 
 // wordSuggestions suggests the most frequent of the words of text extending
-// the one typed at the end of before, once minWordTyped characters of it are
+// the one typed at the end of before, once minTyped characters of it are
 // typed. Of the equally frequent words, the first in the alphabetical order
 // is suggested.
-func wordSuggestions(text, before string) []suggestion {
+func wordSuggestions(text, before string, minTyped int) []suggestion {
 	typed := identTrailing(before)
-	if len(typed) < minWordTyped || startsWithDigit(typed) {
+	if len(typed) < minTyped || startsWithDigit(typed) {
 		return nil
 	}
 	counts := map[string]int{}

@@ -334,7 +334,7 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 		ranked: srv.lang.rankedCompletion,
 		text:   req.text,
 	}
-	if afterArgStart(at.line[:at.cx]) {
+	if before := at.line[:at.cx]; afterArgStart(before) && !inLineComment(before) {
 		// The arguments are suggested by the parameter names.
 		help, err := client.SignatureHelp(ctx, docUri, pos.Line, pos.Character)
 		if err != nil {
