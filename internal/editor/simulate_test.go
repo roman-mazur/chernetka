@@ -40,11 +40,13 @@ var simDefaultSeeds = []uint64{1, 2, 3}
 // as before.<ext> and after.<ext>. The extension picks the extensions of the editor engaged,
 // and the comment of the archive says where the text comes from. The simulation opens the before file, and turns it into the after file with the keys
 // and the mouse: it goes through the changed hunks in a random order, and picks a random
-// way to do each one. Between the hunks it scrolls, saves, undoes, and cuts and pastes.
+// way to do each one. Between the hunks it scrolls, saves, undoes, cuts and pastes, and presses
+// Ctrl+Q, which must not exit the editor while the file has unsaved changes.
 //
 // After each gesture the text and the cursor must match a plain model of the expected text.
 // The end result must match the after file, in the buffer and once saved, undoing everything
 // must give the before file, and rendering it must match what a new editor shows for that file.
+// Then the file is saved, and Ctrl+Q must exit the editor.
 //
 // Everything the typist does is decided ahead of the editor, with two exceptions that keep the
 // editor the source of truth. The indentation after Enter is read back, and the cursor is
@@ -127,6 +129,7 @@ func (p simPair) run(t *testing.T, seed uint64) {
 		sim := newSimulator(t, h, path, p, seed)
 		sim.editHunks()
 		sim.finish()
+		sim.exit()
 		h.CloseInput()
 	})
 }
@@ -761,6 +764,10 @@ func (s *simulator) interrupt() {
 		s.doneAnywhere("wheel")
 	case 3:
 		s.cutAndPaste()
+	case 4:
+		// The hunk just changed the text, and nothing saved it since.
+		s.key("\x11") // Ctrl+Q.
+		s.done("Ctrl+Q with unsaved changes")
 	}
 }
 
@@ -813,7 +820,23 @@ func (s *simulator) finish() {
 	s.checkSaved(s.pair.after)
 
 	s.h.Post(s.t, editor.CommandFunc(func(e *editor.Editor) { checkUndoRedo(s.t, e, s.path, s.pair.before) }))
+	// Undoing and redoing leaves the changes unsaved, which keeps Ctrl+Q from exiting.
+	s.key("\x11")
+	s.doneAnywhere("Ctrl+Q with unsaved changes")
+	// Saved before the fresh editor is opened: it limits saving to its own directory.
+	s.save()
 	s.compareToFreshRender()
+}
+
+// exit exits the editor with Ctrl+Q, the file is saved by finish.
+func (s *simulator) exit() {
+	s.t.Helper()
+	s.key("\x11") // Ctrl+Q.
+	s.flush("exit")
+	synctest.Wait()
+	if s.h.Running() {
+		s.fatalf("the editor keeps running after Ctrl+Q with the file saved")
+	}
 }
 
 // compareToFreshRender checks that the editor kept what it derives from the text, like

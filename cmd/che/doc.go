@@ -89,6 +89,7 @@
 //	Ctrl+Alt+← / Ctrl+Alt+→
 //	         go back / forward in the navigation history (in any mode)
 //	q        close the buffer if it has no unsaved changes; che exits when the last one is closed
+//	Ctrl+Q   exit che, closing all the buffers, if the current one has no unsaved changes (in any mode)
 //
 // # Line actions
 //

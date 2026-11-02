@@ -61,6 +61,7 @@ type Editor struct {
 	renderRequested bool
 	cmdChannel      chan Command
 	quitRequested   bool
+	exitRequested   bool
 	renderTimer     *time.Timer // fires when the loop stops waiting for the commands to render, see processCommands
 
 	doneOnce sync.Once

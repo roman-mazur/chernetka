@@ -245,6 +245,10 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 
 	// The keys working in any mode.
 	switch k {
+	case input.Ctrl('q'):
+		e.exitRequested = !e.Top().dirty
+		return false
+
 	case input.Ctrl('s'):
 		e.execBufferCmd(&Save{buf.Path})
 		return false

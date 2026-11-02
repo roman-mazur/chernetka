@@ -45,7 +45,7 @@ func (e *Editor) Run(t vt.Terminal) {
 	out := bufio.NewWriter(t)
 
 	e.renderRequested = true
-	for {
+	for !e.exitRequested {
 		// Close the current buffer if necessary.
 		if e.quitRequested {
 			if e.pop() {

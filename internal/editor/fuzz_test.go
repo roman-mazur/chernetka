@@ -52,6 +52,11 @@ func FuzzEditor(f *testing.F) {
 		{".go", "package p\n", "Go\x1b[200~func f() {\n}\x1b[201~\x1b\xff/p\rx\x1b[122;5u\x1b[1;2B\x1a\x1b[122;6u"},
 		{".txt", "a\nb\n", "Atwo\x1b[27u\xffjx\x1b[122;5u\x1b[122;6u\x1b[115;5u\x1b[13;2u\x1b[120;3u"},
 		{".txt", "a\n", "ione\xfftwo\xff\x1bx\xff\x1b[<0;3;1M\x1b[<0;3;1m\xff\x1b[<0;3;1M\x1b[<0;3;1m"},
+		// Ctrl+Q exits the editor unless the top buffer has unsaved changes,
+		// the input after it is not read.
+		{".go", "package p\n", "\x11ix\x1b"},
+		{".txt", "a\n", "ix\x11\x1b\x11:w\r\x11x"},
+		{".md", "# a\n", "\x0enew.md\r\x1b[122;5u\x0fnew\r\x11"},
 	} {
 		f.Add(byte(fuzzExtIndex(seed.ext)), seed.text, []byte(seed.input))
 	}
