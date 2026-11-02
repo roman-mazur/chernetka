@@ -51,6 +51,8 @@ type Buffer struct {
 
 	history  change.History
 	_mutator content.Mutable
+
+	_printer contentPrinter // kept on the buffer to avoid extra allocations on render
 }
 
 // NewScratchBuffer constructs a new Buffer with empty content.
@@ -216,7 +218,8 @@ func runeToScreenCol(line string, runeIdx, tabSize int) int {
 func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
 	// Main content first.
 	printableCount := b.printableLinesCount()
-	var cr contentPrinter
+	b._printer = contentPrinter{}
+	cr := &b._printer // Keeping the contentPrinter as a Buffer field avoids extra heap allocations.
 	cr.prepare(b, b.offset, b.offset+printableCount, prefs)
 	cr.render(out)
 
