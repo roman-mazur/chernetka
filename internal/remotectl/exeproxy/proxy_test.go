@@ -243,10 +243,16 @@ func TestCommandProxy_Header(t *testing.T) {
 	tp.send("exe", os.Args[0], helperEcho, "it's OK")
 	out := tp.waitFinished(1)
 	t.Log(out)
-	for _, want := range []string{"\x1b[2J", "it's OK\n", "✓ done in"} {
-		if !strings.Contains(out, want) {
+	// The header is printed before the command output, the status after it.
+	pos := -1
+	for _, want := range []string{"\x1b[2J", "exeproxy-helper-echo it's OK", "\x1b]9;4;3;0\a", "\nit's OK\n", "\x1b]9;4;1;0\a", "✓ done in"} {
+		i := strings.Index(out, want)
+		if i < 0 {
 			t.Errorf("output %q misses %q", out, want)
+		} else if i < pos {
+			t.Errorf("output %q has %q out of order", out, want)
 		}
+		pos = max(pos, i)
 	}
 
 	tp.send("exe", os.Args[0], helperBlock)
