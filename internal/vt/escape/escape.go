@@ -203,10 +203,10 @@ func UpdateProgress(out io.Writer, state ProgressState, progress int) {
 	p := max(0, min(progress, 100))
 	var data [8]byte
 	_, _ = io.WriteString(out, "\x1b]9;4;")
-	stateData := strconv.AppendInt(data[:], int64(state), 10)
+	stateData := strconv.AppendInt(data[:0], int64(state), 10)
 	stateData = append(stateData, ';')
 	stateData = strconv.AppendInt(stateData, int64(p), 10)
-	_, _ = out.Write(stateData[:])
+	_, _ = out.Write(stateData)
 	_, _ = io.WriteString(out, "\x07")
 }
 

@@ -107,6 +107,25 @@ func TestHideCursor(t *testing.T) {
 	}
 }
 
+func TestUpdateProgress(t *testing.T) {
+	for _, tc := range []struct {
+		state    ProgressState
+		progress int
+		want     string
+	}{
+		{state: ProgressStateHidden, want: "\x1b]9;4;0;0\x07"},
+		{state: ProgressStateDefault, progress: 42, want: "\x1b]9;4;1;42\x07"},
+		{state: ProgressStateIndeterminate, progress: 200, want: "\x1b]9;4;3;100\x07"},
+		{state: ProgressStateError, progress: -1, want: "\x1b]9;4;2;0\x07"},
+	} {
+		var out bytes.Buffer
+		UpdateProgress(&out, tc.state, tc.progress)
+		if got := out.String(); got != tc.want {
+			t.Errorf("UpdateProgress(%d, %d) = %q, want %q", tc.state, tc.progress, got, tc.want)
+		}
+	}
+}
+
 func BenchmarkStyleText(b *testing.B) {
 	style := styles.TextStyle{
 		Bold:      true,
