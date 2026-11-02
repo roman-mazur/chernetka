@@ -2,6 +2,7 @@ package editor
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"iter"
@@ -70,6 +71,9 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 
 	f, err := os.Open(of.Path)
 	if errors.Is(err, fs.ErrNotExist) {
+		err = checkCreatable(of.Path)
+	}
+	if errors.Is(err, fs.ErrNotExist) {
 		buf := NewScratchBuffer()
 		buf.Path = of.Path
 		e.push(buf)
@@ -90,6 +94,28 @@ func (of *OpenFile) DoOnEditor(e *Editor) {
 		panic("e.Top() returned nil")
 	}
 	e.watchFile(buf)
+}
+
+// checkCreatable is called for a path that does not exist.
+// It returns fs.ErrNotExist if the file can be created with its missing parent directories,
+// or an error if the closest existing ancestor is not a directory.
+// Unlike Unix, Windows reports a file in place of a parent directory as a missing path.
+func checkCreatable(path string) error {
+	for dir := filepath.Dir(path); ; dir = filepath.Dir(dir) {
+		info, err := os.Stat(dir)
+		if err == nil {
+			if !info.IsDir() {
+				return &fs.PathError{Op: "open", Path: path, Err: fmt.Errorf("%s is not a directory", dir)}
+			}
+			return fs.ErrNotExist
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		if filepath.Dir(dir) == dir {
+			return fs.ErrNotExist
+		}
+	}
 }
 
 func (of *OpenFile) handleError(e *Editor, err error) {
