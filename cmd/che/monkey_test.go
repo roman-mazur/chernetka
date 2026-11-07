@@ -205,7 +205,7 @@ func runMonkey(t *testing.T, rnd *rand.Rand, bin string, env []string, path stri
 }
 
 // cheSnippets are typed along with the random input: the code in the supported languages,
-// the normal mode commands, search and replace, and the command line.
+// the review mode commands, search and replace, and the command line.
 var cheSnippets = []string{
 	"package main\r", "import \"fmt\"\r", "func main() {\r", "}\r", "fmt.", "os.", "strings.",
 	"for i := range 10 {", "if err != nil {\r\treturn err\r}", "// comment ", "/* ", "*/",

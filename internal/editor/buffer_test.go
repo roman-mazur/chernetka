@@ -37,14 +37,14 @@ func TestBuffer_Render(t *testing.T) {
 		absent      []string
 	}{
 		{
-			name: "normal mode shows numbered lines",
+			name: "review mode shows numbered lines",
 			buf: &Buffer{
 				Path: "test.txt",
 				Content: &content.FullText{
 					content.TextLine("hello"),
 					content.TextLine("world"),
 				},
-				mode: ModeNormal,
+				mode: ModeReview,
 				w:    40,
 				h:    5,
 			},
@@ -61,7 +61,7 @@ func TestBuffer_Render(t *testing.T) {
 				},
 
 				hideLineNumbers: true,
-				mode:            ModeNormal,
+				mode:            ModeReview,
 				w:               40,
 				h:               5,
 			},
@@ -74,7 +74,7 @@ func TestBuffer_Render(t *testing.T) {
 			buf: &Buffer{
 				Path:    "test.txt",
 				Content: &content.FullText{content.TextLine("a\tb")},
-				mode:    ModeNormal,
+				mode:    ModeReview,
 				w:       40,
 				h:       3,
 			},

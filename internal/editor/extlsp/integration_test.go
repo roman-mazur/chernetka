@@ -714,17 +714,17 @@ func TestIntegration_NoCompletionOutsideInsertMode(t *testing.T) {
 	h, buf, data := newGoBuffer(t, &le, fake, "Pri")
 	h.MoveCursorToLineEnd()
 
-	le.AfterEdit(h.Editor, buf) // normal mode edit, like x or a paste
+	le.AfterEdit(h.Editor, buf) // review mode edit, like x or a paste
 	fake.waitVersion(t, 2)
 	_ = le.Close() // waits for the sync loop
 
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
 	if len(fake.completions) != 0 {
-		t.Errorf("completions requested in normal mode: %q", fake.completions)
+		t.Errorf("completions requested in review mode: %q", fake.completions)
 	}
 	if data.HasSuggestions() {
-		t.Errorf("suggestions assigned in normal mode")
+		t.Errorf("suggestions assigned in review mode")
 	}
 }
 

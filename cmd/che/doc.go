@@ -40,9 +40,9 @@
 // A .d2 file is also opened for editing. When che is started with an image and has
 // nothing else open, it turns into che-img in the same pane.
 //
-// # Normal mode
+// # Review mode
 //
-// The editor starts in normal mode. The cursor moves up to the end of the line,
+// The editor starts in review mode. The cursor moves up to the end of the line,
 // right after its last character. Shift with the arrows (or Home/End) selects the text,
 // and Shift+click selects it from the cursor to the clicked position.
 //
@@ -113,7 +113,7 @@
 //
 // # Insert mode
 //
-//	Esc        clear the selection, or return to normal mode without one
+//	Esc        clear the selection, or return to review mode without one
 //	(any)      insert the printable character at the cursor, replacing the selection;
 //	           an opening bracket or quote is closed, and typing the closing one
 //	           in the empty pair moves over it
@@ -139,7 +139,7 @@
 //
 //	Tab        accept the suggestion (adding a missing import if needed)
 //	↑ ↓        cycle through the alternatives, if there are several
-//	Esc        dismiss the suggestion (press again to return to normal mode)
+//	Esc        dismiss the suggestion (press again to return to review mode)
 //
 // Go and CUE files are formatted with their language server when saved.
 //
@@ -174,7 +174,7 @@
 //
 // # Command mode
 //
-// Entered by pressing : in normal mode. Type a command and press Enter to run it.
+// Entered by pressing : in review mode. Type a command and press Enter to run it.
 // Backspace removes the last character; on an empty command line, it closes it.
 // The command line, the search and the file picker opened from insert mode return
 // to insert mode when they are closed.

@@ -168,12 +168,12 @@ func TestSearch(t *testing.T) {
 		b := e.Top()
 		b.updateCursor(pos(2, 1))
 		input("/two", esc)
-		if b.mode != ModeNormal || b.c() != pos(2, 1) || b.search != nil || e.status.cmd != nil {
+		if b.mode != ModeReview || b.c() != pos(2, 1) || b.search != nil || e.status.cmd != nil {
 			t.Errorf("mode %s, cursor at %s, pattern %v, command line %+v", b.mode, b.c(), b.search, e.status.cmd)
 		}
 
 		input("/t", "\x7f", "\x7f")
-		if b.mode != ModeNormal || e.status.cmd != nil {
+		if b.mode != ModeReview || e.status.cmd != nil {
 			t.Errorf("deleting the pattern: mode %s, command line %+v", b.mode, e.status.cmd)
 		}
 	})
@@ -231,7 +231,7 @@ func TestSearch(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
 		input("i", ctrlF)
-		if b.mode != ModeNormal || !prompting[*searchPrompt](e) {
+		if b.mode != ModeReview || !prompting[*searchPrompt](e) {
 			t.Fatalf("mode %s, command line %+v", b.mode, e.status.cmd)
 		}
 		input("four", enter)
@@ -257,7 +257,7 @@ func TestSearch(t *testing.T) {
 		if b.Text() != want {
 			t.Errorf("text %q, want %q", b.Text(), want)
 		}
-		if b.c() != pos(1, 6) || b.mode != ModeNormal || b.search != nil || !b.dirty {
+		if b.c() != pos(1, 6) || b.mode != ModeReview || b.search != nil || !b.dirty {
 			t.Errorf("cursor at %s, mode %s, pattern %v, dirty %t", b.c(), b.mode, b.search, b.dirty)
 		}
 	})
@@ -329,7 +329,7 @@ func TestStatusBar_Search(t *testing.T) {
 	}
 
 	input("\x7f", "\x7f", "\r")
-	if got := render(); !strings.Contains(got, "NORMAL") || !strings.Contains(got, "/b") {
+	if got := render(); !strings.Contains(got, "REVIEW") || !strings.Contains(got, "/b") {
 		t.Errorf("status %q", got)
 	}
 }

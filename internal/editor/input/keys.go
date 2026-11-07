@@ -66,7 +66,7 @@ func Move(c Cursor, mod Modifier) Key { return Key{Special: CursorMove, Cursor: 
 // of the decoded bytes. Unknown escape sequences are skipped.
 //
 // Esc followed by another key in the same input is decoded as two keys, so a quick
-// Esc and a command in the normal mode work. Alt+key is not supported for this reason.
+// Esc and a command in the review mode work. Alt+key is not supported for this reason.
 // With the kitty keyboard protocol, Esc and the keys pressed with the modifiers come as
 // "CSI code ; modifiers u" instead, and are not ambiguous.
 func Keys(b []byte) (keys []Key, n int) {
