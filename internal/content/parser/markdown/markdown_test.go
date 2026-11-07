@@ -78,3 +78,37 @@ func TestScan_LongDelimiterRun(t *testing.T) {
 		}
 	}
 }
+
+func TestScan_UnclosedLinear(t *testing.T) {
+	// The openers with no closer on the line are scanned in linear time, and so are
+	// the nested constructs. Each of these lines takes many seconds when the rest of
+	// the line is scanned again from each opener, or for each nesting level.
+	const n = 100_000
+	r := strings.Repeat
+	for name, line := range map[string]string{
+		"emphasis":      r("*a ", n),
+		"strong":        r("**a ", n),
+		"underscore":    r(" _a", n),
+		"strikethrough": r("~~a ", n),
+		"code span":     "a " + r("`", 3*n),
+		"link":          r("[", 3*n),
+		"image":         r("![", n),
+		"nested links":  r("[", n) + r("]", n),
+		"link target":   r("[a](", n),
+		"link ref":      r("[a][", n),
+		"link label":    r("[*a ", n) + r("]", n),
+		"angle":         r("<", 3*n),
+		"block quote":   r("> ", n) + "a",
+	} {
+		painted := 0
+		start := time.Now()
+		Scan([]string{line}, func(s Span) { painted += s.End - s.Start })
+		if d := time.Since(start); d > time.Second {
+			t.Errorf("%s: scanning %d bytes takes %v", name, len(line), d)
+		}
+		// The spans are painted for the editor, a nested span over its parent.
+		if painted > 4*len(line) {
+			t.Errorf("%s: the spans of %d bytes cover %d", name, len(line), painted)
+		}
+	}
+}

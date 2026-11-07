@@ -31,6 +31,9 @@ func TestMarkdownBlocks(t *testing.T) {
 		{"> ## in quote", []string{"0:1:Punctuation", "1:2:Quote", "2:4:Punctuation", "4:13:Heading"}},
 		// The two markers are adjacent punctuation, so they come back as one span.
 		{">> nested", []string{"0:2:Punctuation", "2:9:Quote"}},
+		{"> > > deep", []string{
+			"0:1:Punctuation", "1:2:Quote", "2:3:Punctuation", "3:4:Quote", "4:5:Punctuation", "5:10:Quote",
+		}},
 	}
 
 	buf, ext := openDoc(t, "notes.md", doc.text())
@@ -63,6 +66,10 @@ func TestMarkdownInline(t *testing.T) {
 			"8:12:RawText", "12:15:Punctuation",
 		}},
 		{"escaped \\*stars\\* stay", []string{"8:10:Escape", "15:17:Escape"}},
+		// A run of delimiters that is not closed is literal text as a whole: its
+		// suffixes neither open a strikethrough nor a code span.
+		{"a ~~~x~~ y", nil},
+		{"a ``unclosed` run", nil},
 	}
 
 	buf, ext := openDoc(t, "notes.md", doc.text())
@@ -83,6 +90,15 @@ func TestMarkdownLinks(t *testing.T) {
 		}},
 		{"[label][ref]", []string{
 			"0:1:Punctuation", "1:6:Link", "6:8:Punctuation", "8:11:URL", "11:12:Punctuation",
+		}},
+		// A link may hold an image, but the links nested deeper are not highlighted.
+		{"[![badge](b.svg)](https://a.example)", []string{
+			"0:3:Punctuation", "3:8:Link", "8:10:Punctuation", "10:15:URL",
+			"15:18:Punctuation", "18:35:URL", "35:36:Punctuation",
+		}},
+		{"[a [b [c] d] e]", []string{
+			"0:1:Punctuation", "1:3:Link", "3:4:Punctuation", "4:11:Link",
+			"11:12:Punctuation", "12:14:Link", "14:15:Punctuation",
 		}},
 		{"<https://angle.example>", []string{
 			"0:1:Punctuation", "1:22:URL", "22:23:Punctuation",

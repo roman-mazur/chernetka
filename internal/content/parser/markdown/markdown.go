@@ -10,6 +10,7 @@
 package markdown
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -75,6 +76,35 @@ type mdScanner struct {
 	listContent int  // content column of the innermost open list item, or 0
 
 	blocks []code.Block // fenced code blocks found so far
+
+	// The inline constructs whose closer is not found are remembered for the line, so
+	// that the other openers of the same kind after them fail without rescanning the
+	// rest of it: rescanning it from each unclosed opener is quadratic.
+	noEmphasis   [3][4]failure // by the delimiter ('*', '_', '~') and the run length
+	noLinkTarget [2]failure    // by the closing byte (')' or ']')
+	noAngle      failure
+
+	// The brackets of a line are matched once: searching for the match of each '['
+	// is quadratic.
+	brackets     []int // the index of the ']' matching each '[' of the line, or -1
+	bracketStack []int
+	bracketsLine int // the line number of brackets plus one, or 0 if not matched yet
+
+	linkDepth int // the number of the link labels the scanned text is nested in
+}
+
+// maxLinkDepth is how deep the links nest: a link may hold an image, like a badge
+// "[![build](badge.svg)](url)". The inner links of a deeper nesting are not
+// highlighted, which keeps the text scanned again for each level within a limit.
+const maxLinkDepth = 2
+
+// failure records that a closer was not found in line[from:to]. Then it's not found
+// in a narrower range either: the delimiters are matched in the same runs.
+type failure struct{ ln, from, to int }
+
+// covers reports whether the closer is known to be missing in line[from:to].
+func (f failure) covers(ln, from, to int) bool {
+	return f.ln == ln && f.from <= from && to <= f.to
 }
 
 func (s *mdScanner) run() {
@@ -142,7 +172,7 @@ func (s *mdScanner) scanBlock(ln int, line string, col int) {
 	// under a paragraph line underlines it instead of breaking the page.
 	case s.scanSetext(ln, line, indent, paragraph):
 	case s.scanThematicBreak(ln, line, indent):
-	case s.scanBlockQuote(ln, line, indent):
+	case s.scanBlockQuote(ln, line, col, indent):
 	case s.scanTableRow(ln, line, indent):
 	case s.scanListItem(ln, line, indent):
 	case s.scanLinkDefinition(ln, line, indent):
@@ -293,12 +323,16 @@ func (s *mdScanner) scanThematicBreak(ln int, line string, indent int) bool {
 
 // scanBlockQuote colorizes a '>' marker and re-dispatches the rest of the line,
 // so the blocks nested in a quote are highlighted as themselves.
-func (s *mdScanner) scanBlockQuote(ln int, line string, indent int) bool {
+func (s *mdScanner) scanBlockQuote(ln int, line string, col, indent int) bool {
 	if line[indent] != '>' {
 		return false
 	}
 	s.mark(ln, indent, indent+1, code.TtPunctuation)
-	s.mark(ln, indent+1, len(line), code.TtQuote)
+	if col == 0 {
+		// The outermost quote covers the nested ones: marking the rest of the line
+		// for each of them makes the spans of "> > > ..." quadratic in its length.
+		s.mark(ln, indent+1, len(line), code.TtQuote)
+	}
 	s.scanBlock(ln, line, indent+1)
 	return true
 }
@@ -511,7 +545,9 @@ func (s *mdScanner) scanCodeSpan(ln int, line string, i, to int) int {
 		}
 		j += run - 1
 	}
-	return open // no closing run on this line
+	// No closing run on this line: the run is literal text as a whole, and its
+	// suffixes are not scanned again.
+	return i
 }
 
 // scanEmphasis colorizes *italic*, **bold** and ~~struck~~ runs. It follows the
@@ -538,6 +574,14 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 		return open // a closing or a lone run, not an opener
 	case c == '_' && isWordByte(byteAt(line, open-1)):
 		return open
+	}
+
+	kind := strings.IndexByte("*_~", c)
+	for m := 1; m <= n; m++ {
+		// A closer of a longer run closes a shorter one too.
+		if s.noEmphasis[kind][m].covers(ln, i, to) {
+			return open
+		}
 	}
 
 	token := code.TtStrong
@@ -568,6 +612,7 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 		}
 		j += run - 1
 	}
+	s.noEmphasis[kind][n] = failure{ln, i, to}
 	return open
 }
 
@@ -575,6 +620,9 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 // reference forms [label][ref] and [ref].
 func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 	start := i
+	if s.linkDepth >= maxLinkDepth {
+		return start
+	}
 	if line[i] == '!' {
 		if i+1 >= to || line[i+1] != '[' {
 			return start
@@ -583,26 +631,16 @@ func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 	}
 
 	label := i + 1
-	end := -1
-	for j, depth := i, 0; j < to && end < 0; j++ {
-		switch line[j] {
-		case '\\':
-			j++
-		case '[':
-			depth++
-		case ']':
-			if depth--; depth == 0 {
-				end = j
-			}
-		}
-	}
-	if end < 0 {
+	end := s.closingBracket(ln, line, i)
+	if end < 0 || end >= to {
 		return start
 	}
 
 	s.mark(ln, start, label, code.TtPunctuation) // the '!' and the '['
 	s.mark(ln, label, end, code.TtLink)
+	s.linkDepth++
 	s.scanInline(ln, line, label, end)
+	s.linkDepth--
 	s.mark(ln, end, end+1, code.TtPunctuation)
 	i = end + 1
 
@@ -618,9 +656,42 @@ func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 	return i // a shortcut reference link, '[ref]' on its own
 }
 
+// closingBracket returns the index of the ']' matching the '[' at i, skipping the
+// escaped brackets, or -1 if it's unmatched.
+func (s *mdScanner) closingBracket(ln int, line string, i int) int {
+	if s.bracketsLine != ln+1 {
+		s.bracketsLine = ln + 1
+		s.brackets = slices.Grow(s.brackets[:0], len(line))[:len(line)]
+		stack := s.bracketStack[:0]
+		for j := 0; j < len(line); j++ {
+			s.brackets[j] = -1
+			switch line[j] {
+			case '\\':
+				j++
+				if j < len(line) {
+					s.brackets[j] = -1
+				}
+			case '[':
+				stack = append(stack, j)
+			case ']':
+				if len(stack) > 0 {
+					s.brackets[stack[len(stack)-1]] = j
+					stack = stack[:len(stack)-1]
+				}
+			}
+		}
+		s.bracketStack = stack
+	}
+	return s.brackets[i]
+}
+
 // scanLinkTarget colorizes the '(destination "Title")' or '[reference]' that
 // follows a link label, up to the matching close byte.
 func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, token code.TokenType) int {
+	missing := &s.noLinkTarget[strings.IndexByte(")]", close)]
+	if missing.covers(ln, i+1, to) {
+		return i
+	}
 	end := -1
 	for j := i + 1; j < to && end < 0; j++ {
 		switch line[j] {
@@ -631,6 +702,7 @@ func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, t
 		}
 	}
 	if end < 0 {
+		*missing = failure{ln, i + 1, to}
 		return i
 	}
 
@@ -648,8 +720,15 @@ func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, t
 
 // scanAngle colorizes an <https://autolink> or an inline HTML tag.
 func (s *mdScanner) scanAngle(ln int, line string, i, to int) int {
+	if s.noAngle.covers(ln, i, to) {
+		return i
+	}
 	end := strings.IndexByte(line[i:to], '>')
-	if end <= 1 { // no closer, or an empty '<>'
+	if end < 0 {
+		s.noAngle = failure{ln, i, to}
+		return i
+	}
+	if end == 1 { // an empty '<>'
 		return i
 	}
 	end += i
