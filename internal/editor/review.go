@@ -6,7 +6,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/input"
 )
 
-func normalInput(buf *Buffer, k input.Key, prefs *RenderPrefs) (quit bool) {
+func reviewInput(buf *Buffer, k input.Key, prefs *RenderPrefs) (quit bool) {
 	switch k.Special {
 	case input.CursorMove:
 		buf.handleCursor(k.Cursor, k.Mod, prefs)
@@ -22,14 +22,14 @@ func normalInput(buf *Buffer, k input.Key, prefs *RenderPrefs) (quit bool) {
 
 	case input.Text:
 		if k.Mod == 0 {
-			return normalCommand(buf, k.Rune, prefs)
+			return reviewCommand(buf, k.Rune, prefs)
 		}
 	}
 	return false
 }
 
-// normalCommand runs the command typed with a single character.
-func normalCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
+// reviewCommand runs the command typed with a single character.
+func reviewCommand(buf *Buffer, r rune, prefs *RenderPrefs) (quit bool) {
 	lines := buf.Content.Lines()
 	switch r {
 	// Quit.

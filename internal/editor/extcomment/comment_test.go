@@ -93,7 +93,7 @@ func TestToggle(t *testing.T) {
 			want:  []string{"\t\nx"},
 		},
 		{
-			name:  "normal mode",
+			name:  "review mode",
 			path:  "a.go",
 			text:  "x",
 			input: []string{ctrlSlash},

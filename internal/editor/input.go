@@ -324,7 +324,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	}
 
 	switch buf.mode {
-	case ModeNormal:
+	case ModeReview:
 		// Open the command line.
 		switch k {
 		case input.Rune(':'):
@@ -338,7 +338,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 				return false
 			}
 		}
-		quit = normalInput(buf, k, &e.rPrefs)
+		quit = reviewInput(buf, k, &e.rPrefs)
 		return
 
 	case ModeInsert:

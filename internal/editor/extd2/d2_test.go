@@ -199,7 +199,7 @@ func TestNoActions(t *testing.T) {
 	})
 }
 
-// TestEngageWithEnter checks the wiring with the editor: Enter in normal mode engages the action.
+// TestEngageWithEnter checks the wiring with the editor: Enter in review mode engages the action.
 func TestEngageWithEnter(t *testing.T) {
 	ext, viewer := newIntegration(t)
 	h := editor.NewTestHarness(t)

@@ -16,18 +16,18 @@ import (
 	"rmazur.io/watch/dirwatch"
 )
 
-// Mode represents the editor mode (normal vs insert).
+// Mode represents the editor mode (review vs insert).
 type Mode int
 
 const (
-	ModeNormal Mode = iota
+	ModeReview Mode = iota
 	ModeInsert
 )
 
 func (m Mode) String() string {
 	switch m {
-	case ModeNormal:
-		return "NORMAL"
+	case ModeReview:
+		return "REVIEW"
 	case ModeInsert:
 		return "INSERT"
 	default:
