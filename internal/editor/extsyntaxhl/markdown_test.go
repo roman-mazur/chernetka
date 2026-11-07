@@ -128,6 +128,9 @@ func TestMarkdownCodeBlocks(t *testing.T) {
 		{"", nil},
 		{"    indented code", []string{"4:17:RawText"}},
 		{"", nil},
+		// A tab takes four columns.
+		{"\tindented code", []string{"1:14:RawText"}},
+		{"", nil},
 		{"a paragraph", nil},
 		// Four spaces under a paragraph continue it instead of opening a block.
 		{"    still the paragraph", nil},
@@ -154,6 +157,65 @@ func TestMarkdownTables(t *testing.T) {
 		}},
 		{"", nil},
 		{"| after the table", nil},
+	}
+
+	buf, ext := openDoc(t, "notes.md", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+// TestMarkdownBreakAtStart checks that a '---' on the first line, with no paragraph
+// above it, is a thematic break.
+func TestMarkdownBreakAtStart(t *testing.T) {
+	doc := hlDoc{
+		{"---", []string{"0:3:ListMarker"}},
+		{"===", nil},
+	}
+
+	buf, ext := openDoc(t, "notes.md", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestMarkdownQuotes(t *testing.T) {
+	doc := hlDoc{
+		// A fence in a block quote ends at the quoted closing fence.
+		{"> ```go", []string{"0:1:Punctuation", "1:2:Quote", "2:5:Punctuation", "5:7:Keyword"}},
+		{"> # code", []string{"0:1:Punctuation", "1:8:RawText"}},
+		{"> ```", []string{"0:5:Punctuation"}},
+		{"# heading", []string{"0:1:Punctuation", "1:9:Heading"}},
+		{"", nil},
+		// And with the block quote itself.
+		{"> ```", []string{"0:1:Punctuation", "1:2:Quote", "2:5:Punctuation"}},
+		{"# heading", []string{"0:1:Punctuation", "1:9:Heading"}},
+		{"", nil},
+		// A table in a block quote has its header row.
+		{"> | A |", []string{"0:1:Punctuation", "1:2:Quote", "2:3:Punctuation", "3:6:Strong", "6:7:Punctuation"}},
+		{"> |---|", []string{"0:1:Punctuation", "1:2:Quote", "2:7:Punctuation"}},
+		{"> | 1 |", []string{"0:1:Punctuation", "1:2:Quote", "2:3:Punctuation", "3:6:Quote", "6:7:Punctuation"}},
+		{"", nil},
+		// A setext heading in a block quote, without its markers.
+		{"> Title", []string{"0:1:Punctuation", "1:2:Quote", "2:7:Heading"}},
+		{"> ===", []string{"0:1:Punctuation", "1:2:Quote", "2:5:Punctuation"}},
+		{"", nil},
+		// An underline does not continue a block quote lazily.
+		{"> Quoted", []string{"0:1:Punctuation", "1:8:Quote"}},
+		{"===", nil},
+	}
+
+	buf, ext := openDoc(t, "notes.md", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestMarkdownCodeSpanPrecedence(t *testing.T) {
+	doc := hlDoc{
+		// The delimiters and brackets in a code span are literal text.
+		{"*a `*` b*", []string{"0:1:Punctuation", "1:3:Emphasis", "3:4:Punctuation", "4:5:RawText", "5:6:Punctuation", "6:8:Emphasis", "8:9:Punctuation"}},
+		{"[a `]` b](u)", []string{"0:1:Punctuation", "1:3:Link", "3:4:Punctuation", "4:5:RawText", "5:6:Punctuation", "6:8:Link", "8:10:Punctuation", "10:11:URL", "11:12:Punctuation"}},
+		// So are the escaped ones.
+		{"*a \\* b*", []string{"0:1:Punctuation", "1:3:Emphasis", "3:5:Escape", "5:7:Emphasis", "7:8:Punctuation"}},
+		// A backslash escapes the first backtick of an opener, but not of a closer.
+		{"\\``a` `b\\`", []string{"0:2:Escape", "2:3:Punctuation", "3:4:RawText", "4:5:Punctuation", "6:7:Punctuation", "7:9:RawText", "9:10:Punctuation"}},
+		// The code span runs of different lengths don't match.
+		{"`` a ` b `` c `", []string{"0:2:Punctuation", "2:9:RawText", "9:11:Punctuation"}},
 	}
 
 	buf, ext := openDoc(t, "notes.md", doc.text())

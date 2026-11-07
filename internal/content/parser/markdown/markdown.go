@@ -29,7 +29,7 @@ type Span struct {
 // reported for a line preceding the current one (e.g., the setext heading text).
 // It returns the fenced code blocks of the document.
 func Scan(lines []string, emit func(Span)) []code.Block {
-	s := mdScanner{lines: lines, emit: emit, paragraph: -1}
+	s := mdScanner{lines: lines, emit: emit}
 	s.run()
 	return s.blocks
 }
@@ -39,17 +39,8 @@ func Scan(lines []string, emit func(Span)) []code.Block {
 // The item may be nested in block quotes. The line is checked on its own: the document
 // context, like being inside a code block, is not taken into account.
 func TaskCheckbox(line string) int {
-	i := 0
-	for {
-		for i < len(line) && isSpaceByte(line[i]) {
-			i++
-		}
-		if i == len(line) || line[i] != '>' {
-			break
-		}
-		i++
-	}
-	if i == len(line) {
+	i, _ := skipQuotes(line, len(line))
+	if i = skipSpace(line, i); i == len(line) {
 		return -1
 	}
 	item, ok := parseListItem(line, i)
@@ -69,11 +60,17 @@ type mdScanner struct {
 	inFence     bool
 	fenceChar   byte
 	fenceLen    int
-	fenceIndent int
+	fenceIndent int // columns between the fence and the content start of its block quotes
+	fenceQuotes int // the number of the block quotes the fence is nested in
 
-	paragraph   int  // line number of the last paragraph line, or -1
-	inTable     bool // the previous line was part of a table
-	listContent int  // content column of the innermost open list item, or 0
+	// The block quote markers of the current line scanned so far.
+	quotes   int // their number
+	quoteEnd int // the index after the last of them
+
+	para        paragraph // the paragraph line found on the current line
+	above       paragraph // the paragraph line found on the line above
+	inTable     bool      // the previous line was part of a table
+	listContent int       // content column of the innermost open list item, or 0
 
 	blocks []code.Block // fenced code blocks found so far
 
@@ -84,13 +81,30 @@ type mdScanner struct {
 	noLinkTarget [2]failure    // by the closing byte (')' or ']')
 	noAngle      failure
 
-	// The brackets of a line are matched once: searching for the match of each '['
-	// is quadratic.
+	// The code spans and the brackets of a line are matched once: searching for the
+	// closer of each opener is quadratic.
+	matchedLine  int   // the line number of the matches below plus one, or 0 if none
+	codeEnd      []int // the end of the code span opened at each index of the line, or -1
 	brackets     []int // the index of the ']' matching each '[' of the line, or -1
 	bracketStack []int
-	bracketsLine int // the line number of brackets plus one, or 0 if not matched yet
+	ticks        []tickRun
+	lastTicks    map[int]int
 
 	linkDepth int // the number of the link labels the scanned text is nested in
+}
+
+// paragraph describes a paragraph line, the only line a setext underline may follow.
+type paragraph struct {
+	line   int // the line number, or -1 if there is no paragraph line
+	col    int // the start of the paragraph text
+	quotes int // the number of the block quotes the paragraph is nested in
+}
+
+// tickRun is a maximal run of backticks, line[start:end].
+type tickRun struct {
+	start, end int
+	// The next run after this one of the same length, and of one backtick less, or -1.
+	same, shorter int
 }
 
 // maxLinkDepth is how deep the links nest: a link may hold an image, like a badge
@@ -108,20 +122,16 @@ func (f failure) covers(ln, from, to int) bool {
 }
 
 func (s *mdScanner) run() {
+	s.para.line = -1
 	for ln, line := range s.lines {
-		if s.inFence {
-			// An unterminated fence just runs to the end of the document.
-			if s.closesFence(line) {
-				s.mark(ln, 0, len(line), code.TtPunctuation)
-				s.inFence = false
-				s.closeBlock(ln, len(line), true)
-			} else {
-				s.mark(ln, 0, len(line), code.TtRawText)
-			}
+		s.above, s.para = s.para, paragraph{line: -1}
+		s.quotes, s.quoteEnd = 0, 0
+		if s.inFence && s.scanFenceLine(ln, line) {
 			continue
 		}
 		s.scanBlock(ln, line, 0)
 	}
+	// An unterminated fence just runs to the end of the document.
 	if s.inFence {
 		last := len(s.lines) - 1
 		s.closeBlock(last, len(s.lines[last]), false)
@@ -135,31 +145,50 @@ func (s *mdScanner) closeBlock(ln, col int, closed bool) {
 	block.Closed = closed
 }
 
+// scanFenceLine colorizes a line of the open fence. It reports false if the line
+// does not continue the block quotes the fence is nested in: then the quotes end,
+// and the fence along with them.
+func (s *mdScanner) scanFenceLine(ln int, line string) bool {
+	start, quotes := skipQuotes(line, s.fenceQuotes)
+	if quotes < s.fenceQuotes {
+		s.inFence = false
+		s.closeBlock(ln-1, len(s.lines[ln-1]), false)
+		return false
+	}
+	for i := range start {
+		if line[i] == '>' {
+			s.mark(ln, i, i+1, code.TtPunctuation)
+		}
+	}
+	if s.closesFence(line[start:]) {
+		s.mark(ln, start, len(line), code.TtPunctuation)
+		s.inFence = false
+		s.closeBlock(ln, len(line), true)
+	} else {
+		s.mark(ln, start, len(line), code.TtRawText)
+	}
+	return true
+}
+
 // scanBlock highlights the block construct that starts at or after col. col is
 // what lets blocks nest: a block quote colorizes its own '>' and then hands the
 // rest of the line back here, so "> ## Heading" is still a heading.
 func (s *mdScanner) scanBlock(ln int, line string, col int) {
-	indent := col
-	for indent < len(line) && isSpaceByte(line[indent]) {
-		indent++
-	}
+	indent := skipSpace(line, col)
 	if indent == len(line) {
-		// A blank line closes the paragraph and the table above it.
-		s.paragraph, s.inTable = -1, false
+		// A blank line closes the table above it, and the paragraph, which is
+		// not set for the line.
+		s.inTable = false
 		return
 	}
 
-	// Only the outermost call owns the cross-line state; a nested call is still
-	// looking at the same line.
-	paragraph := s.paragraph
 	if col == 0 {
-		s.paragraph = -1
 		if indent == 0 {
 			s.listContent = 0
 		}
 		// An indented code block: four columns of indentation, following a blank
 		// line, and not the continuation of a list item.
-		if indent >= 4 && paragraph < 0 && s.listContent == 0 {
+		if width(line[:indent]) >= 4 && s.above.line < 0 && s.listContent == 0 {
 			s.mark(ln, indent, len(line), code.TtRawText)
 			return
 		}
@@ -170,7 +199,7 @@ func (s *mdScanner) scanBlock(ln int, line string, col int) {
 	case s.scanHeading(ln, line, indent):
 	// A setext underline has to be tried before a thematic break, because '---'
 	// under a paragraph line underlines it instead of breaking the page.
-	case s.scanSetext(ln, line, indent, paragraph):
+	case s.scanSetext(ln, line, indent):
 	case s.scanThematicBreak(ln, line, indent):
 	case s.scanBlockQuote(ln, line, col, indent):
 	case s.scanTableRow(ln, line, indent):
@@ -178,7 +207,7 @@ func (s *mdScanner) scanBlock(ln int, line string, col int) {
 	case s.scanLinkDefinition(ln, line, indent):
 	default:
 		s.scanInline(ln, line, indent, len(line))
-		s.paragraph = ln
+		s.para = paragraph{line: ln, col: indent, quotes: s.quotes}
 	}
 }
 
@@ -188,10 +217,7 @@ func (s *mdScanner) scanFenceOpen(ln int, line string, indent int) bool {
 	if c != '`' && c != '~' {
 		return false
 	}
-	i := indent
-	for i < len(line) && line[i] == c {
-		i++
-	}
+	i := skipRun(line, indent, len(line), c)
 	if i-indent < 3 {
 		return false
 	}
@@ -204,7 +230,8 @@ func (s *mdScanner) scanFenceOpen(ln int, line string, indent int) bool {
 	s.mark(ln, indent, i, code.TtPunctuation)
 	s.mark(ln, i, len(line), code.TtKeyword)
 
-	s.inFence, s.fenceChar, s.fenceLen, s.fenceIndent = true, c, i-indent, indent
+	s.inFence, s.fenceChar, s.fenceLen = true, c, i-indent
+	s.fenceIndent, s.fenceQuotes = width(line[s.quoteEnd:indent]), s.quotes
 	var lang string
 	if fields := strings.Fields(info); len(fields) > 0 {
 		lang = fields[0]
@@ -216,32 +243,21 @@ func (s *mdScanner) scanFenceOpen(ln int, line string, indent int) bool {
 	return true
 }
 
-// closesFence reports whether line ends the open fence: a run of at least as
-// many of the fence's own characters, with nothing else on the line.
+// closesFence reports whether line, stripped of the block quote markers, ends the open
+// fence: a run of at least as many of the fence's own characters, with nothing else on
+// the line.
 func (s *mdScanner) closesFence(line string) bool {
-	i := 0
-	for i < len(line) && line[i] == ' ' {
-		i++
-	}
-	if i > s.fenceIndent+3 {
+	i := skipSpace(line, 0)
+	if width(line[:i]) > s.fenceIndent+3 {
 		return false
 	}
-	run := i
-	for run < len(line) && line[run] == s.fenceChar {
-		run++
-	}
-	if run-i < s.fenceLen {
-		return false
-	}
-	return strings.TrimRight(line[run:], " \t") == ""
+	run := skipRun(line, i, len(line), s.fenceChar)
+	return run-i >= s.fenceLen && isBlank(line[run:])
 }
 
 // scanHeading recognizes an ATX heading, "## Like this ##".
 func (s *mdScanner) scanHeading(ln int, line string, indent int) bool {
-	i := indent
-	for i < len(line) && line[i] == '#' {
-		i++
-	}
+	i := skipRun(line, indent, len(line), '#')
 	if level := i - indent; level == 0 || level > 6 {
 		return false
 	}
@@ -251,15 +267,9 @@ func (s *mdScanner) scanHeading(ln int, line string, indent int) bool {
 	}
 	s.mark(ln, indent, i, code.TtPunctuation)
 
-	end := len(line)
-	for end > i && isSpaceByte(line[end-1]) {
-		end--
-	}
+	end := max(i, len(strings.TrimRight(line, " \t")))
 	// A closed heading ends with its own run of '#', which is punctuation too.
-	closing := end
-	for closing > i && line[closing-1] == '#' {
-		closing--
-	}
+	closing := max(i, len(strings.TrimRight(line[:end], "#")))
 	if closing < end && (closing == i || isSpaceByte(line[closing-1])) {
 		s.mark(ln, closing, end, code.TtPunctuation)
 		end = closing
@@ -273,20 +283,18 @@ func (s *mdScanner) scanHeading(ln int, line string, indent int) bool {
 }
 
 // scanSetext recognizes the '===' or '---' line that underlines the paragraph
-// line above it, turning it into a heading.
-func (s *mdScanner) scanSetext(ln int, line string, indent, paragraph int) bool {
-	if paragraph != ln-1 {
+// line above it, turning it into a heading. The underline has to be in the same
+// block quotes as the paragraph: an underline can't continue a quote lazily.
+func (s *mdScanner) scanSetext(ln int, line string, indent int) bool {
+	p := s.above
+	if p.line < 0 || p.line != ln-1 || p.quotes != s.quotes {
 		return false
 	}
 	c := line[indent]
 	if c != '=' && c != '-' {
 		return false
 	}
-	i := indent
-	for i < len(line) && line[i] == c {
-		i++
-	}
-	if strings.TrimRight(line[i:], " \t") != "" {
+	if !isBlank(line[skipRun(line, indent, len(line), c):]) {
 		return false
 	}
 
@@ -294,7 +302,7 @@ func (s *mdScanner) scanSetext(ln int, line string, indent, paragraph int) bool 
 	// Promote the line above after the fact. Spans are collected before they are
 	// flattened, so emitting one for an earlier line is fine, and the inline
 	// spans already reported for it are narrower and still win.
-	s.mark(paragraph, 0, len(s.line(paragraph)), code.TtHeading)
+	s.mark(p.line, p.col, len(s.lines[p.line]), code.TtHeading)
 	return true
 }
 
@@ -328,6 +336,7 @@ func (s *mdScanner) scanBlockQuote(ln int, line string, col, indent int) bool {
 		return false
 	}
 	s.mark(ln, indent, indent+1, code.TtPunctuation)
+	s.quotes, s.quoteEnd = s.quotes+1, indent+1
 	if col == 0 {
 		// The outermost quote covers the nested ones: marking the rest of the line
 		// for each of them makes the spans of "> > > ..." quadratic in its length.
@@ -346,8 +355,11 @@ func (s *mdScanner) scanTableRow(ln int, line string, indent int) bool {
 		return false
 	}
 	delimiter := isTableDelimiterRow(line[indent:])
-	// The row above the delimiter is the header, and reads as bold.
-	header := isTableDelimiterRow(s.line(ln + 1))
+	// The row above the delimiter is the header, and reads as bold. The delimiter
+	// row is in the same block quotes as the header.
+	next := s.line(ln + 1)
+	start, quotes := skipQuotes(next, s.quotes)
+	header := quotes == s.quotes && isTableDelimiterRow(next[start:])
 	if !s.inTable && !delimiter && !header {
 		return false
 	}
@@ -443,10 +455,7 @@ func parseListItem(line string, indent int) (listItem, bool) {
 	if i < len(line) && !isSpaceByte(line[i]) {
 		return listItem{}, false
 	}
-	item := listItem{marker: i, content: i, checkbox: -1}
-	for item.content < len(line) && isSpaceByte(line[item.content]) {
-		item.content++
-	}
+	item := listItem{marker: i, content: skipSpace(line, i), checkbox: -1}
 
 	if rest := line[item.content:]; len(rest) >= 3 && rest[0] == '[' && rest[2] == ']' &&
 		(rest[1] == ' ' || rest[1] == 'x' || rest[1] == 'X') &&
@@ -471,26 +480,16 @@ func (s *mdScanner) scanLinkDefinition(ln int, line string, indent int) bool {
 	s.mark(ln, indent+1, label, code.TtLink)
 	s.mark(ln, label, label+2, code.TtPunctuation)
 
-	dest := label + 2
-	for dest < len(line) && isSpaceByte(line[dest]) {
-		dest++
-	}
-	destEnd := dest
-	for destEnd < len(line) && !isSpaceByte(line[destEnd]) {
-		destEnd++
-	}
+	dest := skipSpace(line, label+2)
+	destEnd := skipNonSpace(line, dest, len(line))
 	s.mark(ln, dest, destEnd, code.TtURL)
-
-	title := destEnd
-	for title < len(line) && isSpaceByte(line[title]) {
-		title++
-	}
-	s.mark(ln, title, len(line), code.TtStringLiteral)
+	s.mark(ln, skipSpace(line, destEnd), len(line), code.TtStringLiteral)
 	return true
 }
 
 // scanInline highlights the inline markup in line[from:to].
 func (s *mdScanner) scanInline(ln int, line string, from, to int) {
+	s.match(ln, line)
 	for i := from; i < to; {
 		var next int
 		switch line[i] {
@@ -519,35 +518,20 @@ func (s *mdScanner) scanInline(ln int, line string, from, to int) {
 	}
 }
 
-// scanCodeSpan colorizes a `code span`, whose closing run of backticks has to
-// be exactly as long as the one that opened it. Code spans are treated as
-// line local, which is a simplification: CommonMark lets them wrap.
+// scanCodeSpan colorizes a `code span` matched by matchCodeSpans.
 func (s *mdScanner) scanCodeSpan(ln int, line string, i, to int) int {
 	open := i
-	for i < to && line[i] == '`' {
-		i++
+	i = skipRun(line, i, to, '`')
+	end := s.codeEnd[open]
+	if end < 0 || end > to {
+		// The run is literal text as a whole, and its suffixes are not scanned again.
+		return i
 	}
-	n := i - open
-
-	for j := i; j+n <= to; j++ {
-		if line[j] != '`' {
-			continue
-		}
-		run := 0
-		for j+run < to && line[j+run] == '`' {
-			run++
-		}
-		if run == n {
-			s.mark(ln, open, i, code.TtPunctuation)
-			s.mark(ln, i, j, code.TtRawText)
-			s.mark(ln, j, j+n, code.TtPunctuation)
-			return j + n
-		}
-		j += run - 1
-	}
-	// No closing run on this line: the run is literal text as a whole, and its
-	// suffixes are not scanned again.
-	return i
+	closing := end - (i - open)
+	s.mark(ln, open, i, code.TtPunctuation)
+	s.mark(ln, i, closing, code.TtRawText)
+	s.mark(ln, closing, end, code.TtPunctuation)
+	return end
 }
 
 // scanEmphasis colorizes *italic*, **bold** and ~~struck~~ runs. It follows the
@@ -558,9 +542,7 @@ func (s *mdScanner) scanCodeSpan(ln int, line string, i, to int) int {
 func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 	c := line[i]
 	open := i
-	for i < to && line[i] == c {
-		i++
-	}
+	i = skipRun(line, i, to, c)
 	n := i - open
 
 	// The runs that can't open are skipped as a whole: rescanning each suffix
@@ -595,13 +577,15 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 	}
 
 	for j := i; j < to; j++ {
+		// The delimiters in the code spans and the escaped ones are literal text.
+		if end := s.skipLiteral(line, j, to); end > j {
+			j = end - 1
+			continue
+		}
 		if line[j] != c {
 			continue
 		}
-		run := 0
-		for j+run < to && line[j+run] == c {
-			run++
-		}
+		run := skipRun(line, j, to, c) - j
 		if run >= n && !isSpaceByte(line[j-1]) &&
 			(c != '_' || !isWordByte(byteAt(line, j+run))) {
 			s.mark(ln, open, i, code.TtPunctuation)
@@ -631,7 +615,7 @@ func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 	}
 
 	label := i + 1
-	end := s.closingBracket(ln, line, i)
+	end := s.brackets[i]
 	if end < 0 || end >= to {
 		return start
 	}
@@ -649,45 +633,126 @@ func (s *mdScanner) scanLink(ln int, line string, i, to int) int {
 	}
 	switch line[i] {
 	case '(':
-		return s.scanLinkTarget(ln, line, i, to, ')', code.TtURL)
+		return s.scanLinkTarget(ln, line, i, to, ')')
 	case '[':
-		return s.scanLinkTarget(ln, line, i, to, ']', code.TtURL)
+		return s.scanLinkTarget(ln, line, i, to, ']')
 	}
 	return i // a shortcut reference link, '[ref]' on its own
 }
 
-// closingBracket returns the index of the ']' matching the '[' at i, skipping the
-// escaped brackets, or -1 if it's unmatched.
-func (s *mdScanner) closingBracket(ln int, line string, i int) int {
-	if s.bracketsLine != ln+1 {
-		s.bracketsLine = ln + 1
-		s.brackets = slices.Grow(s.brackets[:0], len(line))[:len(line)]
-		stack := s.bracketStack[:0]
-		for j := 0; j < len(line); j++ {
-			s.brackets[j] = -1
-			switch line[j] {
-			case '\\':
-				j++
-				if j < len(line) {
-					s.brackets[j] = -1
-				}
-			case '[':
-				stack = append(stack, j)
-			case ']':
-				if len(stack) > 0 {
-					s.brackets[stack[len(stack)-1]] = j
-					stack = stack[:len(stack)-1]
-				}
+// match matches the code spans and the brackets of the line, once for each line.
+func (s *mdScanner) match(ln int, line string) {
+	if s.matchedLine == ln+1 {
+		return
+	}
+	s.matchedLine = ln + 1
+	s.codeEnd = fill(s.codeEnd, len(line), -1)
+	s.brackets = fill(s.brackets, len(line), -1)
+	s.matchCodeSpans(line)
+
+	// The brackets in the code spans and the escaped ones are literal text.
+	stack := s.bracketStack[:0]
+	for j := 0; j < len(line); j++ {
+		if end := s.skipLiteral(line, j, len(line)); end > j {
+			j = end - 1
+			continue
+		}
+		switch line[j] {
+		case '[':
+			stack = append(stack, j)
+		case ']':
+			if len(stack) > 0 {
+				s.brackets[stack[len(stack)-1]] = j
+				stack = stack[:len(stack)-1]
 			}
 		}
-		s.bracketStack = stack
 	}
-	return s.brackets[i]
+	s.bracketStack = stack
+}
+
+// matchCodeSpans finds the code spans of the line in linear time. A run of backticks
+// opens a code span closed by the next run of exactly the same length, and is literal
+// text if there is none. A backslash escapes the first backtick of an opening run, but
+// not of a closing one: the text of a code span is literal. Code spans are treated as
+// line local, which is a simplification: CommonMark lets them wrap.
+func (s *mdScanner) matchCodeSpans(line string) {
+	runs := s.ticks[:0]
+	for i := 0; i < len(line); {
+		if line[i] != '`' {
+			i++
+			continue
+		}
+		end := skipRun(line, i, len(line), '`')
+		runs = append(runs, tickRun{start: i, end: end})
+		i = end
+	}
+	s.ticks = runs
+	if len(runs) == 0 {
+		return
+	}
+
+	if s.lastTicks == nil {
+		s.lastTicks = make(map[int]int)
+	}
+	last := s.lastTicks // the first run of each length after the current one
+	clear(last)
+	following := func(n int) int {
+		if r, ok := last[n]; ok {
+			return r
+		}
+		return -1
+	}
+	for r := len(runs) - 1; r >= 0; r-- {
+		n := runs[r].end - runs[r].start
+		runs[r].same, runs[r].shorter = following(n), following(n-1)
+		last[n] = r
+	}
+
+	r := 0
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			if i+1 < len(line) && isMarkdownPunct(line[i+1]) {
+				i++
+			}
+		case '`':
+			for runs[r].end <= i {
+				r++
+			}
+			// The opener is the whole run, or the run with its first backtick escaped.
+			next := runs[r].same
+			if i > runs[r].start {
+				next = runs[r].shorter
+			}
+			if next < 0 {
+				i = runs[r].end - 1
+				continue
+			}
+			s.codeEnd[i] = runs[next].end
+			i = runs[next].end - 1
+		}
+	}
+}
+
+// skipLiteral returns the end of the backslash escape or the code span at i, if it ends
+// by to, or i otherwise.
+func (s *mdScanner) skipLiteral(line string, i, to int) int {
+	switch line[i] {
+	case '\\':
+		if i+1 < to && isMarkdownPunct(line[i+1]) {
+			return i + 2
+		}
+	case '`':
+		if end := s.codeEnd[i]; end >= 0 && end <= to {
+			return end
+		}
+	}
+	return i
 }
 
 // scanLinkTarget colorizes the '(destination "Title")' or '[reference]' that
 // follows a link label, up to the matching close byte.
-func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, token code.TokenType) int {
+func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte) int {
 	missing := &s.noLinkTarget[strings.IndexByte(")]", close)]
 	if missing.covers(ln, i+1, to) {
 		return i
@@ -707,11 +772,8 @@ func (s *mdScanner) scanLinkTarget(ln int, line string, i, to int, close byte, t
 	}
 
 	s.mark(ln, i, i+1, code.TtPunctuation)
-	destEnd := i + 1
-	for destEnd < end && !isSpaceByte(line[destEnd]) {
-		destEnd++
-	}
-	s.mark(ln, i+1, destEnd, token)
+	destEnd := skipNonSpace(line, i+1, end)
+	s.mark(ln, i+1, destEnd, code.TtURL)
 	// Anything after the destination is the optional quoted title.
 	s.mark(ln, destEnd, end, code.TtStringLiteral)
 	s.mark(ln, end, end+1, code.TtPunctuation)
@@ -787,6 +849,68 @@ func (s *mdScanner) line(n int) string {
 }
 
 func isSpaceByte(b byte) bool { return b == ' ' || b == '\t' }
+
+// skipSpace returns the index of the first byte at or after i that is not a space.
+func skipSpace(line string, i int) int {
+	for i < len(line) && isSpaceByte(line[i]) {
+		i++
+	}
+	return i
+}
+
+// skipNonSpace returns the index of the first space at or after i, or to.
+func skipNonSpace(line string, i, to int) int {
+	for i < to && !isSpaceByte(line[i]) {
+		i++
+	}
+	return i
+}
+
+// skipRun returns the end of the run of c starting at i, up to to.
+func skipRun(line string, i, to int, c byte) int {
+	for i < to && line[i] == c {
+		i++
+	}
+	return i
+}
+
+// skipQuotes skips up to max block quote markers, each a '>' with the spaces before it,
+// returning the index after the last of them and their number.
+func skipQuotes(line string, max int) (end, n int) {
+	for n < max {
+		i := skipSpace(line, end)
+		if i == len(line) || line[i] != '>' {
+			break
+		}
+		end, n = i+1, n+1
+	}
+	return end, n
+}
+
+// isBlank reports whether s holds nothing but spaces.
+func isBlank(s string) bool { return strings.TrimRight(s, " \t") == "" }
+
+// width returns the number of columns s takes, with the tab stops every 4 columns.
+func width(s string) int {
+	w := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\t' {
+			w += 4 - w%4
+		} else {
+			w++
+		}
+	}
+	return w
+}
+
+// fill returns buf resized to n elements, each set to v.
+func fill(buf []int, n, v int) []int {
+	buf = slices.Grow(buf[:0], n)[:n]
+	for i := range buf {
+		buf[i] = v
+	}
+	return buf
+}
 
 // isWordByte reports whether b can be part of a word, which is what decides
 // whether an '_' delimiter or a bare URL sits on a word boundary. Every byte of

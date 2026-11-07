@@ -5,7 +5,8 @@ import "rmazur.io/chernetka/internal/content"
 // Block is a code block embedded into a markup document, like a fenced code block in Markdown.
 //
 // The Span covers the whole block including its fences: it starts at the opening fence and ends
-// after the closing one. A block that is not closed runs to the end of the document.
+// after the closing one. A block that is not closed runs to the end of the document, or of
+// the container it is in, like a Markdown block quote.
 type Block struct {
 	content.Span
 	Lang   string // language of the block, e.g. the first word of a Markdown fence info string
