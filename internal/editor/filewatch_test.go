@@ -232,7 +232,7 @@ func TestEditor_WatchDir(t *testing.T) {
 // TestEditor_WatchLargeTree opens the directory browser on a tree with more entries than
 // the process may open files, like a checkout of Chromium (500k files) or AOSP is for
 // the limit of macOS (61440 per process). The open files are limited for the test to
-// make a small tree large enough.
+// make a small tree large enough, where it's possible.
 func TestEditor_WatchLargeTree(t *testing.T) {
 	const openFilesLimit = 1024
 	dir := t.TempDir()
