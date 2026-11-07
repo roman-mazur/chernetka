@@ -527,11 +527,12 @@ func (s *mdScanner) scanEmphasis(ln int, line string, i, to int) int {
 	}
 	n := i - open
 
+	// The runs that can't open are skipped as a whole: rescanning each suffix
+	// of a long run is quadratic.
 	switch {
 	case c == '~' && n != 2: // only ~~strikethrough~~ exists
-		return open
+		return i
 	case n > 3:
-		// Skipped as a whole: rescanning each suffix of a long run is quadratic.
 		return i
 	case i >= to || isSpaceByte(line[i]):
 		return open // a closing or a lone run, not an opener
