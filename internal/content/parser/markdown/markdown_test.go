@@ -61,16 +61,20 @@ func TestScan_TaskCheckboxConsistent(t *testing.T) {
 }
 
 func TestScan_LongDelimiterRun(t *testing.T) {
-	// A run longer than three is not emphasis, and is scanned once. When each of its
-	// suffixes is scanned again, a run as long as this one takes many seconds.
-	line := "a " + strings.Repeat("*", 300_000) + " b*"
-	start := time.Now()
-	Scan([]string{line}, func(s Span) {
-		if s.Token == code.TtEmphasis || s.Token == code.TtStrong {
-			t.Errorf("emphasis at %d-%d", s.Start, s.End)
+	// A run of stars longer than three, or of tildes other than two, is not emphasis,
+	// and is scanned once. When each of its suffixes is scanned again, a run as long
+	// as this one takes many seconds.
+	const n = 300_000
+	for _, c := range []string{"*", "~"} {
+		line := "a " + strings.Repeat(c, n) + " b" + c
+		start := time.Now()
+		Scan([]string{line}, func(s Span) {
+			if s.Token == code.TtEmphasis || s.Token == code.TtStrong || s.Token == code.TtComment {
+				t.Errorf("%s: emphasis at %d-%d", c, s.Start, s.End)
+			}
+		})
+		if d := time.Since(start); d > time.Second {
+			t.Errorf("scanning a run of %d %s takes %v", n, c, d)
 		}
-	})
-	if d := time.Since(start); d > time.Second {
-		t.Errorf("scanning a run of %d stars takes %v", len(line)-6, d)
 	}
 }
