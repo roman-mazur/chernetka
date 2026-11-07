@@ -63,29 +63,83 @@ func (e *Editor) watchFile(buf *Buffer) {
 	buf.unwatch = stop
 }
 
-// watchDir reloads the directory listing of the buffer every time the directory tree changes.
-// The watch is stopped when the buffer is closed.
+// watchDir reloads the directory listing of the buffer every time the listing of a directory
+// it shows changes. The watch is stopped when the buffer is closed.
 func (e *Editor) watchDir(buf *Buffer, dir string, open content.OpenFile) {
 	w := e.fsWatcher()
 	if w == nil {
 		return
 	}
-	stop, err := w.WatchTree(dir, dirChangeDelay, func([]string) {
-		folder := content.LoadFolder(dir, open)
-		e.Send(CommandFunc(func(e *Editor) {
-			if !slices.Contains(e.bufs, buf) {
-				return // Closed in the meantime.
-			}
-			folder.SyncState(buf.Content.(*content.FsContent))
-			buf.replaceContent(folder)
-			e.renderRequested = true
-		}))
-	})
-	if err != nil {
-		e.Logf("cannot watch %s: %s", dir, err)
+	dw := &dirWatch{e: e, w: w, buf: buf, root: dir, open: open, stops: make(map[string]func())}
+	buf.dirWatch, buf.unwatch = dw, dw.stop
+	dw.sync()
+}
+
+// dirWatch watches the directories shown in a directory buffer: the root and the expanded ones.
+// The whole tree is not watched: watching a directory may take an open file for each of its
+// entries (kqueue on macOS does so), and a large tree, like a checkout of Chromium or AOSP,
+// has more entries than a process may open.
+type dirWatch struct {
+	e    *Editor
+	w    *dirwatch.Watcher
+	buf  *Buffer
+	root string
+	open content.OpenFile
+
+	stops map[string]func() // stops watching a shown directory, by its path relative to the root
+}
+
+// sync watches the directories the buffer shows now, and stops watching the others.
+// It's called after a directory is expanded or collapsed, and after the listing is reloaded.
+func (dw *dirWatch) sync() {
+	fc, ok := dw.buf.Content.(*content.FsContent)
+	if !ok || dw.stops == nil {
 		return
 	}
-	buf.unwatch = stop
+	shown := make(map[string]bool)
+	for _, d := range fc.ExpandedDirs() {
+		shown[d] = true
+	}
+	for d, stop := range dw.stops {
+		if !shown[d] {
+			stop()
+			delete(dw.stops, d)
+		}
+	}
+	for d := range shown {
+		if dw.stops[d] != nil {
+			continue
+		}
+		stop, err := dw.w.WatchDir(filepath.Join(dw.root, filepath.FromSlash(d)), dirChangeDelay, dw.reload)
+		if err != nil {
+			dw.e.Logf("cannot watch %s: %s", d, err)
+			continue
+		}
+		dw.stops[d] = stop
+	}
+}
+
+// reload reads the listing again, keeping the same directories expanded.
+// It's called on the watcher goroutine.
+func (dw *dirWatch) reload([]string) {
+	folder := content.LoadFolder(dw.root, dw.open)
+	dw.e.Send(CommandFunc(func(e *Editor) {
+		if !slices.Contains(e.bufs, dw.buf) {
+			return // Closed in the meantime.
+		}
+		folder.SyncState(dw.buf.Content.(*content.FsContent))
+		dw.buf.replaceContent(folder)
+		dw.sync()
+		e.renderRequested = true
+	}))
+}
+
+// stop stops watching all the directories.
+func (dw *dirWatch) stop() {
+	for _, stop := range dw.stops {
+		stop()
+	}
+	dw.stops = nil
 }
 
 // reloadBuffer replaces the buffer content with the file data read from the disk.

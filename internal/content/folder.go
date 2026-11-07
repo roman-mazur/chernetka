@@ -49,6 +49,18 @@ func (fc *FsContent) DirAt(line int) string {
 	return fl.dir
 }
 
+// ExpandedDirs returns the directories whose entries are listed, as slash-separated paths
+// relative to the root. The root (".") is always expanded.
+func (fc *FsContent) ExpandedDirs() []string {
+	dirs := []string{"."}
+	for _, l := range fc.lines {
+		if fl := l.(*fsEntryLine); fl.isDir() && fl.expIdx == 1 {
+			dirs = append(dirs, path.Join(fl.dir, fl.entry.Name()))
+		}
+	}
+	return dirs
+}
+
 // SyncState ensures that FsContent has all the dirs expanded as in the origin.
 func (fc *FsContent) SyncState(origin *FsContent) {
 	if fc.rootPath != origin.rootPath {

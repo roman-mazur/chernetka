@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -208,4 +209,30 @@ func (tw *testWriter) printContent(c Document) {
 	out := bufio.NewWriter(tw)
 	defer out.Flush()
 	Print(out, c, 0, c.Len())
+}
+
+func TestFsContent_ExpandedDirs(t *testing.T) {
+	fc := LoadFolder("testdata/dirs/sample1", nil)
+	check := func(t *testing.T, want ...string) {
+		t.Helper()
+		if got := fc.ExpandedDirs(); !slices.Equal(got, want) {
+			t.Errorf("shown dirs %q, want %q", got, want)
+		}
+	}
+	engage := func(name string) {
+		for _, l := range fc.Lines() {
+			if strings.TrimSpace(l.String()[1:]) == name {
+				l.(LineAction).Engage()
+				return
+			}
+		}
+		t.Fatalf("no line %q", name)
+	}
+
+	check(t, ".")
+	engage("child1")
+	engage("child2")
+	check(t, ".", "child1", "child2")
+	engage("child1")
+	check(t, ".", "child2")
 }

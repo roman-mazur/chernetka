@@ -43,8 +43,9 @@ type Buffer struct {
 
 	version uint64 // internal edits version
 
-	srcFingerprint string // the fingerprint of the content loaded from the source
-	unwatch        func() // stops reloading the content changed outside the editor
+	srcFingerprint string    // the fingerprint of the content loaded from the source
+	unwatch        func()    // stops reloading the content changed outside the editor
+	dirWatch       *dirWatch // watches the shown directories of a directory listing
 
 	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
 	_textCache string // cached result for Text()

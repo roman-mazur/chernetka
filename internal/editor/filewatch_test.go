@@ -1,8 +1,11 @@
 package editor
 
 import (
+	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -224,6 +227,100 @@ func TestEditor_WatchDir(t *testing.T) {
 		time.Sleep(dirChangeDelay)
 	}
 	t.Fatalf("the directory listing is not reloaded: %q", text)
+}
+
+// TestEditor_WatchLargeTree opens the directory browser on a tree with more entries than
+// the process may open files, like a checkout of Chromium (500k files) or AOSP is for
+// the limit of macOS (61440 per process). The open files are limited for the test to
+// make a small tree large enough.
+func TestEditor_WatchLargeTree(t *testing.T) {
+	const openFilesLimit = 1024
+	dir := t.TempDir()
+	dirs, files := generateTree(t, dir, 3, 8, 4)
+	t.Logf("generated %d directories and %d files in %s", dirs, files, dir)
+	limitOpenFiles(t, openFilesLimit)
+
+	h := NewTestHarness(t)
+	h.Run(t)
+	// Post fails if the directory is not opened in a second: the UI loop is blocked meanwhile.
+	h.Post(t, CommandFunc(func(e *Editor) { e.OpenDir(dir, nil) }))
+
+	// Expand dir0, dir0/dir0, and dir0/dir0/dir0 (the first line of each listing) like Enter does.
+	listing := func(e *Editor) string { return textOf(e.Top().Content) }
+	for depth := range 3 {
+		h.Post(t, CommandFunc(func(e *Editor) {
+			e.Top().updateCursor(content.Position{Line: depth})
+			e.maybeEngage(e.Top())
+		}))
+	}
+	h.Post(t, CommandFunc(func(e *Editor) { t.Logf("directory buffer:\n%s", listing(e)) }))
+
+	t.Run("change in an expanded directory", func(t *testing.T) {
+		writeFile(t, filepath.Join(dir, "dir0", "dir0", "dir0", "new.txt"), "new")
+		var text string
+		for range 50 {
+			h.Post(t, CommandFunc(func(e *Editor) { text = listing(e) }))
+			if strings.Contains(text, "new.txt") {
+				return
+			}
+			time.Sleep(dirChangeDelay)
+		}
+		t.Errorf("the listing is not reloaded:\n%s", text)
+	})
+
+	watched := func(e *Editor) []string {
+		return slices.Sorted(maps.Keys(e.bufs[0].dirWatch.stops))
+	}
+	t.Run("watched directories", func(t *testing.T) {
+		h.Post(t, CommandFunc(func(e *Editor) {
+			if got, want := watched(e), []string{".", "dir0", "dir0/dir0", "dir0/dir0/dir0"}; !slices.Equal(got, want) {
+				t.Errorf("watching %q, want %q", got, want)
+			}
+		}))
+	})
+
+	t.Run("collapse", func(t *testing.T) {
+		h.Post(t, CommandFunc(func(e *Editor) {
+			e.Top().updateCursor(content.Position{Line: 1}) // dir0/dir0
+			e.maybeEngage(e.Top())
+			if got, want := watched(e), []string{".", "dir0"}; !slices.Equal(got, want) {
+				t.Errorf("watching %q, want %q", got, want)
+			}
+		}))
+	})
+
+	t.Run("open a file", func(t *testing.T) {
+		path := filepath.Join(dir, "dir7", "dir7", "dir7", "file3.txt")
+		h.Post(t, &OpenFile{Path: path})
+		h.Post(t, CommandFunc(func(e *Editor) {
+			if got := e.Top().Text(); got != path {
+				t.Errorf("opened %q, got:\n%s", path, got)
+			}
+		}))
+	})
+}
+
+// generateTree creates directories nested depth levels deep, with fanout subdirectories
+// and the given number of files in each directory. A file contains its path.
+func generateTree(t *testing.T, root string, depth, fanout, filesPerDir int) (dirs, files int) {
+	t.Helper()
+	for i := range filesPerDir {
+		path := filepath.Join(root, fmt.Sprintf("file%d.txt", i))
+		writeFile(t, path, path)
+		files++
+	}
+	if depth == 0 {
+		return dirs, files
+	}
+	for i := range fanout {
+		sub := filepath.Join(root, fmt.Sprintf("dir%d", i))
+		if err := os.Mkdir(sub, 0700); err != nil {
+			t.Fatal(err)
+		}
+		d, f := generateTree(t, sub, depth-1, fanout, filesPerDir)
+		dirs, files = dirs+d+1, files+f
+	}
+	return dirs, files
 }
 
 func TestEditor_WatchStopsOnClose(t *testing.T) {

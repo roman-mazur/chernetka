@@ -256,7 +256,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	// Re-run the last engaged line action.
 	case input.Ctrl('r'):
 		if e.lastAction.action != nil {
-			e.engage(e.lastAction.action)
+			e.engage(e.lastAction.buf, e.lastAction.action)
 		}
 		return false
 
@@ -354,7 +354,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 
 func (e *Editor) maybeEngage(buf *Buffer) bool {
 	if action := buf.lineAction(buf.c().Line); action != nil {
-		e.engage(action)
+		e.engage(buf, action)
 		if _, single := action.(content.LineActionSingleShot); !single {
 			e.lastAction = bufferAction{buf: buf, action: action}
 		}
@@ -363,11 +363,14 @@ func (e *Editor) maybeEngage(buf *Buffer) bool {
 	return false
 }
 
-// engage saves the changes of the top buffer and runs the action: the actions may work
-// with the files rather than the buffers, for example, running a program.
-func (e *Editor) engage(action content.LineAction) {
+// engage saves the changes of the top buffer and runs the action of a line in buf: the actions
+// may work with the files rather than the buffers, for example, running a program.
+func (e *Editor) engage(buf *Buffer, action content.LineAction) {
 	e.saveTop()
 	action.Engage()
+	if buf.dirWatch != nil {
+		buf.dirWatch.sync() // A directory might be expanded or collapsed.
+	}
 }
 
 // showDiff saves the changes in buf and passes its file to the ShowDiff hook.
