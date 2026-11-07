@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/editor/input"
 )
 
@@ -40,8 +41,8 @@ func sendChunks(t *testing.T, e *Editor, chunks ...string) {
 
 type actionsEditorExt []int
 
-func (ae actionsEditorExt) ID() string                { return "actions" }
-func (ae actionsEditorExt) AfterEdit(Sender, *Buffer) {}
+func (ae actionsEditorExt) ID() string                               { return "actions" }
+func (ae actionsEditorExt) AfterEdit(Sender, *Buffer, []change.Item) {}
 func (ae actionsEditorExt) MakeBufferData(Sender, *Buffer) BufferExtData {
 	res := make(testActionsExt)
 	for _, ln := range ae {

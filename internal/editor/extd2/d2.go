@@ -14,6 +14,7 @@ import (
 
 	"rmazur.io/chernetka/internal/cheimg"
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/logger"
@@ -47,7 +48,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	}
 }
 
-func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer) {
+func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer, _ []change.Item) {
 	if md, ok := buf.ExtensionData(in.ID()).(*markdown); ok {
 		md.sync()
 	}

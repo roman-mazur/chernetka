@@ -99,7 +99,7 @@ func TestCodeBlocks_ParsedOnce(t *testing.T) {
 	}
 	parsed := doc.src
 
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	if doc.src != parsed {
 		t.Error("the same revision is parsed again on AfterEdit")
 	}

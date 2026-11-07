@@ -80,9 +80,9 @@ func (d *benchDoc) edit() {
 	d.edits++
 	line := d.buf.Content.Lines()[d.editLn].String()
 	d.buf.Mutate().Update(d.editLn, content.TextLine(fmt.Sprintf("%s%d", line[:len("Some")], d.edits%10)+line[len("Some")+1:]))
-	d.hl.AfterEdit(nil, d.buf)
+	d.hl.AfterEdit(nil, d.buf, nil)
 	if d.d2 != nil {
-		d.d2.AfterEdit(nil, d.buf)
+		d.d2.AfterEdit(nil, d.buf, nil)
 	}
 }
 

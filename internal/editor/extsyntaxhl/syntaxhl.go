@@ -10,6 +10,7 @@ package extsyntaxhl
 import (
 	"io"
 
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
@@ -88,7 +89,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	return doc
 }
 
-func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer) {
+func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer, _ []change.Item) {
 	if doc, ok := buf.ExtensionData(in.ID()).(*document); ok {
 		doc.stale = true
 	}

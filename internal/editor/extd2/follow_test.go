@@ -67,23 +67,23 @@ func TestMarkdown_FollowBlock(t *testing.T) {
 	m.Insert(0, content.TextLine("```d2"))
 	m.Insert(1, content.TextLine("new"))
 	m.Insert(2, content.TextLine("```"))
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	rerun("x -> y")
 
 	// Edit the diagram and the text above it. The editor calls AfterEdit after every input.
 	m.Update(7, content.TextLine("```d2 {x}"))
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	m.Update(8, content.TextLine("x -> z"))
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	m.Delete(3, 4)
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	rerun("x -> z")
 
 	// Remove the block.
 	for range 3 {
 		m.Delete(6, 7)
 	}
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	action.Engage()
 	select {
 	case d := <-viewer:
@@ -94,7 +94,7 @@ func TestMarkdown_FollowBlock(t *testing.T) {
 	// The same lines are added back, but the removed block is not resurrected.
 	m.Insert(6, content.TextLine("```d2"))
 	m.Insert(7, content.TextLine("```"))
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	action.Engage()
 	select {
 	case d := <-viewer:

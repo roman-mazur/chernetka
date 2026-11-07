@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 	"rmazur.io/chernetka/internal/editor/input"
@@ -33,7 +34,7 @@ func (in *Integration) MakeBufferData(_ editor.Sender, buf *editor.Buffer) edito
 	return nil
 }
 
-func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer) {}
+func (in *Integration) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {}
 
 // HandleInsertKey implements editor.InsertKeyHandler: it toggles the comments with Ctrl+/.
 func (in *Integration) HandleInsertKey(buf *editor.Buffer, k input.Key) (handled bool) {

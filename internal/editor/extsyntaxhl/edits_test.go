@@ -150,7 +150,7 @@ func TestIncrementalParse(t *testing.T) {
 					for range 1 + rnd.IntN(3) {
 						randomEdit(rnd, buf.Mutate())
 					}
-					ext.AfterEdit(nil, buf)
+					ext.AfterEdit(nil, buf, nil)
 				}
 				doc.ensureParsed() // Like the render does.
 				if buf.Text() == old.text {
@@ -200,7 +200,7 @@ func BenchmarkKeystroke(b *testing.B) {
 			line = line[:len(line)-1]
 		}
 		buf.Mutate().Update(ln, content.TextLine(line))
-		ext.AfterEdit(nil, buf)
+		ext.AfterEdit(nil, buf, nil)
 		doc.ensureParsed() // Like the render does.
 	}
 }
@@ -215,9 +215,9 @@ func TestCodeBlocksBeforeAfterEdit(t *testing.T) {
 	if blocks := doc.CodeBlocks(); len(blocks) != 1 {
 		t.Errorf("got %d code blocks, want 1", len(blocks))
 	}
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 	buf.Mutate().Insert(2, content.TextLine("```"))
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 
 	fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
 	fresh.parse(buf.Text())

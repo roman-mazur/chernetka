@@ -84,7 +84,7 @@ func highlighterOf(t *testing.T, buf *editor.Buffer, ext *Integration) editor.Sy
 func insertLine(t *testing.T, buf *editor.Buffer, ext *Integration, at int) {
 	t.Helper()
 	buf.Mutate().Insert(at, content.TextLine(""))
-	ext.AfterEdit(nil, buf)
+	ext.AfterEdit(nil, buf, nil)
 }
 
 func readFile(t *testing.T, path string) string {

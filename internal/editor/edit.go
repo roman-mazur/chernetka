@@ -158,7 +158,7 @@ func (e *Editor) handleAfterEdit(buf *Buffer) {
 		return
 	}
 	for _, ext := range e.x {
-		ext.AfterEdit(e, buf)
+		ext.AfterEdit(e, buf, nil)
 	}
 }
 
