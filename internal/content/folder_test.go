@@ -233,6 +233,9 @@ func TestFsContent_ExpandedDirs(t *testing.T) {
 	engage("child1")
 	engage("child2")
 	check(t, ".", "child1", "child2")
+	if got, want := fc.DirEntries("child1"), []string{"child11", "fulltext-empty-0.txt", "fulltext-example-3.txt"}; !slices.Equal(got, want) {
+		t.Errorf("entries of child1 %q, want %q", got, want)
+	}
 	engage("child1")
 	check(t, ".", "child2")
 }

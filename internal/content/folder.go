@@ -61,6 +61,19 @@ func (fc *FsContent) ExpandedDirs() []string {
 	return dirs
 }
 
+// DirEntries returns the sorted names of the entries listed for the directory, a slash-separated
+// path relative to the root, as the ones returned by ExpandedDirs.
+func (fc *FsContent) DirEntries(dir string) []string {
+	var names []string
+	for _, l := range fc.lines {
+		if fl := l.(*fsEntryLine); fl.dir == dir && fl.entry != nil {
+			names = append(names, fl.entry.Name())
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
 // SyncState ensures that FsContent has all the dirs expanded as in the origin.
 func (fc *FsContent) SyncState(origin *FsContent) {
 	if fc.rootPath != origin.rootPath {

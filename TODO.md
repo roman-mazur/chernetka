@@ -27,6 +27,7 @@
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 - present a choice on what version to keep when content is updated outside the editor
 - store and visualize local history based on change.History (to define where to persist)
+- quick open on large repos (Chromium, AOSP): lift the 20k files cap, cache the list, match faster off the UI loop
 
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy

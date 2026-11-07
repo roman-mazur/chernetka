@@ -346,3 +346,56 @@ func TestEditor_WatchStopsOnClose(t *testing.T) {
 	}
 	_ = e.watcher.Close()
 }
+
+func TestWatchInBackground(t *testing.T) {
+	type result struct {
+		stop func()
+		err  error
+	}
+	start := func() (chan result, func() (func(), error)) {
+		results := make(chan result)
+		return results, func() (func(), error) { r := <-results; return r.stop, r.err }
+	}
+
+	t.Run("stopped after it started", func(t *testing.T) {
+		results, startFn := start()
+		stopped := make(chan struct{})
+		stop := watchInBackground(startFn, func(err error) { t.Error(err) })
+		results <- result{stop: func() { close(stopped) }}
+		for i := 0; ; i++ { // Started on the other goroutine.
+			stop()
+			select {
+			case <-stopped:
+				return
+			case <-time.After(10 * time.Millisecond):
+				if i == 100 {
+					t.Fatal("the watch is not stopped")
+				}
+			}
+		}
+	})
+
+	t.Run("stopped while starting", func(t *testing.T) {
+		results, startFn := start()
+		stopped := make(chan struct{})
+		stop := watchInBackground(startFn, func(err error) { t.Error(err) })
+		stop()
+		results <- result{stop: func() { close(stopped) }}
+		select {
+		case <-stopped:
+		case <-time.After(time.Second):
+			t.Fatal("the watch is not stopped once started")
+		}
+	})
+
+	t.Run("failed", func(t *testing.T) {
+		results, startFn := start()
+		failed := make(chan error, 1)
+		stop := watchInBackground(startFn, func(err error) { failed <- err })
+		results <- result{err: os.ErrNotExist}
+		if err := <-failed; err != os.ErrNotExist {
+			t.Errorf("failed with %v", err)
+		}
+		stop() // No-op.
+	})
+}

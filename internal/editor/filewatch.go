@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	"rmazur.io/chernetka/internal/content"
@@ -48,19 +49,64 @@ func (e *Editor) watchFile(buf *Buffer) {
 		e.Logf("cannot watch %s: %s", buf.Path, err)
 		return
 	}
-	stop, err := w.WatchFile(path, fileChangeDelay, func() {
-		data, err := os.ReadFile(path)
+	reload := func(data []byte) {
+		e.Send(CommandFunc(func(e *Editor) { e.reloadBuffer(buf, data) }))
+	}
+	loaded := buf.srcFingerprint
+	buf.unwatch = watchInBackground(func() (stop func(), err error) {
+		stop, err = w.WatchFile(path, fileChangeDelay, func() {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				e.Logf("cannot reload %s: %s", path, err)
+				return
+			}
+			reload(data)
+		})
 		if err != nil {
-			e.Logf("cannot reload %s: %s", path, err)
+			return nil, err
+		}
+		// The file might be changed before the watch started.
+		if data, err := os.ReadFile(path); err == nil {
+			if _, fp, err := content.LoadFullText(bytes.NewReader(data)); err == nil && fp != loaded {
+				reload(data)
+			}
+		}
+		return stop, nil
+	}, func(err error) { e.Logf("cannot watch %s: %s", buf.Path, err) })
+}
+
+// watchInBackground starts a watch on another goroutine: starting it takes a while for a large
+// directory, as it's listed, or its entries are opened. The returned function stops the watch,
+// also if it's still starting. The error of starting it is passed to failed.
+func watchInBackground(start func() (stop func(), err error), failed func(error)) (stop func()) {
+	var (
+		mu      sync.Mutex
+		stopped bool
+		stopFn  func()
+	)
+	go func() {
+		s, err := start()
+		if err != nil {
+			failed(err)
 			return
 		}
-		e.Send(CommandFunc(func(e *Editor) { e.reloadBuffer(buf, data) }))
-	})
-	if err != nil {
-		e.Logf("cannot watch %s: %s", buf.Path, err)
-		return
+		mu.Lock()
+		defer mu.Unlock()
+		if stopped {
+			s()
+			return
+		}
+		stopFn = s
+	}()
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		stopped = true
+		if stopFn != nil {
+			stopFn()
+			stopFn = nil
+		}
 	}
-	buf.unwatch = stop
 }
 
 // watchDir reloads the directory listing of the buffer every time the listing of a directory
@@ -110,13 +156,27 @@ func (dw *dirWatch) sync() {
 		if dw.stops[d] != nil {
 			continue
 		}
-		stop, err := dw.w.WatchDir(filepath.Join(dw.root, filepath.FromSlash(d)), dirChangeDelay, dw.reload)
-		if err != nil {
-			dw.e.Logf("cannot watch %s: %s", d, err)
-			continue
-		}
-		dw.stops[d] = stop
+		path, listed := filepath.Join(dw.root, filepath.FromSlash(d)), fc.DirEntries(d)
+		dw.stops[d] = watchInBackground(func() (stop func(), err error) {
+			if stop, err = dw.w.WatchDir(path, dirChangeDelay, dw.reload); err != nil {
+				return nil, err
+			}
+			// The directory might be changed before the watch started.
+			if entries, err := os.ReadDir(path); err == nil && !slices.Equal(entryNames(entries), listed) {
+				dw.reload(nil)
+			}
+			return stop, nil
+		}, func(err error) { dw.e.Logf("cannot watch %s: %s", d, err) })
 	}
+}
+
+func entryNames(entries []os.DirEntry) []string {
+	names := make([]string, len(entries))
+	for i, e := range entries {
+		names[i] = e.Name()
+	}
+	slices.Sort(names)
+	return names
 }
 
 // reload reads the listing again, keeping the same directories expanded.

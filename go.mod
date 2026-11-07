@@ -25,7 +25,7 @@ require (
 	golang.org/x/term v0.44.0
 	golang.org/x/tools v0.45.0
 	oss.terrastruct.com/d2 v0.7.2
-	rmazur.io/watch v0.0.6
+	rmazur.io/watch v0.0.8
 )
 
 require (
