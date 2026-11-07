@@ -38,7 +38,7 @@ func TestEditor_RenderToolBuffer(t *testing.T) {
 			t.Errorf("row %d = %q, want %q", i, rows[i], want)
 		}
 	}
-	if !strings.HasPrefix(rows[statusRow], " NORMAL  a.txt") {
+	if !strings.HasPrefix(rows[statusRow], " REVIEW  a.txt") {
 		t.Errorf("status row %d = %q", statusRow, rows[statusRow])
 	}
 	for i, row := range rows[statusRow+1:] {

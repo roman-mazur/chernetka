@@ -9,7 +9,7 @@
 - [x] Address race issues in the Editor/Run test
 - [x] Navigate to line number
 - [x] Action on md checkboxes
-- [x] Run tests from normal mode (action on a test function definition)
+- [x] Run tests from review mode (action on a test function definition)
 - [x] Same for main function
 - [x] ctrl+/ for comments
 - [x] LSP diagnostics (line marker + status bar with problems count)

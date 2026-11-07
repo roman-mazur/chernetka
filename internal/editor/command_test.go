@@ -42,7 +42,7 @@ func TestCommandInput_WriteRunsSave(t *testing.T) {
 
 	input(":w", "\r")
 
-	if e.status.cmd != nil || buf.mode != ModeNormal {
+	if e.status.cmd != nil || buf.mode != ModeReview {
 		t.Errorf("command line %+v, mode %s", e.status.cmd, buf.mode)
 	}
 	if buf.dirty {
@@ -102,7 +102,7 @@ func TestCommandInput_ResumesInsertMode(t *testing.T) {
 	buf := &Buffer{Content: content.Empty()}
 	e, input := newCmdEditor(buf)
 	input("i", "\x0f") // Ctrl+O
-	if buf.mode != ModeNormal || e.status.cmd == nil {
+	if buf.mode != ModeReview || e.status.cmd == nil {
 		t.Fatalf("mode %s, command line %+v", buf.mode, e.status.cmd)
 	}
 	input("\x1b")
@@ -257,7 +257,7 @@ func TestCommandInput_NewFile(t *testing.T) {
 		}
 
 		typeKeys(e, "new.txt\r")
-		assertTop(t, e, filepath.Join(root, "sub", "new.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "sub", "new.txt"), ModeReview)
 		assertBufferCount(t, e, 2)
 		if !e.Top().canEdit() {
 			t.Error("cannot edit the new file")
@@ -273,7 +273,7 @@ func TestCommandInput_NewFile(t *testing.T) {
 		e := newFileEditor(root, filepath.Join("sub", "b.txt"))
 		e.handleInput([]byte(ctrlN))
 		typeKeys(e, "../new.txt\r")
-		assertTop(t, e, filepath.Join(root, "new.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "new.txt"), ModeReview)
 	})
 
 	t.Run("buffer without a file uses the project root", func(t *testing.T) {
@@ -286,7 +286,7 @@ func TestCommandInput_NewFile(t *testing.T) {
 			t.Fatalf("command line %+v", c)
 		}
 		typeKeys(e, "new.txt\r")
-		assertTop(t, e, filepath.Join(root, "new.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "new.txt"), ModeReview)
 	})
 
 	t.Run("absolute path", func(t *testing.T) {
@@ -295,14 +295,14 @@ func TestCommandInput_NewFile(t *testing.T) {
 		path := filepath.Join(root, "new.txt")
 		e.handleInput([]byte(ctrlN))
 		typeKeys(e, strings.Repeat(backspace, 4)+path+"\r")
-		assertTop(t, e, path, ModeNormal)
+		assertTop(t, e, path, ModeReview)
 	})
 
 	t.Run("typed command", func(t *testing.T) {
 		root := newFileTree(t)
 		e := newFileEditor(root, filepath.Join(root, "a.txt"))
 		typeKeys(e, ":n n.txt\r")
-		assertTop(t, e, filepath.Join(root, "n.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "n.txt"), ModeReview)
 	})
 
 	t.Run("saving creates the parent directories", func(t *testing.T) {
@@ -326,7 +326,7 @@ func TestCommandInput_NewFile(t *testing.T) {
 		e := newFileEditor(root, filepath.Join(root, "a.txt"))
 		e.handleInput([]byte(ctrlN))
 		typeKeys(e, filepath.Join("sub", "b.txt")+"\r")
-		assertTop(t, e, filepath.Join(root, "sub", "b.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "sub", "b.txt"), ModeReview)
 		if got := e.Top().Content.Lines()[0].String(); got != "text" {
 			t.Errorf("content %q", got)
 		}
@@ -338,7 +338,7 @@ func TestCommandInput_NewFile(t *testing.T) {
 		e := newFileEditor(root, a, b)
 		e.handleInput([]byte(ctrlN))
 		typeKeys(e, "../a.txt\r")
-		assertTop(t, e, a, ModeNormal)
+		assertTop(t, e, a, ModeReview)
 		assertBufferCount(t, e, 2)
 	})
 
@@ -350,7 +350,7 @@ func TestCommandInput_NewFile(t *testing.T) {
 			e := newFileEditor(root, a)
 			e.handleInput([]byte(ctrlN))
 			typeKeys(e, text+"\r")
-			assertTop(t, e, a, ModeNormal)
+			assertTop(t, e, a, ModeReview)
 			assertBufferCount(t, e, 1)
 		}
 	})
@@ -431,7 +431,7 @@ func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
 			t.Fatalf("text = %q, want %q", got, want)
 		}
 		typeKeys(e, "new.txt\r")
-		assertTop(t, e, filepath.Join(root, "sub", "new.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "sub", "new.txt"), ModeReview)
 	})
 
 	t.Run("cursor on a file in the root", func(t *testing.T) {
@@ -442,7 +442,7 @@ func TestCommandInput_NewFile_DirBuffer(t *testing.T) {
 			t.Fatalf("text = %q", got)
 		}
 		typeKeys(e, "new.txt\r")
-		assertTop(t, e, filepath.Join(root, "new.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "new.txt"), ModeReview)
 	})
 
 	t.Run("nested directories", func(t *testing.T) {
@@ -539,7 +539,7 @@ func TestOpenFile_Errors(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "x", "new.txt")
 		e := &Editor{}
 		(&OpenFile{Path: path}).DoOnEditor(e)
-		assertTop(t, e, path, ModeNormal)
+		assertTop(t, e, path, ModeReview)
 		if !e.Top().canEdit() || e.Top().dirty {
 			t.Errorf("canEdit %t, dirty %t", e.Top().canEdit(), e.Top().dirty)
 		}

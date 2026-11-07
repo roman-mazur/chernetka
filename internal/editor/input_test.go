@@ -106,7 +106,7 @@ func TestEditor_SendInput(t *testing.T) {
 
 	t.Run("paste after paste", func(t *testing.T) {
 		e := newEditor(t)
-		// The second paste starts in the read of the first one. It's not typed in the normal mode.
+		// The second paste starts in the read of the first one. It's not typed in the review mode.
 		sendChunks(t, e, "\x1b[200~x\x1b[201~\x1b[20", "0~qj\x1b[201~")
 		if e.quitRequested {
 			t.Fatal("quit on a paste")

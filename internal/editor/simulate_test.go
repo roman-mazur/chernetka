@@ -439,7 +439,7 @@ func (s *simulator) esc() {
 	s.stepLeft()
 }
 
-// Moving the cursor in the normal mode.
+// Moving the cursor in the review mode.
 
 // moveTo moves the cursor to the position by one of the ways to get there.
 func (s *simulator) moveTo(p content.Position) {
@@ -809,7 +809,7 @@ func (s *simulator) cutAndPaste() {
 func (s *simulator) finish() {
 	s.t.Helper()
 	st := s.read()
-	if st.mode != editor.ModeNormal {
+	if st.mode != editor.ModeReview {
 		s.fatalf("the editor stays in mode %v", st.mode)
 	}
 	if diff := cmp.Diff(s.pair.after, st.text); diff != "" {

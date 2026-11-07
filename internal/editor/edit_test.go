@@ -256,7 +256,7 @@ func TestEditor_Run(t *testing.T) {
 
 // TestEditor_Run_EscAtReadEnd checks that a sequence split by a read of the terminal
 // is not taken for the Esc key followed by text. Taking a paste for the typed keys
-// in the normal mode would run them as commands, quitting the editor on q.
+// in the review mode would run them as commands, quitting the editor on q.
 func TestEditor_Run_EscAtReadEnd(t *testing.T) {
 	te := NewTestHarness(t)
 	if err := te.OpenReader("test.txt", strings.NewReader("one")); err != nil {

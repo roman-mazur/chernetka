@@ -12,7 +12,7 @@ Updating Markdown notes: TODO.md in commit 2bfdab6.
 - Better logic for triggering LSP calls
 - Action on md checkboxes
 - [x] Horizontal scroll
-- Run tests from normal mode (action on a test function definition)
+- Run tests from review mode (action on a test function definition)
 - Same for main function
 - SQL syntax highlight
 - Windows and Linux support for spawning the main editor in a new pane
@@ -43,7 +43,7 @@ Updating Markdown notes: TODO.md in commit 2bfdab6.
 
 - navigate to line number
 - Action on md checkboxes
-- Run tests from normal mode (action on a test function definition)
+- Run tests from review mode (action on a test function definition)
 - Same for main function
 - Windows and Linux support for spawning the main editor in a new pane
 - Allow selecting the path in the status bar to copy

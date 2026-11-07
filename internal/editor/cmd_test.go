@@ -270,8 +270,8 @@ func TestSwitchMode(t *testing.T) {
 	}
 
 	SwitchMode(ModeInsert).DoOnBuffer(&buf, RenderPrefs{TabSize: 4})
-	if buf.mode != ModeNormal {
-		t.Errorf("switched from normal to %s for non-editable content", buf.mode)
+	if buf.mode != ModeReview {
+		t.Errorf("switched from review to %s for non-editable content", buf.mode)
 	}
 
 	textContent := content.FullText{content.TextLine("a line")}
