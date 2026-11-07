@@ -64,8 +64,12 @@ func TestMarkdown_FindCodeBlocks(t *testing.T) {
 		{name: "inline code", md: "```d2`\na\n```", want: []string{`"" 2:0-2:3 open`}},
 		{name: "tilde fence may have backticks", md: "~~~d2`\na\n~~~", want: []string{"\"d2`\" 0:0-2:3"}},
 		{name: "not a fence", md: "``d2\na\n``"},
-		// The scanner does not close a fence inside a block quote: the '>' markers are not stripped.
-		{name: "in a block quote", md: "> ```d2\n> a\n> ```", want: []string{`"d2" 0:2-2:5 open`}},
+		{name: "in a block quote", md: "> ```d2\n> a\n> ```\ntext", want: []string{`"d2" 0:2-2:5`}},
+		{name: "in nested block quotes", md: "> > ```d2\n>> a\n> > ```", want: []string{`"d2" 0:4-2:7`}},
+		// The fence ends with the block quote it is in.
+		{name: "block quote ends", md: "> ```d2\n> a\ntext\n```", want: []string{`"d2" 0:2-1:3 open`, `"" 3:0-3:3 open`}},
+		{name: "block quote ends at the fence", md: "> ```d2\ntext", want: []string{`"d2" 0:2-0:7 open`}},
+		{name: "closing fence in a block quote", md: "```d2\n> ```\n```", want: []string{`"d2" 0:0-2:3`}},
 		{name: "in a list item", md: "- item\n\n    ```d2\n    a\n    ```", want: []string{`"d2" 2:4-4:7`}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

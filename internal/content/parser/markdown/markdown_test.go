@@ -91,6 +91,8 @@ func TestScan_UnclosedLinear(t *testing.T) {
 		"underscore":    r(" _a", n),
 		"strikethrough": r("~~a ", n),
 		"code span":     "a " + r("`", 3*n),
+		"escaped code":  r("\\`` ", n),
+		"code lengths":  codeRuns(800),
 		"link":          r("[", 3*n),
 		"image":         r("![", n),
 		"nested links":  r("[", n) + r("]", n),
@@ -111,4 +113,13 @@ func TestScan_UnclosedLinear(t *testing.T) {
 			t.Errorf("%s: the spans of %d bytes cover %d", name, len(line), painted)
 		}
 	}
+}
+
+// codeRuns returns the backtick runs of the lengths from 1 to n, none of them closed.
+func codeRuns(n int) string {
+	var b strings.Builder
+	for i := 1; i <= n; i++ {
+		b.WriteString(strings.Repeat("`", i) + "a")
+	}
+	return b.String()
 }
