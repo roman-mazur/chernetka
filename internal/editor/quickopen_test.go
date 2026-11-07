@@ -200,9 +200,9 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 			t.Fatalf("command line %+v", c)
 		}
 		input(e, "\r")
-		assertTop(t, e, filepath.Join(root, "a.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "a.txt"), ModeReview)
 		input(e, ctrlO, "\r")
-		assertTop(t, e, filepath.Join(root, "b.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "b.txt"), ModeReview)
 		assertBufferCount(t, e, 2)
 	})
 
@@ -211,14 +211,14 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 		input(e, ctrlO, "\t", "\t") // a.txt, b.txt, c.txt
 		input(e, "\x1b[Z", ctrlO)   // back and forth
 		input(e, "\r")
-		assertTop(t, e, filepath.Join(root, "c.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "c.txt"), ModeReview)
 		assertBufferCount(t, e, 3)
 	})
 
 	t.Run("typed command", func(t *testing.T) {
 		e, root := newEditor(t)
 		input(e, ":", "e", " ", "c", "\r")
-		assertTop(t, e, filepath.Join(root, "c.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "c.txt"), ModeReview)
 	})
 
 	t.Run("backspace closes the picker", func(t *testing.T) {
@@ -231,7 +231,7 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 		if e.status.cmd != nil {
 			t.Errorf("command line %+v, want closed", e.status.cmd)
 		}
-		assertTop(t, e, filepath.Join(root, "b.txt"), ModeNormal)
+		assertTop(t, e, filepath.Join(root, "b.txt"), ModeReview)
 	})
 
 	t.Run("cancel", func(t *testing.T) {
@@ -259,7 +259,7 @@ func TestEditor_QuickOpenInput(t *testing.T) {
 		}
 		input(e, "\r")
 		path := filepath.Join(root, "new.txt")
-		assertTop(t, e, path, ModeNormal)
+		assertTop(t, e, path, ModeReview)
 		if !e.Top().canEdit() {
 			t.Error("cannot edit the new file")
 		}

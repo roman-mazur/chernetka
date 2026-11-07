@@ -44,7 +44,7 @@ func (e *Editor) openCmdLine(buf *Buffer, text string, newPrompt func(c *cmdLine
 	e.cancelCmdLine()
 	c := &cmdLine{buf: buf, text: text, resumeInsert: buf.mode == ModeInsert}
 	// The extensions don't treat typing a command as editing the buffer.
-	buf.setMode(ModeNormal)
+	buf.setMode(ModeReview)
 	c.prompt = newPrompt(c)
 	e.status.cmd = c
 	c.prompt.changed(e)

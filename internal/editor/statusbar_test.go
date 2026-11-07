@@ -31,7 +31,7 @@ func TestStatusBar_Render(t *testing.T) {
 		absent   []string
 	}{
 		{
-			name: "normal mode shows status bar",
+			name: "review mode shows status bar",
 			buf: Buffer{
 				Path: "test.txt",
 				Content: &content.FullText{
@@ -39,7 +39,7 @@ func TestStatusBar_Render(t *testing.T) {
 					content.TextLine("world"),
 				},
 			},
-			contains: []string{"NORMAL", "test.txt", "1:1"},
+			contains: []string{"REVIEW", "test.txt", "1:1"},
 			absent:   []string{"[*]"},
 		},
 		{
@@ -47,7 +47,7 @@ func TestStatusBar_Render(t *testing.T) {
 			buf: Buffer{
 				Path:    "test.txt",
 				Content: &content.FullText{content.TextLine("x")},
-				mode:    ModeNormal,
+				mode:    ModeReview,
 				dirty:   true,
 			},
 			contains: []string{"[*]"},
@@ -61,7 +61,7 @@ func TestStatusBar_Render(t *testing.T) {
 					content.TextLine("second"),
 					content.TextLine("third"),
 				},
-				mode: ModeNormal,
+				mode: ModeReview,
 				_c:   content.Position{Col: 3, Line: 1},
 			},
 			contains: []string{"2:4"},
@@ -84,7 +84,7 @@ func TestStatusBar_Render(t *testing.T) {
 			},
 			cmd:      "wq",
 			contains: []string{":wq"},
-			absent:   []string{"NORMAL", "COMMAND"},
+			absent:   []string{"REVIEW", "COMMAND"},
 		},
 	}
 	for _, tc := range cases {
