@@ -101,7 +101,13 @@ func (st *sysTerminal) WindowSizeChanges() <-chan struct{} {
 }
 
 func (st *sysTerminal) Size() (WindowSize, error) {
-	return windowSize(int(st.out.Fd()))
+	return TerminalWinSize(st.out)
+}
+
+// TerminalWinSize returns the size of the terminal window f is attached to.
+// It fails if f is not a terminal.
+func TerminalWinSize(f *os.File) (WindowSize, error) {
+	return windowSize(int(f.Fd()))
 }
 
 // Close restores the terminal state. Subsequent calls do nothing.

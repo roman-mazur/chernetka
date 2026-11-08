@@ -254,15 +254,21 @@ func TestCommandProxy_Header(t *testing.T) {
 		}
 		pos = max(pos, i)
 	}
+	if strings.Contains(out, "─") {
+		t.Errorf("output %q has a delimiter before the first command", out)
+	}
 
 	tp.send("exe", os.Args[0], helperBlock)
 	tp.send("exe", os.Args[0], helperExit)
 	out = tp.waitFinished(2)
 	t.Log(out)
-	for _, want := range []string{"✗ exit status 3 after"} {
+	for _, want := range []string{"─", "\x1b[2J", "✗ exit status 3 after"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output %q misses %q", out, want)
 		}
+	}
+	if d, c := strings.Index(out, "─"), strings.Index(out, "\x1b[2J"); d > c {
+		t.Errorf("output %q clears the screen before drawing the delimiter", out)
 	}
 
 	tp.send("exe", filepath.Join(tp.home, "missing"))

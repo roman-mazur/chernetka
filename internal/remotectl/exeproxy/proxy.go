@@ -18,6 +18,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/styles"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/remotectl"
+	"rmazur.io/chernetka/internal/vt"
 	"rmazur.io/chernetka/internal/vt/escape"
 )
 
@@ -37,6 +38,7 @@ type CommandProxy struct {
 	// Header enables printing the command before it runs and its exit status after, to Stdout.
 	Header bool
 	// Clear clears the screen before each command, so that its output starts at the top.
+	// A horizontal line is drawn before clearing, so the outputs are delimited in the scrollback.
 	Clear bool
 	// Grace limits how long a replaced command may take to exit after an interrupt before it's killed
 	// (2s by default).
@@ -46,9 +48,10 @@ type CommandProxy struct {
 
 	srv *remotectl.Server
 
-	mu    sync.Mutex
-	p     *processTree
-	pDone chan struct{}
+	mu      sync.Mutex
+	p       *processTree
+	pDone   chan struct{}
+	started bool // Whether any command has been started.
 }
 
 func (cp *CommandProxy) Run(endpoint remotectl.Endpoint) error {
@@ -156,13 +159,28 @@ func (cp *CommandProxy) replaceProcess(exeCmd *exec.Cmd, title string) {
 func (cp *CommandProxy) publishNewProcessStart(title string) {
 	out := cp.stdout()
 	if cp.Clear {
+		if cp.started {
+			escape.StyleText(out, strings.Repeat("─", outputWidth(out)), styles.TextStyle{TextColor: styles.DefaultColors.Suggestion})
+			fmt.Fprintln(out)
+		}
 		escape.ClearScreen(out)
 	}
+	cp.started = true
 	if cp.Header {
 		escape.StyleText(out, title, styles.TextStyle{Bold: true})
 		escape.UpdateProgress(out, escape.ProgressStateIndeterminate, 0)
 		fmt.Fprintln(out)
 	}
+}
+
+// outputWidth returns the number of columns of the terminal the output is written to, 80 if it's not a terminal.
+func outputWidth(out io.Writer) int {
+	if f, ok := out.(*os.File); ok {
+		if size, err := vt.TerminalWinSize(f); err == nil && size.Cols > 0 {
+			return size.Cols
+		}
+	}
+	return 80
 }
 
 func (cp *CommandProxy) publishStartError(err error) {
