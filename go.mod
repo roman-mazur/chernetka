@@ -12,13 +12,6 @@ require (
 	github.com/kanrichan/resvg-go v0.0.1
 	github.com/mattn/go-pointer v0.0.1
 	github.com/rivo/uniseg v0.4.7
-	github.com/tree-sitter-grammars/tree-sitter-yaml v0.7.2
-	github.com/tree-sitter/tree-sitter-bash v0.25.1
-	github.com/tree-sitter/tree-sitter-c v0.24.2
-	github.com/tree-sitter/tree-sitter-c-sharp v0.23.5
-	github.com/tree-sitter/tree-sitter-cpp v0.23.4
-	github.com/tree-sitter/tree-sitter-go v0.25.0
-	github.com/tree-sitter/tree-sitter-json v0.24.8
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/pkg v0.0.0-20210717090340-384b27a52fb2
 	go.lsp.dev/protocol v0.12.0
@@ -64,7 +57,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
-	github.com/tree-sitter/go-tree-sitter v0.25.0 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

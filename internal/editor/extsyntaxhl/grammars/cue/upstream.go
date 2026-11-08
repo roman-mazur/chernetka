@@ -3,5 +3,5 @@
 package cue
 
 // Upstream is the repository and the commit the sources under src are copied
-// from, taken from its main branch.
+// from, fetched as dd7b90e0770ff18070c515937ba3c3d6d93db00e.
 const Upstream = "https://github.com/eonpatapon/tree-sitter-cue@dd7b90e0770ff18070c515937ba3c3d6d93db00e"

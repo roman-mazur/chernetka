@@ -5,18 +5,19 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"unsafe"
 
-	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
-	bashsitter "github.com/tree-sitter/tree-sitter-bash/bindings/go"
-	csharpsitter "github.com/tree-sitter/tree-sitter-c-sharp/bindings/go"
-	csitter "github.com/tree-sitter/tree-sitter-c/bindings/go"
-	cppsitter "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
-	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
-	jsonsitter "github.com/tree-sitter/tree-sitter-json/bindings/go"
 	"rmazur.io/chernetka/internal/content/code"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
-	cuesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
-	nixsitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/bash"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/c"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cpp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
 )
 
 func init() {
@@ -28,9 +29,9 @@ func init() {
 //go:embed queries/go.scm
 var goQuery string
 
-// goGrammar highlights Go using the upstream tree-sitter grammar.
+// goGrammar highlights Go using the tree-sitter grammar copied from upstream.
 var goGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(gositter.Language()) },
+	load:   golang.Language,
 	query:  goQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -38,9 +39,9 @@ var goGrammar = &tsGrammar{
 //go:embed queries/json.scm
 var jsonQuery string
 
-// jsonGrammar highlights JSON using the upstream tree-sitter grammar.
+// jsonGrammar highlights JSON using the tree-sitter grammar copied from upstream.
 var jsonGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(jsonsitter.Language()) },
+	load:   json.Language,
 	query:  jsonQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -48,9 +49,9 @@ var jsonGrammar = &tsGrammar{
 //go:embed queries/yaml.scm
 var yamlQuery string
 
-// yamlGrammar highlights YAML using the upstream tree-sitter grammar.
+// yamlGrammar highlights YAML using the tree-sitter grammar copied from upstream.
 var yamlGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(yamlsitter.Language()) },
+	load:   yaml.Language,
 	query:  yamlQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -58,9 +59,9 @@ var yamlGrammar = &tsGrammar{
 //go:embed queries/bash.scm
 var bashQuery string
 
-// bashGrammar highlights shell scripts using the upstream tree-sitter-bash grammar.
+// bashGrammar highlights shell scripts using the tree-sitter-bash grammar copied from upstream.
 var bashGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(bashsitter.Language()) },
+	load:   bash.Language,
 	query:  bashQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -68,9 +69,9 @@ var bashGrammar = &tsGrammar{
 //go:embed queries/c.scm
 var cQuery string
 
-// cGrammar highlights C using the upstream tree-sitter grammar.
+// cGrammar highlights C using the tree-sitter grammar copied from upstream.
 var cGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(csitter.Language()) },
+	load:   c.Language,
 	query:  cQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -78,10 +79,10 @@ var cGrammar = &tsGrammar{
 //go:embed queries/cpp.scm
 var cppQuery string
 
-// cppGrammar highlights C++ using the upstream tree-sitter grammar. Its grammar
+// cppGrammar highlights C++ using the tree-sitter grammar copied from upstream. Its grammar
 // extends the C one, and so does its query: the C patterns follow the C++ ones.
 var cppGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(cppsitter.Language()) },
+	load:   cpp.Language,
 	query:  cppQuery + "\n" + cQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -89,9 +90,9 @@ var cppGrammar = &tsGrammar{
 //go:embed queries/csharp.scm
 var csharpQuery string
 
-// csharpGrammar highlights C# using the upstream tree-sitter grammar.
+// csharpGrammar highlights C# using the tree-sitter grammar copied from upstream.
 var csharpGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(csharpsitter.Language()) },
+	load:   csharp.Language,
 	query:  csharpQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -101,7 +102,7 @@ var nixQuery string
 
 // nixGrammar highlights Nix using the grammar copied from tree-sitter-nix.
 var nixGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(nixsitter.Language()) },
+	load:   nix.Language,
 	query:  nixQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -111,7 +112,7 @@ var cueQuery string
 
 // cueGrammar highlights CUE using the grammar copied from tree-sitter-cue.
 var cueGrammar = &tsGrammar{
-	load:   func() *treesitter.Language { return treesitter.NewLanguage(cuesitter.Language()) },
+	load:   cue.Language,
 	query:  cueQuery,
 	tokens: defaultCaptureTokens,
 }
@@ -142,7 +143,7 @@ var defaultCaptureTokens = map[string]code.TokenType{
 // tsGrammar is a tree-sitter grammar paired with its highlight query. Both are
 // immutable and shared by every buffer of the language, so they are built once.
 type tsGrammar struct {
-	load   func() *treesitter.Language
+	load   func() (unsafe.Pointer, error)
 	query  string
 	tokens map[string]code.TokenType
 
@@ -159,11 +160,12 @@ type tsGrammar struct {
 // a query that fails to compile will not compile later either.
 func (g *tsGrammar) prepare() error {
 	g.once.Do(func() {
-		g.lang = g.load()
-		if g.lang == nil {
-			g.err = fmt.Errorf("grammar is not available")
+		ptr, err := g.load()
+		if err != nil {
+			g.err = err
 			return
 		}
+		g.lang = treesitter.NewLanguage(ptr)
 		// NewQuery returns a concrete *QueryError rather than an error, so it
 		// has to be nil checked before being treated as one.
 		compiled, queryErr := treesitter.NewQuery(g.lang, g.query)

@@ -3,5 +3,5 @@
 package nix
 
 // Upstream is the repository and the commit the sources under src are copied
-// from, taken from its master branch.
+// from, fetched as a2cd7f4011c6e5830c0c9af5aa35441b3ddd5fba.
 const Upstream = "https://github.com/nix-community/tree-sitter-nix@a2cd7f4011c6e5830c0c9af5aa35441b3ddd5fba"
