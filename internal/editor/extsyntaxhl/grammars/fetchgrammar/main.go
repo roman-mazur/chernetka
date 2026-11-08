@@ -30,11 +30,13 @@ import (
 	"go/format"
 	"io/fs"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -115,7 +117,7 @@ func fetch(repo, ref, subdir, dir, pkg string) (string, error) {
 	// leave the current copy intact.
 	src := path.Join(subdir, "src") // in the repository and in dir
 	files := make(map[string][]byte)
-	for _, pattern := range []string{src + "/*.c", src + "/*.h", src + "/tree_sitter/*.h", "LICENSE"} {
+	for _, pattern := range []string{src + "/*.c", src + "/*.h", src + "/tree_sitter/*.h", "LICENSE*", "COPYING*"} {
 		paths, err := filepath.Glob(filepath.Join(clone, filepath.FromSlash(pattern)))
 		if err != nil {
 			return "", err
@@ -132,10 +134,15 @@ func fetch(repo, ref, subdir, dir, pkg string) (string, error) {
 			files[filepath.ToSlash(rel)] = data
 		}
 	}
-	for _, name := range []string{src + "/parser.c", src + "/tree_sitter/parser.h", "LICENSE"} {
+	for _, name := range []string{src + "/parser.c", src + "/tree_sitter/parser.h"} {
 		if files[name] == nil {
 			return "", fmt.Errorf("no %s in %s", name, repo)
 		}
+	}
+	// The license comes along with the code, whatever its file is named, like
+	// LICENSE or LICENSE.md.
+	if !slices.ContainsFunc(slices.Collect(maps.Keys(files)), isLicense) {
+		return "", fmt.Errorf("no license in %s", repo)
 	}
 	if err := addIncluded(clone, files); err != nil {
 		return "", err
@@ -184,6 +191,10 @@ func fetch(repo, ref, subdir, dir, pkg string) (string, error) {
 		}
 	}
 	return commit, nil
+}
+
+func isLicense(name string) bool {
+	return !strings.Contains(name, "/") && (strings.HasPrefix(name, "LICENSE") || strings.HasPrefix(name, "COPYING"))
 }
 
 // includeLine finds the includes of the files in quotes, which are looked up

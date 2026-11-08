@@ -37,6 +37,7 @@ func TestVisual(t *testing.T) {
 		{"visual.tsx", visualTSX},
 		{"visual.js", visualJavaScript},
 		{"visual.rs", visualRust},
+		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
@@ -710,6 +711,53 @@ const visualTreeSitterQuery = `; A highlight query, to be looked at.
   "break"
   "continue"
 ] @keyword
+`
+
+const visualCommonLisp = `;;;; A word counter, to be looked at.
+(defpackage :words
+  (:use :cl)
+  (:export #:count-words #:report))
+(in-package :words)
+
+(defparameter *top* 10 "How many words to report.")
+(defconstant +separators+ '(#\Space #\Tab #\Newline))
+
+(defstruct report
+  (path "" :type string)
+  (words (make-hash-table :test #'equal)))
+
+(defgeneric render (report stream)
+  (:documentation "Writes the report."))
+
+(defun split (line)
+  "Splits LINE at the separators."
+  (loop with start = 0
+        for i from 0 to (length line)
+        when (or (= i (length line)) (member (char line i) +separators+))
+          collect (subseq line start i) into parts
+          and do (setf start (1+ i))
+        finally (return (remove "" parts :test #'string=))))
+
+(defun count-words (path &key (top *top*))
+  (let* ((report (make-report :path path))
+         (table (report-words report)))
+    (with-open-file (in path :direction :input)
+      (loop for line = (read-line in nil)
+            while line
+            do (dolist (word (split line))
+                 (incf (gethash (string-downcase word) table 0)))))
+    (flet ((by-count (a b) (> (cdr a) (cdr b))))
+      (subseq (sort (alexandria:hash-table-alist table) #'by-count)
+              0 (min top (hash-table-count table))))))
+
+(defmethod render ((r report) stream)
+  (format stream "~&~A: ~D words~%" (report-path r) (hash-table-count (report-words r))))
+
+#+sbcl (sb-ext:gc :full t)
+#-(or sbcl ccl) (error "Unsupported implementation")
+#| A block comment. |#
+(handler-case (count-words "README.md")
+  (file-error (e) (format *error-output* "~A~%" e) nil))
 `
 
 const visualGitMsg = `some/path: change title

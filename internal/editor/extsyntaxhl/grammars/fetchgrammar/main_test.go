@@ -205,7 +205,7 @@ func TestFetchSubdir(t *testing.T) {
 		"common/scanner.h":              "#include \"tree_sitter/parser.h\"\n",
 		"common/unused.h":               "not included",
 		"src/parser.c":                  "another grammar",
-		"LICENSE":                       "MIT",
+		"LICENSE.md":                    "MIT",
 	})
 	gitRun(t, repo, "init", "--quiet", "--initial-branch=trunk")
 	gitRun(t, repo, "add", ".")
@@ -221,6 +221,9 @@ func TestFetchSubdir(t *testing.T) {
 	// header found through the include path isn't looked for next to it.
 	if got := readFile(t, dir, "common/scanner.h"); got != "#include \"tree_sitter/parser.h\"\n" {
 		t.Errorf("common/scanner.h = %q", got)
+	}
+	if got := readFile(t, dir, "LICENSE.md"); got != "MIT" {
+		t.Errorf("LICENSE.md = %q, want the license of the repository", got)
 	}
 	for _, name := range []string{"common/unused.h", "common/stale.h", "src/parser.c", "lang/src/grammar.json"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {

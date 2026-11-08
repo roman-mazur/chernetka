@@ -526,6 +526,38 @@ func TestQueriesParse(t *testing.T) {
 	}
 }
 
+func TestCommonLispHighlight(t *testing.T) {
+	doc := hlDoc{
+		{";;; Words, to be looked at.", []string{"0:27:Comment"}},
+		// The names of the definitions read by what they define.
+		{"(in-package :words)", []string{"1:11:Keyword", "12:18:ImportRef"}},
+		{"", nil},
+		{"(defparameter *top* 10)", []string{"1:13:Keyword", "14:19:Constant", "20:22:NumberLiteral"}},
+		{"(defconstant +tab+ #\\Tab)", []string{"1:12:Keyword", "13:18:Constant", "19:24:StringLiteral"}},
+		{"", nil},
+		// The first element of a lambda list or a binding list is a name, not a call.
+		{"(defun count-words (path &optional (limit *top*))", []string{"1:6:Keyword", "7:18:FuncDeclaration", "20:24:Identifier", "25:34:Keyword", "36:41:Identifier", "42:47:Constant"}},
+		{"  \"Counts the words of the file at PATH.\"", []string{"2:41:StringLiteral"}},
+		{"  (let ((table (make-hash-table :test #'equal)))", []string{"3:6:Keyword", "9:14:Identifier", "16:31:Call", "32:37:Constant", "40:45:Call"}},
+		{"    (with-open-file (in path)", []string{"5:19:Keyword", "21:23:Identifier", "24:28:Identifier"}},
+		{"      (loop for line = (read-line in nil)", []string{"7:11:Keyword", "12:15:Keyword", "16:20:Identifier", "21:22:Keyword", "24:33:Call", "34:36:Identifier", "37:40:Constant"}},
+		{"            while line", []string{"12:17:Keyword", "18:22:Identifier"}},
+		{"            do (incf (gethash line table 0))))", []string{"12:14:Keyword", "16:20:Keyword", "22:29:Call", "30:34:Identifier", "35:40:Identifier", "41:42:NumberLiteral"}},
+		// A format directive reads like an escape in its string.
+		{"    (format t \"~A words~%\" (hash-table-count table))", []string{"5:11:Call", "12:13:Constant", "14:15:StringLiteral", "15:17:Escape", "17:23:StringLiteral", "23:25:Escape", "25:26:StringLiteral", "28:44:Call", "45:50:Identifier"}},
+		// A quoted list is data: its first element is no call.
+		{"    (cl:subseq '(a b c) 0 limit)))", []string{"5:7:ImportRef", "8:14:Call", "17:18:Identifier", "19:20:Identifier", "21:22:Identifier", "24:25:NumberLiteral", "26:31:Identifier"}},
+		{"", nil},
+		// A reader conditional reads as a directive.
+		{"#+sbcl (sb-ext:gc :full t)", []string{"0:6:Directive", "8:14:ImportRef", "15:17:Call", "18:23:Constant", "24:25:Constant"}},
+		// The grammar takes only the lower case definitions, the query any case.
+		{"(DEFUN Shout (x) (string-upcase x))", []string{"1:6:Keyword", "7:12:FuncDeclaration", "14:15:Identifier", "18:31:Call", "32:33:Identifier"}},
+	}
+
+	buf, ext := openDoc(t, "words.lisp", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -631,6 +663,7 @@ func TestLanguageForPath(t *testing.T) {
 		"app.js":          "javascript",
 		"App.jsx":         "javascript",
 		"src/main.rs":     "rust",
+		"init.lisp":       "commonlisp",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",

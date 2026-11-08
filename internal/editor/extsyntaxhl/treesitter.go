@@ -11,6 +11,7 @@ import (
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/bash"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/c"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/commonlisp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cpp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
@@ -152,6 +153,16 @@ var rustQuery string
 var rustGrammar = &tsGrammar{
 	load:   rust.Language,
 	query:  rustQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/commonlisp.scm
+var commonLispQuery string
+
+// commonLispGrammar highlights Common Lisp using the grammar copied from upstream.
+var commonLispGrammar = &tsGrammar{
+	load:   commonlisp.Language,
+	query:  commonLispQuery,
 	tokens: defaultCaptureTokens,
 }
 
