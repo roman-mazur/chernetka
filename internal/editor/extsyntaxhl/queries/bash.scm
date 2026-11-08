@@ -85,6 +85,12 @@
     ")"
   ] @escape)
 
+; The shebang, an instruction to the loader, is parsed as the first comment.
+((program
+  .
+  (comment) @directive)
+  (#match? @directive "^#!"))
+
 (comment) @comment
 
 ; Keywords

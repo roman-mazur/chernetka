@@ -200,7 +200,7 @@ func TestYAMLHighlight(t *testing.T) {
 
 func TestShellHighlight(t *testing.T) {
 	doc := hlDoc{
-		{"#!/bin/sh", []string{"0:9:Comment"}},
+		{"#!/bin/sh", []string{"0:9:Directive"}},
 		{"export DIR=\"${1:-.}\"", []string{
 			"0:6:Keyword", "7:10:Field", "11:12:StringLiteral", "12:14:Escape", "14:15:Constant",
 			"15:18:Identifier", "18:19:Escape", "19:20:StringLiteral",
@@ -226,8 +226,8 @@ func TestShellHighlight(t *testing.T) {
 
 func TestCHighlight(t *testing.T) {
 	doc := hlDoc{
-		{"#include <stdio.h>", []string{"0:8:Keyword", "9:18:ImportRef"}},
-		{"#define MAX_LEN 16", []string{"0:7:Keyword", "8:15:Constant"}},
+		{"#include <stdio.h>", []string{"0:8:Directive", "9:18:ImportRef"}},
+		{"#define MAX_LEN 16", []string{"0:7:Directive", "8:15:Constant"}},
 		{"", nil},
 		{"typedef struct { int x; unsigned long y; } point_t;", []string{
 			"0:7:Keyword", "8:14:Keyword", "17:20:TypeRef", "21:22:Field", "24:37:TypeRef", "38:39:Field", "43:50:TypeRef",
@@ -374,6 +374,62 @@ func TestKotlinHighlight(t *testing.T) {
 
 	buf, ext := openDoc(t, "Point.kt", doc.text())
 	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+// TestDirectives covers the instructions to the toolchain, which read apart
+// from both the comments and the keywords, and the look-alikes that do not.
+func TestDirectives(t *testing.T) {
+	for path, doc := range map[string]hlDoc{
+		"main.go": {
+			{"//go:build linux", []string{"0:16:Directive"}},
+			{"// +build linux", []string{"0:15:Directive"}},
+			{"", nil},
+			{"package main", []string{"0:7:Keyword", "8:12:Identifier"}},
+			{"", nil},
+			{"import \"embed\"", []string{"0:6:Keyword", "7:14:ImportRef"}},
+			{"", nil},
+			// A space after the slashes makes it a comment for the go command too.
+			{"// go:embed is described here.", []string{"0:30:Comment"}},
+			{"//go:embed static", []string{"0:17:Directive"}},
+			{"var static embed.FS", []string{"0:3:Keyword", "4:10:Identifier", "11:16:ImportRef", "17:19:TypeRef"}},
+			{"", nil},
+			{"//export Callback", []string{"0:17:Directive"}},
+			{"//line generated.go:10", []string{"0:22:Directive"}},
+			{"//golint is not a directive", []string{"0:27:Comment"}},
+		},
+		"lib.h": {
+			{"#ifndef LIB_H", []string{"0:7:Directive", "8:13:Constant"}},
+			{"#if defined(_WIN32)", []string{"0:3:Directive", "4:11:Directive", "12:18:Constant"}},
+			{"#pragma once", []string{"0:7:Directive"}},
+			{"#endif", []string{"0:6:Directive"}},
+			{"#endif", []string{"0:6:Directive"}},
+		},
+		"Program.cs": {
+			{"#!/usr/bin/env dotnet-script", []string{"0:28:Directive"}},
+			{"#nullable enable", []string{"0:9:Directive"}},
+			{"#region Setup", []string{"0:7:Directive"}},
+			{"#endregion", []string{"0:10:Directive"}},
+		},
+		"build.kts": {
+			{"#!/usr/bin/env kotlin", []string{"0:21:Directive"}},
+			{"println(1) // done", []string{"0:7:Call", "8:9:NumberLiteral", "11:18:Comment"}},
+		},
+		"run.sh": {
+			{"#!/bin/sh", []string{"0:9:Directive"}},
+			// Only the first line of a script is a shebang.
+			{"#!/bin/bash", []string{"0:11:Comment"}},
+		},
+		"ci.yaml": {
+			{"%YAML 1.2", []string{"0:9:Directive"}},
+			{"---", []string{"0:3:Keyword"}},
+			{"a: 1", []string{"0:1:Field", "3:4:NumberLiteral"}},
+		},
+	} {
+		t.Run(path, func(t *testing.T) {
+			buf, ext := openDoc(t, path, doc.text())
+			doc.check(t, highlighterOf(t, buf, ext))
+		})
+	}
 }
 
 // TestGrammarsPrepare checks that every tree-sitter grammar loads and that its

@@ -62,7 +62,7 @@
 ] @constant.builtin
 
 ((identifier) @constant
-  (#match? @constant "^[A-Z][A-Z0-9_]*$"))
+  (#match? @constant "^_*[A-Z][A-Z0-9_]*$"))
 
 ; Literals
 
@@ -109,8 +109,10 @@
   "asm"
   "__asm__"
   "__attribute__"
-  "defined"
 ] @keyword
+
+; Preprocessor directives. Their operands keep their own colors, like the
+; included path and the defined name.
 
 [
   "#define"
@@ -123,8 +125,9 @@
   "#ifdef"
   "#ifndef"
   "#include"
+  "defined"
   (preproc_directive)
-] @keyword
+] @directive
 
 ; Catch-all identifier rules, kept last so the patterns above take precedence.
 

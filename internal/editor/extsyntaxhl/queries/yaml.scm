@@ -60,6 +60,9 @@
   (yaml_directive)
   (tag_directive)
   (reserved_directive)
+] @directive
+
+[
   "---"
   "..."
 ] @keyword

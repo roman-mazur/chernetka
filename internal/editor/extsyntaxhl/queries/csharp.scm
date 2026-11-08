@@ -154,10 +154,9 @@
   (real_literal)
 ] @number
 
-[
-  (comment)
-  (shebang_directive)
-] @comment
+(shebang_directive) @directive
+
+(comment) @comment
 
 ; Keywords
 
@@ -245,6 +244,8 @@
   "yield"
 ] @keyword
 
+; Preprocessor directives.
+
 [
   "#define"
   "#elif"
@@ -259,4 +260,4 @@
   "#region"
   "#undef"
   "#warning"
-] @keyword
+] @directive

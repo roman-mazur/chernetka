@@ -117,13 +117,17 @@ a bare https://go.dev/ref/spec URL, and an ![image](./demo.png).
 An <b>HTML</b> tag, and snake_case_words that must not turn italic.
 `
 
-const visualGo = `// Package visual is here to be looked at.
+const visualGo = `//go:build !windows
+
+// Package visual is here to be looked at.
 package visual
 
 import (
 	"fmt"
 	"strings"
 )
+
+//go:generate go run golang.org/x/tools/cmd/stringer -type=Greeter
 
 // Greeter greets.
 type Greeter struct {

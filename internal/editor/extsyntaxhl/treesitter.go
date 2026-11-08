@@ -158,6 +158,7 @@ var defaultCaptureTokens = map[string]code.TokenType{
 	"constant":        code.TtConstant,
 	"comment":         code.TtComment,
 	"annotation":      code.TtAnnotation,
+	"directive":       code.TtDirective,
 	// Code embedded in a string, like an interpolated expression, is plain
 	// text again rather than a part of the string.
 	"embedded": code.TtIdentifier,

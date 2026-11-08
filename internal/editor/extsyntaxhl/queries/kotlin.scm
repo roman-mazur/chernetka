@@ -131,10 +131,11 @@
   (real_literal)
 ] @number
 
+(shebang_line) @directive
+
 [
   (line_comment)
   (multiline_comment)
-  (shebang_line)
 ] @comment
 
 ; Keywords

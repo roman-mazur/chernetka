@@ -22,20 +22,21 @@ func _() {
 	_ = x[TtField-11]
 	_ = x[TtEscape-12]
 	_ = x[TtAnnotation-13]
-	_ = x[TtPunctuation-14]
-	_ = x[TtHeading-15]
-	_ = x[TtEmphasis-16]
-	_ = x[TtStrong-17]
-	_ = x[TtLink-18]
-	_ = x[TtURL-19]
-	_ = x[TtListMarker-20]
-	_ = x[TtRawText-21]
-	_ = x[TtQuote-22]
+	_ = x[TtDirective-14]
+	_ = x[TtPunctuation-15]
+	_ = x[TtHeading-16]
+	_ = x[TtEmphasis-17]
+	_ = x[TtStrong-18]
+	_ = x[TtLink-19]
+	_ = x[TtURL-20]
+	_ = x[TtListMarker-21]
+	_ = x[TtRawText-22]
+	_ = x[TtQuote-23]
 }
 
-const _TokenType_name = "NothingKeywordIdentifierTypeRefImportRefFuncDeclarationCallStringLiteralNumberLiteralCommentConstantFieldEscapeAnnotationPunctuationHeadingEmphasisStrongLinkURLListMarkerRawTextQuote"
+const _TokenType_name = "NothingKeywordIdentifierTypeRefImportRefFuncDeclarationCallStringLiteralNumberLiteralCommentConstantFieldEscapeAnnotationDirectivePunctuationHeadingEmphasisStrongLinkURLListMarkerRawTextQuote"
 
-var _TokenType_index = [...]uint8{0, 7, 14, 24, 31, 40, 55, 59, 72, 85, 92, 100, 105, 111, 121, 132, 139, 147, 153, 157, 160, 170, 177, 182}
+var _TokenType_index = [...]uint8{0, 7, 14, 24, 31, 40, 55, 59, 72, 85, 92, 100, 105, 111, 121, 130, 141, 148, 156, 162, 166, 169, 179, 186, 191}
 
 func (i TokenType) String() string {
 	idx := int(i) - 0

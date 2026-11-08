@@ -23,6 +23,7 @@ const (
 	TtField      // struct field or property reference
 	TtEscape     // escape sequence inside a string literal
 	TtAnnotation // annotation or attribute, e.g. Java's @Override, C#'s [Serializable], C++'s [[nodiscard]]
+	TtDirective  // instruction to the toolchain, e.g. Go's //go:embed, C's #include, a shebang
 
 	// Markup tokens.
 

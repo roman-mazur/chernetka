@@ -69,6 +69,13 @@
   (imaginary_literal)
 ] @number
 
+; A comment that is an instruction to the toolchain, like //go:embed or cgo's
+; //export, is a directive. Like the go command, only the comments with no
+; space after the slashes are taken as directives, but for the legacy
+; "// +build" constraints.
+((comment) @directive
+  (#match? @directive "^(//(go:[a-z]|line |export |extern )|// \\+build )"))
+
 (comment) @comment
 
 ; Keywords. See https://go.dev/ref/spec#Keywords.
