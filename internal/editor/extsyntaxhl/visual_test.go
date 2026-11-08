@@ -33,6 +33,9 @@ func TestVisual(t *testing.T) {
 		{"visual.cs", visualCSharp},
 		{"visual.java", visualJava},
 		{"visual.kt", visualKotlin},
+		{"visual.ts", visualTypeScript},
+		{"visual.tsx", visualTSX},
+		{"visual.js", visualJavaScript},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -511,6 +514,98 @@ object Empty : Result<Nothing>
 suspend inline fun <reified T> Any.cast(): T? = this as? T ?: run { null }
 
 val sizes = listOf(1, 2L, 0xFFu, 1.5f, 0b101).take(min(3, Report.TOP))
+`
+
+const visualTypeScript = `// A word counter, to be looked at.
+import { readFile } from "node:fs/promises";
+import type { Stats } from "node:fs";
+export * as path from "node:path";
+
+/** Counts the words of the files. */
+interface Counter {
+  count(path: string): Promise<number>;
+  readonly name?: string;
+}
+
+type Order = "asc" | "desc";
+type Counts = Record<string, number> & { total: number };
+
+enum Level { Low = 1, High = 0xff }
+
+function sealed<T extends new (...args: any[]) => object>(ctor: T): T {
+  return Object.freeze(ctor);
+}
+
+@sealed
+export abstract class Report<T = string> implements Counter {
+  static readonly TOP = 10;
+  #cache = new Map<string, number>();
+
+  constructor(protected readonly dir: string, private order: Order = "desc") {}
+
+  abstract render(counts: Counts): T;
+
+  async count(path: string): Promise<number> {
+    const text = await readFile(path, { encoding: "utf8" });
+    const words = text.split(/\s+/u).filter(Boolean);
+    this.#cache.set(path, words.length);
+    return words.length ?? 0;
+  }
+
+  get summary(): string {
+    return ` + "`${this.#cache.size} files, top ${Report.TOP}\\n`" + `;
+  }
+}
+
+export const isStats = (x: unknown): x is Stats => typeof x === "object" && x !== null;
+let level: keyof typeof Level = "High";
+const big = 1_000n as const satisfies bigint;
+`
+
+const visualTSX = `"use client";
+// A component, to be looked at.
+import { useState, type ReactNode } from "react";
+
+type Props = { title: string; children?: ReactNode };
+
+export default function Panel({ title, children }: Props) {
+  const [open, setOpen] = useState<boolean>(false);
+  return (
+    <section className="panel" aria-expanded={open}>
+      <Header title={title.toUpperCase()} onClick={() => setOpen(!open)} />
+      {open && <div>{children}</div>}
+      <p>Tom &amp; Jerry &#8212; {` + "`${title}!`" + `}</p>
+      <></>
+    </section>
+  );
+}
+`
+
+const visualJavaScript = `#!/usr/bin/env node
+// A script, to be looked at.
+"use strict";
+
+const { join } = require("node:path");
+const DEFAULT_DIR = process.env.DIR ?? ".";
+
+/** Prints the files of a directory. */
+async function* walk(dir = DEFAULT_DIR) {
+  for await (const entry of await opendir(dir)) {
+    if (entry.isDirectory()) yield* walk(join(dir, entry.name));
+    else yield entry.name;
+  }
+}
+
+class Printer extends EventTarget {
+  #count = 0;
+  static create() { return new Printer(); }
+  print(name) {
+    this.#count++;
+    console.log(` + "`${this.#count}\\t${name}`" + `, /\.js$/i.test(name), 0x1f, 1e3);
+  }
+}
+
+module.exports = { walk, Printer, render: () => <b>done</b> };
 `
 
 const visualGitMsg = `some/path: change title

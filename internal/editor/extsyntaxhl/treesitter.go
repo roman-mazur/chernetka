@@ -19,6 +19,8 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsx"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/typescript"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
 )
 
@@ -116,6 +118,28 @@ var kotlinQuery string
 var kotlinGrammar = &tsGrammar{
 	load:   kotlin.Language,
 	query:  kotlinQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/typescript.scm
+var typescriptQuery string
+
+// typescriptGrammar highlights TypeScript using the tree-sitter grammar copied from upstream.
+var typescriptGrammar = &tsGrammar{
+	load:   typescript.Language,
+	query:  typescriptQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/jsx.scm
+var jsxQuery string
+
+// tsxGrammar highlights TypeScript with JSX, and JavaScript, using the
+// tree-sitter grammar copied from upstream. Its grammar extends the TypeScript
+// one, and so does its query: the TypeScript patterns follow the JSX ones.
+var tsxGrammar = &tsGrammar{
+	load:   tsx.Language,
+	query:  jsxQuery + "\n" + typescriptQuery,
 	tokens: defaultCaptureTokens,
 }
 

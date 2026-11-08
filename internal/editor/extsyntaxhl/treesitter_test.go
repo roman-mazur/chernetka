@@ -376,6 +376,62 @@ func TestKotlinHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestTypeScriptHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"import { readFile } from \"node:fs/promises\";", []string{"0:6:Keyword", "9:17:Identifier", "20:24:Keyword", "25:43:ImportRef"}},
+		{"", nil},
+		// A decorator reads as an annotation, with its @ but not its arguments.
+		{"@Injectable({ root: true })", []string{"0:11:Annotation", "14:18:Field", "20:24:Constant"}},
+		{"export class Repo<T extends Item> implements Store {", []string{"0:6:Keyword", "7:12:Keyword", "13:17:TypeRef", "18:19:TypeRef", "20:27:Keyword", "28:32:TypeRef", "34:44:Keyword", "45:50:TypeRef"}},
+		{"  private static readonly MAX_SIZE = 0x10;", []string{"2:9:Keyword", "10:16:Keyword", "17:25:Keyword", "26:34:Constant", "37:41:NumberLiteral"}},
+		{"  constructor(private name: string) {}", []string{"2:13:FuncDeclaration", "14:21:Keyword", "22:26:Identifier", "28:34:TypeRef"}},
+		{"  async find(id: number): Promise<T | undefined> {", []string{"2:7:Keyword", "8:12:FuncDeclaration", "13:15:Identifier", "17:23:TypeRef", "26:33:TypeRef", "34:35:TypeRef", "38:47:Constant"}},
+		// A template substitution is code again, not string content.
+		{"    const s = `id\\t${id + 1}`;", []string{"4:9:Keyword", "10:11:Identifier", "14:17:StringLiteral", "17:21:Escape", "21:26:Identifier", "26:27:NumberLiteral", "27:28:Escape", "28:29:StringLiteral"}},
+		// A capitalized name reads as a type, an upper case one as a constant.
+		{"    return this.items.find((x) => x.id === Repo.MAX_SIZE) ?? null; // done", []string{"4:10:Keyword", "11:15:Keyword", "16:21:Field", "22:26:Call", "28:29:Identifier", "34:35:Identifier", "36:38:Field", "43:47:TypeRef", "48:56:Constant", "61:65:Constant", "67:74:Comment"}},
+		{"  }", nil},
+		{"}", nil},
+		{"enum Color { Red = \"red\", Green }", []string{"0:4:Keyword", "5:10:TypeRef", "13:16:Constant", "19:24:StringLiteral", "26:31:Constant"}},
+		{"type Pair = [key: keyof Item, value?: unknown];", []string{"0:4:Keyword", "5:9:TypeRef", "13:16:Identifier", "18:23:Keyword", "24:28:TypeRef", "30:35:Identifier", "38:45:TypeRef"}},
+	}
+
+	buf, ext := openDoc(t, "repo.ts", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestTSXHighlight(t *testing.T) {
+	doc := hlDoc{
+		// A directive prologue reads as a directive.
+		{"\"use client\";", []string{"0:12:Directive"}},
+		{"export const App = ({ title }: Props) => (", []string{"0:6:Keyword", "7:12:Keyword", "13:16:FuncDeclaration", "31:36:TypeRef"}},
+		// A platform element reads like a keyword, a component as a type.
+		{"  <div className=\"app\" hidden>", []string{"3:6:Keyword", "7:16:Field", "17:22:StringLiteral", "23:29:Field"}},
+		{"    <Header title={title.toUpperCase()} />", []string{"5:11:TypeRef", "12:17:Field", "19:24:Identifier", "25:36:Call"}},
+		// The text of an element is left alone, but for its character references.
+		{"    Tom &amp; Jerry", []string{"8:13:Escape"}},
+		{"  </div>", []string{"4:7:Keyword"}},
+		{");", nil},
+	}
+
+	buf, ext := openDoc(t, "App.tsx", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestJavaScriptHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"#!/usr/bin/env node", []string{"0:19:Directive"}},
+		{"const { join } = require(\"path\");", []string{"0:5:Keyword", "17:24:Call", "25:31:StringLiteral"}},
+		{"function main(argv) {", []string{"0:8:Keyword", "9:13:FuncDeclaration", "14:18:Identifier"}},
+		// JavaScript is read with the TSX grammar, JSX included.
+		{"  return /a+b/g.test(argv[2]) ? <b>yes</b> : 42n;", []string{"2:8:Keyword", "9:15:StringLiteral", "16:20:Call", "21:25:Identifier", "26:27:NumberLiteral", "33:34:Keyword", "40:41:Keyword", "45:48:NumberLiteral"}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "main.js", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -476,6 +532,10 @@ func TestLanguageForPath(t *testing.T) {
 		"Main.java":       "java",
 		"Main.kt":         "kotlin",
 		"init.gradle.kts": "kotlin",
+		"index.ts":        "typescript",
+		"App.tsx":         "typescriptreact",
+		"app.js":          "javascript",
+		"App.jsx":         "javascript",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",

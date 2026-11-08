@@ -74,7 +74,7 @@ func TestFetch(t *testing.T) {
 		"src/parser.c":         "old parser",
 		"src/dropped_upstream": "stale",
 	})
-	got, err := fetch(repo, "trunk", dir, "lang")
+	got, err := fetch(repo, "trunk", "", dir, "lang")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,6 +192,52 @@ func readFile(t *testing.T, dir, name string) string {
 	return string(data)
 }
 
+// TestFetchSubdir covers a repository holding several grammars, like
+// tree-sitter-typescript, whose scanners share a header out of their src.
+func TestFetchSubdir(t *testing.T) {
+	requireTools(t)
+
+	repo := t.TempDir()
+	writeFiles(t, repo, map[string]string{
+		"lang/src/parser.c":             testParser,
+		"lang/src/scanner.c":            "#include \"../../common/scanner.h\"\nvoid tree_sitter_lang_scanner(void) {}\n",
+		"lang/src/tree_sitter/parser.h": testHeader,
+		"common/scanner.h":              "#include \"tree_sitter/parser.h\"\n",
+		"common/unused.h":               "not included",
+		"src/parser.c":                  "another grammar",
+		"LICENSE":                       "MIT",
+	})
+	gitRun(t, repo, "init", "--quiet", "--initial-branch=trunk")
+	gitRun(t, repo, "add", ".")
+	gitRun(t, repo, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "--quiet", "-m", "grammar")
+
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{"common/stale.h": "stale"})
+	if _, err := fetch(repo, "trunk", "lang", dir, "lang"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The shared header keeps its place relative to the scanner, and the
+	// header found through the include path isn't looked for next to it.
+	if got := readFile(t, dir, "common/scanner.h"); got != "#include \"tree_sitter/parser.h\"\n" {
+		t.Errorf("common/scanner.h = %q", got)
+	}
+	for _, name := range []string{"common/unused.h", "common/stale.h", "src/parser.c", "lang/src/grammar.json"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			t.Errorf("%s exists, want it gone", name)
+		}
+	}
+	grammar := readFile(t, dir, grammarFile)
+	for _, want := range []string{"-I${SRCDIR}/lang/src", `#include "lang/src/parser.c"`, `#include "lang/src/scanner.c"`} {
+		if !strings.Contains(grammar, want) {
+			t.Errorf("grammar.go doesn't contain %q:\n%s", want, grammar)
+		}
+	}
+	if !strings.Contains(readFile(t, dir, "lang/src/parser.c"), "static uint16_t ts_parse_table[LARGE_STATE_COUNT][3];") {
+		t.Error("the parse table is left in lang/src/parser.c")
+	}
+}
+
 func TestFetchMissingFile(t *testing.T) {
 	requireTools(t)
 
@@ -203,7 +249,7 @@ func TestFetchMissingFile(t *testing.T) {
 
 	dir := t.TempDir()
 	writeFiles(t, dir, map[string]string{"src/parser.c": "current"})
-	if _, err := fetch(repo, "trunk", dir, "lang"); err == nil {
+	if _, err := fetch(repo, "trunk", "", dir, "lang"); err == nil {
 		t.Fatal("fetch succeeded without the headers and a license")
 	}
 	if data, _ := os.ReadFile(filepath.Join(dir, "src/parser.c")); string(data) != "current" {

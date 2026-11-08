@@ -2,12 +2,17 @@
 // git repository into the current directory and makes a Go package of them.
 // It's meant to be run by go generate in the package of the grammar:
 //
-//	//go:generate go run ../fetchgrammar https://github.com/owner/tree-sitter-lang v1.2.3
+//	//go:generate go run ../fetchgrammar https://github.com/owner/tree-sitter-lang v1.2.3 [subdir]
 //
 // The reference, a tag, a branch or a commit, is fetched into a temporary
 // directory, and the parser, the external scanner, the tree-sitter headers and
 // the license replace the ones in the current directory. The commit they come
 // from is recorded in upstream.go.
+//
+// The sources are under src, or under subdir/src for a repository holding
+// several grammars, like tree-sitter-typescript. They keep their paths in the
+// repository, and the files they include by a relative path, like a scanner
+// header shared by the grammars, are copied along.
 //
 // The parse tables make up most of a grammar, and they compress well: they are
 // mostly zeros. So they are taken out of parser.c, leaving arrays to be filled,
@@ -20,12 +25,14 @@ package main
 import (
 	"bytes"
 	"compress/zlib"
+	"errors"
 	"fmt"
 	"go/format"
 	"io/fs"
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -35,14 +42,18 @@ import (
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("fetchgrammar: ")
-	if len(os.Args) != 3 {
-		log.Fatal("usage: fetchgrammar <repository URL> <tag, branch or commit>")
+	if len(os.Args) != 3 && len(os.Args) != 4 {
+		log.Fatal("usage: fetchgrammar <repository URL> <tag, branch or commit> [subdir]")
+	}
+	subdir := ""
+	if len(os.Args) == 4 {
+		subdir = os.Args[3]
 	}
 	pkg := os.Getenv("GOPACKAGE")
 	if pkg == "" {
 		log.Fatal("GOPACKAGE is not set: run it with go generate")
 	}
-	commit, err := fetch(os.Args[1], os.Args[2], ".", pkg)
+	commit, err := fetch(os.Args[1], os.Args[2], subdir, ".", pkg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,9 +80,10 @@ var tableNames = []string{
 	"ts_primary_state_ids",
 }
 
-// fetch copies the grammar at the reference of the repository into dir, which
-// holds the Go package pkg, and returns the commit it's copied from.
-func fetch(repo, ref, dir, pkg string) (string, error) {
+// fetch copies the grammar in subdir, which is empty for the repository root,
+// at the reference of the repository into dir, which holds the Go package pkg,
+// and returns the commit it's copied from.
+func fetch(repo, ref, subdir, dir, pkg string) (string, error) {
 	tmp, err := os.MkdirTemp("", "fetchgrammar-")
 	if err != nil {
 		return "", err
@@ -96,37 +108,41 @@ func fetch(repo, ref, dir, pkg string) (string, error) {
 
 	// Collect everything before touching dir: a repository lacking a file must
 	// leave the current copy intact.
+	src := path.Join(subdir, "src") // in the repository and in dir
 	files := make(map[string][]byte)
-	for _, pattern := range []string{"src/*.c", "src/*.h", "src/tree_sitter/*.h", "LICENSE"} {
+	for _, pattern := range []string{src + "/*.c", src + "/*.h", src + "/tree_sitter/*.h", "LICENSE"} {
 		paths, err := filepath.Glob(filepath.Join(clone, filepath.FromSlash(pattern)))
 		if err != nil {
 			return "", err
 		}
-		for _, path := range paths {
-			data, err := os.ReadFile(path)
+		for _, file := range paths {
+			data, err := os.ReadFile(file)
 			if err != nil {
 				return "", err
 			}
-			rel, err := filepath.Rel(clone, path)
+			rel, err := filepath.Rel(clone, file)
 			if err != nil {
 				return "", err
 			}
 			files[filepath.ToSlash(rel)] = data
 		}
 	}
-	for _, name := range []string{"src/parser.c", "src/tree_sitter/parser.h", "LICENSE"} {
+	for _, name := range []string{src + "/parser.c", src + "/tree_sitter/parser.h", "LICENSE"} {
 		if files[name] == nil {
 			return "", fmt.Errorf("no %s in %s", name, repo)
 		}
 	}
-	_, hasScanner := files["src/scanner.c"]
+	if err := addIncluded(clone, files); err != nil {
+		return "", err
+	}
+	_, hasScanner := files[src+"/scanner.c"]
 
-	parser := string(files["src/parser.c"])
+	parser := string(files[src+"/parser.c"])
 	langFunc := languageFunc.FindStringSubmatch(parser)
 	if langFunc == nil {
 		return "", fmt.Errorf("no language function in the parser.c of %s", repo)
 	}
-	tables, err := dumpTables(filepath.Join(clone, "src"), parser, hasScanner)
+	tables, err := dumpTables(filepath.Join(clone, filepath.FromSlash(src)), parser, hasScanner)
 	if err != nil {
 		return "", err
 	}
@@ -138,27 +154,68 @@ func fetch(repo, ref, dir, pkg string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	files["src/parser.c"] = []byte(stripped)
+	files[src+"/parser.c"] = []byte(stripped)
 	files[tablesFile] = compressed
-	if files[grammarFile], err = format.Source(grammarSource(pkg, langFunc[1], len(tables), hasScanner)); err != nil {
+	if files[grammarFile], err = format.Source(grammarSource(pkg, src, langFunc[1], len(tables), hasScanner)); err != nil {
 		return "", fmt.Errorf("formatting %s: %w", grammarFile, err)
 	}
 	files[upstreamFile] = upstreamSource(pkg, repo, ref, commit)
 
-	// Files dropped upstream must not linger.
-	if err := os.RemoveAll(filepath.Join(dir, "src")); err != nil {
-		return "", err
+	// Files dropped upstream must not linger in the directories copied to.
+	for name := range files {
+		if top, _, nested := strings.Cut(name, "/"); nested {
+			if err := os.RemoveAll(filepath.Join(dir, top)); err != nil {
+				return "", err
+			}
+		}
 	}
 	for name, data := range files {
-		path := filepath.Join(dir, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		dst := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return "", err
 		}
-		if err := os.WriteFile(path, data, fs.FileMode(0o644)); err != nil {
+		if err := os.WriteFile(dst, data, fs.FileMode(0o644)); err != nil {
 			return "", err
 		}
 	}
 	return commit, nil
+}
+
+// includeLine finds the includes of the files in quotes, which are looked up
+// relative to the including file first.
+var includeLine = regexp.MustCompile(`(?m)^\s*#\s*include\s+"([^"]+)"`)
+
+// addIncluded adds the files of the repository in clone that the C sources in
+// files include by a relative path, and the files those include in turn. An
+// include that isn't a file of the repository, like one found through the
+// include path, is left to the compiler.
+func addIncluded(clone string, files map[string][]byte) error {
+	pending := make([]string, 0, len(files))
+	for name := range files {
+		pending = append(pending, name)
+	}
+	for len(pending) > 0 {
+		name := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if ext := path.Ext(name); ext != ".c" && ext != ".h" {
+			continue
+		}
+		for _, m := range includeLine.FindAllStringSubmatch(string(files[name]), -1) {
+			included := path.Join(path.Dir(name), m[1])
+			if _, ok := files[included]; ok || strings.HasPrefix(included, "../") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(clone, filepath.FromSlash(included)))
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			} else if err != nil {
+				return err
+			}
+			files[included] = data
+			pending = append(pending, included)
+		}
+	}
+	return nil
 }
 
 // languageFunc finds the function returning the language in parser.c.
@@ -329,14 +386,14 @@ func compress(tables []table) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func grammarSource(pkg, langFunc string, tableCount int, hasScanner bool) []byte {
+func grammarSource(pkg, src, langFunc string, tableCount int, hasScanner bool) []byte {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// Code generated by fetchgrammar; DO NOT EDIT.\n\n")
 	fmt.Fprintf(&b, "package %s\n\n", pkg)
-	b.WriteString("// #cgo CFLAGS: -std=c11 -fPIC -I${SRCDIR}/src\n")
-	b.WriteString("// #include \"src/parser.c\"\n")
+	fmt.Fprintf(&b, "// #cgo CFLAGS: -std=c11 -fPIC -I${SRCDIR}/%s\n", src)
+	fmt.Fprintf(&b, "// #include \"%s/parser.c\"\n", src)
 	if hasScanner {
-		b.WriteString("// #include \"src/scanner.c\"\n")
+		fmt.Fprintf(&b, "// #include \"%s/scanner.c\"\n", src)
 	}
 	b.WriteString("import \"C\"\n\n")
 	b.WriteString("import (\n\t_ \"embed\"\n\t\"sync\"\n\t\"unsafe\"\n\n\t\"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tables\"\n)\n\n")
