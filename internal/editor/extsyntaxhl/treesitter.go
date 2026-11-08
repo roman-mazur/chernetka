@@ -8,6 +8,9 @@ import (
 
 	yamlsitter "github.com/tree-sitter-grammars/tree-sitter-yaml/bindings/go"
 	bashsitter "github.com/tree-sitter/tree-sitter-bash/bindings/go"
+	csharpsitter "github.com/tree-sitter/tree-sitter-c-sharp/bindings/go"
+	csitter "github.com/tree-sitter/tree-sitter-c/bindings/go"
+	cppsitter "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
 	gositter "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	jsonsitter "github.com/tree-sitter/tree-sitter-json/bindings/go"
 	"rmazur.io/chernetka/internal/content/code"
@@ -59,6 +62,37 @@ var bashQuery string
 var bashGrammar = &tsGrammar{
 	load:   func() *treesitter.Language { return treesitter.NewLanguage(bashsitter.Language()) },
 	query:  bashQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/c.scm
+var cQuery string
+
+// cGrammar highlights C using the upstream tree-sitter grammar.
+var cGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(csitter.Language()) },
+	query:  cQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/cpp.scm
+var cppQuery string
+
+// cppGrammar highlights C++ using the upstream tree-sitter grammar. Its grammar
+// extends the C one, and so does its query: the C patterns follow the C++ ones.
+var cppGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(cppsitter.Language()) },
+	query:  cppQuery + "\n" + cQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/csharp.scm
+var csharpQuery string
+
+// csharpGrammar highlights C# using the upstream tree-sitter grammar.
+var csharpGrammar = &tsGrammar{
+	load:   func() *treesitter.Language { return treesitter.NewLanguage(csharpsitter.Language()) },
+	query:  csharpQuery,
 	tokens: defaultCaptureTokens,
 }
 

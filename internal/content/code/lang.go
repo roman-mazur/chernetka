@@ -80,6 +80,23 @@ var (
 		PathMatch:         suffixMatch(".sql"),
 		LineCommentPrefix: "--",
 	}
+	C = &Syntax{
+		Name:              "c",
+		PathMatch:         suffixMatch(".c"),
+		LineCommentPrefix: "//",
+	}
+	// CPP also takes the .h headers: they are as likely to be C++ as C, and the
+	// C++ grammar reads C nearly as well, while the C one fails on classes.
+	CPP = &Syntax{
+		Name:              "cpp",
+		PathMatch:         suffixMatch(".cpp", ".cc", ".cxx", ".c++", ".h", ".hpp", ".hh", ".hxx", ".h++", ".inl", ".ipp", ".tpp"),
+		LineCommentPrefix: "//",
+	}
+	CSharp = &Syntax{
+		Name:              "csharp",
+		PathMatch:         suffixMatch(".cs", ".csx"),
+		LineCommentPrefix: "//",
+	}
 	GitCommitMsg = &Syntax{
 		Name:              "git_commit_msg",
 		PathMatch:         func(p string) bool { return strings.HasSuffix(p, ".git/COMMIT_EDITMSG") },
@@ -92,7 +109,7 @@ var (
 	}
 
 	// syntaxes are all the supported syntaxes, in the order they are matched.
-	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, GitCommitMsg, GitRebaseTodo}
+	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, GitCommitMsg, GitRebaseTodo}
 
 	// shellFileNames are the shell scripts recognized by their name alone. The zsh
 	// ones are parsed as bash, which covers most of what goes into them.

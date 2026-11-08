@@ -28,6 +28,9 @@ func TestVisual(t *testing.T) {
 		{"visual.json", visualJSON},
 		{"visual.yaml", visualYAML},
 		{"visual.sh", visualShell},
+		{"visual.c", visualC},
+		{"visual.cpp", visualCPP},
+		{"visual.cs", visualCSharp},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -276,6 +279,141 @@ esac
 cat <<EOF
 Built in $root at $(date).
 EOF
+`
+
+const visualC = `// Count the words of the files, to be looked at.
+#include <stdio.h>
+#include "words.h"
+
+#define BUF_SIZE 4096
+#define IS_SPACE(c) ((c) == ' ' || (c) == '\n')
+
+typedef struct {
+	const char *path;
+	unsigned long words;
+} result_t;
+
+static int count(FILE *f, result_t *r) {
+	char buf[BUF_SIZE];
+	size_t n;
+	int in_word = 0;
+	while ((n = fread(buf, 1, sizeof buf, f)) > 0) {
+		for (size_t i = 0; i < n; i++) {
+			if (IS_SPACE(buf[i])) {
+				in_word = 0;
+			} else if (!in_word) {
+				in_word = 1;
+				r->words++;
+			}
+		}
+	}
+	return ferror(f) ? -1 : 0;
+}
+
+int main(int argc, char **argv) {
+	for (int i = 1; i < argc; i++) {
+		result_t r = {.path = argv[i], .words = 0};
+		/* A missing file is reported, not fatal. */
+		FILE *f = fopen(r.path, "r");
+		if (f == NULL || count(f, &r) != 0) {
+			fprintf(stderr, "%s: failed\n", r.path);
+			continue;
+		}
+		printf("%8lu %s\t%c\n", r.words, r.path, 'w');
+		fclose(f);
+	}
+	return 0;
+}
+`
+
+const visualCPP = `// A small cache, to be looked at.
+#pragma once
+#include <memory>
+#include <unordered_map>
+
+namespace app::cache {
+
+template <typename K, typename V>
+class LRU final {
+public:
+	explicit LRU(std::size_t cap) noexcept : cap_(cap) {}
+	~LRU() = default;
+
+	[[nodiscard]] std::shared_ptr<V> get(const K& key) const;
+	void put(K key, V value);
+	bool operator==(const LRU& o) const = delete;
+
+private:
+	std::size_t cap_;
+	std::unordered_map<K, std::shared_ptr<V>> items_;
+};
+
+template <typename K, typename V>
+std::shared_ptr<V> LRU<K, V>::get(const K& key) const {
+	if (auto it = items_.find(key); it != items_.end()) {
+		return it->second;
+	}
+	return nullptr;
+}
+
+} // namespace app::cache
+
+int main() {
+	using namespace app::cache;
+	auto c = std::make_unique<LRU<std::string, int>>(16);
+	c->put("one", 1);
+	constexpr auto msg = R"(raw "string")";
+	try {
+		std::cout << msg << u8"\u00e9" << 1.5e3f << '\n';
+	} catch (const std::exception& e) {
+		throw;
+	}
+	return this == nullptr ? 0 : 1;
+}
+`
+
+const visualCSharp = `// A repository, to be looked at.
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace App.Data;
+
+[Serializable]
+public sealed record Item(int Id, string Name);
+
+public interface IRepo<T> where T : class
+{
+    Task<T?> FindAsync(int id);
+}
+
+/// <summary>Keeps the items in memory.</summary>
+public class MemoryRepo : IRepo<Item>, IDisposable
+{
+    private readonly List<Item> items = new();
+    public int Count { get; private set; }
+    public event EventHandler? Changed;
+
+    public MemoryRepo(IEnumerable<Item> seed) => items.AddRange(seed);
+
+    public async Task<Item?> FindAsync(int id)
+    {
+        await Task.Delay(1_000);
+        var found = from i in items where i.Id == id select i;
+        return found.FirstOrDefault() is { } item ? item : null;
+    }
+
+    public void Log(Item item)
+    {
+        Console.WriteLine($"{item.Id,5}: {item.Name} \t{DateTime.Now:HH:mm}");
+        Console.WriteLine(@"C:\data" + """raw "text" """ + 'x');
+    }
+
+    public void Dispose() { }
+
+    enum State { Open = 0x1, Closed = 2 }
+}
 `
 
 const visualGitMsg = `some/path: change title

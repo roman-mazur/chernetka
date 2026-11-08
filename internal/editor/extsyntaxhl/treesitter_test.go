@@ -224,6 +224,105 @@ func TestShellHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestCHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"#include <stdio.h>", []string{"0:8:Keyword", "9:18:ImportRef"}},
+		{"#define MAX_LEN 16", []string{"0:7:Keyword", "8:15:Constant"}},
+		{"", nil},
+		{"typedef struct { int x; unsigned long y; } point_t;", []string{
+			"0:7:Keyword", "8:14:Keyword", "17:20:TypeRef", "21:22:Field", "24:37:TypeRef", "38:39:Field", "43:50:TypeRef",
+		}},
+		{"", nil},
+		{"static const char *name(point_t *p) {", []string{
+			"0:6:Keyword", "7:12:Keyword", "13:17:TypeRef", "19:23:FuncDeclaration", "24:31:TypeRef", "33:34:Identifier",
+		}},
+		// Upper case names read as macros.
+		{"\tif (p->x > MAX_LEN) return NULL;", []string{
+			"1:3:Keyword", "5:6:Identifier", "8:9:Field", "12:19:Constant", "21:27:Keyword", "28:32:Constant",
+		}},
+		{"\tprintf(\"%d\\n\", p->x, 'a');", []string{
+			"1:7:Call", "8:11:StringLiteral", "11:13:Escape", "13:14:StringLiteral", "16:17:Identifier", "19:20:Field",
+			"22:25:StringLiteral",
+		}},
+		{"\tp->fn(sizeof(int), 0x1fu); // done", []string{
+			"1:2:Identifier", "4:6:Call", "7:13:Keyword", "14:17:TypeRef", "20:25:NumberLiteral", "28:35:Comment",
+		}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "main.c", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestCPPHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"namespace app {", []string{"0:9:Keyword", "10:13:ImportRef"}},
+		{"template <typename T>", []string{"0:8:Keyword", "10:18:Keyword", "19:20:TypeRef"}},
+		{"class Box final : public Base {", []string{
+			"0:5:Keyword", "6:9:TypeRef", "10:15:Keyword", "18:24:Keyword", "25:29:TypeRef",
+		}},
+		{"\texplicit Box(T v) noexcept : v_(v) {}", []string{
+			"1:9:Keyword", "10:13:FuncDeclaration", "14:15:TypeRef", "16:17:Identifier", "19:27:Keyword", "30:32:Field",
+			"33:34:Identifier",
+		}},
+		{"\t~Box() override = default;", []string{"2:5:FuncDeclaration", "8:16:Keyword", "19:26:Keyword"}},
+		{"\tauto get() const -> const T& { return v_; }", []string{
+			"1:5:TypeRef", "6:9:FuncDeclaration", "12:17:Keyword", "21:26:Keyword", "27:28:TypeRef", "32:38:Keyword",
+			"39:41:Identifier",
+		}},
+		{"};", nil},
+		{"}", nil},
+		{"void app::run() {", []string{"0:4:TypeRef", "5:8:ImportRef", "10:13:FuncDeclaration"}},
+		{"\tauto b = std::make_unique<Box<int>>(1);", []string{
+			"1:5:TypeRef", "6:7:Identifier", "10:13:ImportRef", "15:26:Call", "27:30:TypeRef", "31:34:TypeRef",
+			"37:38:NumberLiteral",
+		}},
+		{"\tstd::cout << R\"(raw)\" << nullptr << this->x;", []string{
+			"1:4:ImportRef", "6:10:Identifier", "14:22:StringLiteral", "26:33:Constant", "37:41:Keyword", "43:44:Field",
+		}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "box.cpp", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+func TestCSharpHighlight(t *testing.T) {
+	doc := hlDoc{
+		// A dotted namespace is one span, not a chain of identifiers.
+		{"using System.Collections.Generic;", []string{"0:5:Keyword", "6:32:ImportRef"}},
+		{"", nil},
+		{"[Serializable]", []string{"1:13:TypeRef"}},
+		{"public class Repo<T> : IRepo<T> where T : class", []string{
+			"0:6:Keyword", "7:12:Keyword", "13:17:TypeRef", "18:19:TypeRef", "23:28:TypeRef", "29:30:TypeRef",
+			"32:37:Keyword", "42:47:Keyword",
+		}},
+		{"{", nil},
+		{"    public int Count { get; private set; }", []string{
+			"4:10:Keyword", "11:14:TypeRef", "15:20:Field", "23:26:Keyword", "28:35:Keyword", "36:39:Keyword",
+		}},
+		{"    public async Task<T?> FindAsync(int id)", []string{
+			"4:10:Keyword", "11:16:Keyword", "17:21:TypeRef", "22:23:TypeRef", "26:35:FuncDeclaration", "36:39:TypeRef",
+		}},
+		{"    {", nil},
+		{"        var x = items.Find(i => i is null);", []string{
+			"8:11:Keyword", "22:26:Call", "34:36:Keyword", "37:41:Constant",
+		}},
+		// An interpolated expression is code again, not string content.
+		{"        Console.WriteLine($\"id={id} \\t{x}\" + 'c');", []string{
+			"16:25:Call", "26:31:StringLiteral", "31:32:Escape", "32:34:Identifier", "34:35:Escape", "35:36:StringLiteral",
+			"36:39:Escape", "39:40:Identifier", "40:41:Escape", "41:42:StringLiteral", "45:48:StringLiteral",
+		}},
+		{"        return default;", []string{"8:14:Keyword", "15:22:Keyword"}},
+		{"    }", nil},
+		{"    enum Color { Red, Green }", []string{"4:8:Keyword", "9:14:TypeRef", "17:20:Constant", "22:27:Constant"}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "Repo.cs", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestGrammarsPrepare checks that every tree-sitter grammar loads and that its
 // highlight query compiles. A broken query leaves the language uncolored
 // without any other sign of trouble.
@@ -260,6 +359,11 @@ func TestLanguageForPath(t *testing.T) {
 		".bashrc":         "shell",
 		".envrc":          "shell",
 		"bashrc":          "",
+		"main.c":          "c",
+		"lib.h":           "cpp",
+		"lib.cpp":         "cpp",
+		"a/b/Lib.HPP":     "cpp",
+		"Program.cs":      "csharp",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",
