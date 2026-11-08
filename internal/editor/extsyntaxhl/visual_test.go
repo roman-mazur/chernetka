@@ -37,6 +37,7 @@ func TestVisual(t *testing.T) {
 		{"visual.tsx", visualTSX},
 		{"visual.js", visualJavaScript},
 		{"visual.rs", visualRust},
+		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -668,6 +669,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(bytes.len(), 4, r"no \escapes");
     Ok(())
 }
+`
+
+const visualTreeSitterQuery = `; A highlight query, to be looked at.
+
+; Declarations
+
+(function_declaration
+  name: (identifier) @function)
+
+(method_declaration
+  receiver: (parameter_list
+    (parameter_declaration
+      type: [
+        (type_identifier) @type
+        (pointer_type (type_identifier) @type)
+      ]))
+  name: (field_identifier) @function)
+
+; The first comment of a block, and the ones following it.
+(block
+  .
+  (comment)+ @comment.doc
+  (_)? @rest)
+
+((identifier) @constant
+  (#match? @constant "^[A-Z][A-Z\\d_]+$")
+  (#not-eq? @constant "MAX"))
+
+(call_expression
+  function: (identifier) @function.builtin
+  (#any-of? @function.builtin "len" "cap" "append")
+  (#set! priority 105))
+
+(composite_literal !type) @literal
+(ERROR) @error
+(MISSING ")") @missing
+
+[
+  "break"
+  "continue"
+] @keyword
 `
 
 const visualGitMsg = `some/path: change title

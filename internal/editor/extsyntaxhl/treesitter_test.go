@@ -471,6 +471,61 @@ func TestRustHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestTreeSitterQueryHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"; Calls.", []string{"0:8:Comment"}},
+		// A node type reads as a type, a field as a field, a capture as a constant.
+		{"(call_expression", []string{"1:16:TypeRef"}},
+		{"  function: (identifier) @function.call)", []string{"2:10:Field", "13:23:TypeRef", "25:39:Constant"}},
+		{"", nil},
+		{"((identifier) @constant", []string{"2:12:TypeRef", "14:23:Constant"}},
+		// A predicate reads as a directive.
+		{"  (#match? @constant \"^[A-Z]\\\\d+$\"))", []string{
+			"3:10:Directive", "11:20:Constant", "21:28:StringLiteral", "28:30:Escape", "30:34:StringLiteral",
+		}},
+		{"", nil},
+		{"[", nil},
+		{"  \"return\"", []string{"2:10:StringLiteral"}},
+		{"  (true)", []string{"3:7:TypeRef"}},
+		{"] @keyword", []string{"2:10:Constant"}},
+		{"", nil},
+		// Anchors, quantifiers and wildcards change what a pattern matches.
+		{"(block . (comment)* @doc !type _)", []string{
+			"1:6:TypeRef", "7:8:Keyword", "10:17:TypeRef", "18:19:Keyword", "20:24:Constant", "25:30:Field", "31:32:Keyword",
+		}},
+		{"(#set! priority 90)", []string{"1:6:Directive"}},
+		{"(MISSING identifier) @error", []string{"1:8:Keyword", "9:19:TypeRef", "21:27:Constant"}},
+	}
+
+	buf, ext := openDoc(t, "queries/go.scm", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
+// TestQueriesParse reads the highlight queries of this package with the query
+// grammar, which they must parse with without an error.
+func TestQueriesParse(t *testing.T) {
+	entries, err := os.ReadDir("queries")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		path := filepath.Join("queries", entry.Name())
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf, ext := openDoc(t, path, string(src))
+		doc, ok := buf.ExtensionData(ext.ID()).(*document)
+		if !ok {
+			t.Fatalf("%s is not highlighted", path)
+		}
+		doc.ensureParsed()
+		if tree := doc.hl.(*tsHighlighter).tree; tree == nil || tree.RootNode().HasError() {
+			t.Errorf("%s doesn't parse as a tree-sitter query", path)
+		}
+	}
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -576,6 +631,8 @@ func TestLanguageForPath(t *testing.T) {
 		"app.js":          "javascript",
 		"App.jsx":         "javascript",
 		"src/main.rs":     "rust",
+		"queries/go.scm":  "query",
+		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",

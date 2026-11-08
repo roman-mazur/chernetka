@@ -128,6 +128,17 @@ var (
 		PathMatch:         suffixMatch(".rs"),
 		LineCommentPrefix: "//",
 	}
+	// TreeSitterQuery is the language of tree-sitter queries. Scheme files share
+	// their .scm extension, so only the ones in a queries directory are taken
+	// for queries, as the tree-sitter grammars and the editors keep them there.
+	// Its name is the language identifier of the query language server.
+	TreeSitterQuery = &Syntax{
+		Name: "query",
+		PathMatch: func(p string) bool {
+			return suffixMatch(".scm")(p) && slices.Contains(strings.Split(filepath.ToSlash(filepath.Dir(p)), "/"), "queries")
+		},
+		LineCommentPrefix: ";",
+	}
 	GitCommitMsg = &Syntax{
 		Name:              "git_commit_msg",
 		PathMatch:         func(p string) bool { return strings.HasSuffix(p, ".git/COMMIT_EDITMSG") },
@@ -140,7 +151,7 @@ var (
 	}
 
 	// syntaxes are all the supported syntaxes, in the order they are matched.
-	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, Java, Kotlin, TypeScript, TSX, JavaScript, Rust, GitCommitMsg, GitRebaseTodo}
+	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, Java, Kotlin, TypeScript, TSX, JavaScript, Rust, TreeSitterQuery, GitCommitMsg, GitRebaseTodo}
 
 	// shellFileNames are the shell scripts recognized by their name alone. The zsh
 	// ones are parsed as bash, which covers most of what goes into them.

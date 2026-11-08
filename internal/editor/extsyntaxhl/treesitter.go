@@ -20,6 +20,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/rust"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsquery"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsx"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/typescript"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
@@ -151,6 +152,16 @@ var rustQuery string
 var rustGrammar = &tsGrammar{
 	load:   rust.Language,
 	query:  rustQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/query.scm
+var treeSitterQueryQuery string
+
+// treeSitterQueryGrammar highlights tree-sitter queries using the grammar copied from upstream.
+var treeSitterQueryGrammar = &tsGrammar{
+	load:   tsquery.Language,
+	query:  treeSitterQueryQuery,
 	tokens: defaultCaptureTokens,
 }
 
