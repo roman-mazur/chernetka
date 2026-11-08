@@ -197,9 +197,9 @@ func (t *tracker) trackChange(change Item) {
 		lastChange := &lastGroup.Changes[len(lastGroup.Changes)-1]
 		if lastChange.Operation == OperationUpdate {
 			if lastChange.Span.Start.Line == change.Span.Start.Line && lastChange.Span.End.Line == change.Span.End.Line {
-				lastChange.New = change.New
-				lastChange.Span.Start.Col = min(lastChange.Span.Start.Col, change.Span.Start.Col)
-				lastChange.Span.End.Col = max(lastChange.Span.End.Col, change.Span.End.Col)
+				// The span is found for the merged lines: the columns of the two spans
+				// are in different versions of the line.
+				*lastChange = Replacement(change.Span.Start.Line, lastChange.Old[0], change.New[0])
 				return
 			}
 		}
