@@ -41,6 +41,7 @@ func TestSyntaxForPath(t *testing.T) {
 		"app.js":                                 "javascript",
 		"App.JSX":                                "javascript",
 		"eslint.config.cjs":                      "javascript",
+		"src/main.rs":                            "rust",
 		"repo/.git/COMMIT_EDITMSG":               "git_commit_msg",
 		"repo/.git/rebase-merge/git-rebase-todo": "git_rebase",
 		"":                                       "",

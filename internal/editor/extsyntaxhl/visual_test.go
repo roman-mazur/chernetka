@@ -36,6 +36,7 @@ func TestVisual(t *testing.T) {
 		{"visual.ts", visualTypeScript},
 		{"visual.tsx", visualTSX},
 		{"visual.js", visualJavaScript},
+		{"visual.rs", visualRust},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -606,6 +607,67 @@ class Printer extends EventTarget {
 }
 
 module.exports = { walk, Printer, render: () => <b>done</b> };
+`
+
+const visualRust = `#!/usr/bin/env rust-script
+//! A word counter, to be looked at.
+#![allow(dead_code)]
+
+use std::collections::{BTreeMap, HashMap};
+use std::{fs, io, path::Path};
+
+const TOP: usize = 10;
+static mut CALLS: u64 = 0;
+
+/// Counts the words of the files.
+pub trait Counter {
+    fn count(&mut self, path: &Path) -> io::Result<usize>;
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Report<'a> {
+    pub dir: &'a str,
+    words: HashMap<String, usize>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Order { Asc, Desc(u8) }
+
+impl<'a> Counter for Report<'a> {
+    fn count(&mut self, path: &Path) -> io::Result<usize> {
+        let text = fs::read_to_string(path)?;
+        for word in text.split_whitespace() {
+            *self.words.entry(word.to_lowercase()).or_insert(0) += 1;
+        }
+        Ok(self.words.len())
+    }
+}
+
+impl Report<'_> {
+    pub fn top(&self, order: Order) -> Vec<(&str, usize)> {
+        let sorted: BTreeMap<_, _> = self.words.iter().map(|(w, n)| (*n, w.as_str())).collect();
+        let iter = sorted.into_iter().map(|(n, w)| (w, n));
+        match order {
+            Order::Asc => iter.take(TOP).collect(),
+            Order::Desc(limit) if limit > 0 => iter.rev().take(limit as usize).collect(),
+            Order::Desc(_) => Vec::new(),
+        }
+    }
+}
+
+macro_rules! report {
+    ($dir:expr) => { Report { dir: $dir, ..Default::default() } };
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut r = report!(".");
+    unsafe { CALLS += 1 };
+    let n = r.count(Path::new("README.md"))?;
+    println!("{n} words\t{:?} {}", r.top(Order::Desc(3)), 'w');
+    let bytes = b"raw\x00" as &[u8];
+    assert_eq!(bytes.len(), 4, r"no \escapes");
+    Ok(())
+}
 `
 
 const visualGitMsg = `some/path: change title

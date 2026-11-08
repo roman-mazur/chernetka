@@ -123,6 +123,11 @@ var (
 		PathMatch:         suffixMatch(".js", ".mjs", ".cjs", ".jsx"),
 		LineCommentPrefix: "//",
 	}
+	Rust = &Syntax{
+		Name:              "rust",
+		PathMatch:         suffixMatch(".rs"),
+		LineCommentPrefix: "//",
+	}
 	GitCommitMsg = &Syntax{
 		Name:              "git_commit_msg",
 		PathMatch:         func(p string) bool { return strings.HasSuffix(p, ".git/COMMIT_EDITMSG") },
@@ -135,7 +140,7 @@ var (
 	}
 
 	// syntaxes are all the supported syntaxes, in the order they are matched.
-	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, Java, Kotlin, TypeScript, TSX, JavaScript, GitCommitMsg, GitRebaseTodo}
+	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, Java, Kotlin, TypeScript, TSX, JavaScript, Rust, GitCommitMsg, GitRebaseTodo}
 
 	// shellFileNames are the shell scripts recognized by their name alone. The zsh
 	// ones are parsed as bash, which covers most of what goes into them.

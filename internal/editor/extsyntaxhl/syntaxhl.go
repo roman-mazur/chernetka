@@ -64,6 +64,7 @@ var languages = map[*code.Syntax]*language{
 	code.TypeScript:    {newHighlighter: newTreeSitter(typescriptGrammar)},
 	code.TSX:           {newHighlighter: newTreeSitter(tsxGrammar)},
 	code.JavaScript:    {newHighlighter: newTreeSitter(tsxGrammar)},
+	code.Rust:          {newHighlighter: newTreeSitter(rustGrammar)},
 	code.Markdown:      {newHighlighter: newMarkdown},
 	code.GitCommitMsg:  {newHighlighter: func() highlighter { return new(gitMessage) }},
 	code.GitRebaseTodo: {newHighlighter: func() highlighter { return new(gitRebase) }},

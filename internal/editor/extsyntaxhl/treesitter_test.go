@@ -432,6 +432,45 @@ func TestJavaScriptHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestRustHighlight(t *testing.T) {
+	doc := hlDoc{
+		// An attribute reads as an annotation, with its #, ! and brackets but not its arguments.
+		{"#![allow(dead_code)]", []string{"0:8:Annotation", "9:18:Identifier", "19:20:Annotation"}},
+		{"use std::collections::HashMap;", []string{"0:3:Keyword", "4:7:ImportRef", "9:20:ImportRef", "22:29:TypeRef"}},
+		// The segments of a path before its last one are modules.
+		{"use crate::util::{self, Config};", []string{"0:3:Keyword", "4:9:Keyword", "11:15:ImportRef", "18:22:Keyword", "24:30:TypeRef"}},
+		{"", nil},
+		{"const MAX_SIZE: usize = 0x10;", []string{"0:5:Keyword", "6:14:Constant", "16:21:TypeRef", "24:28:NumberLiteral"}},
+		{"", nil},
+		{"#[derive(Debug, Clone)]", []string{"0:8:Annotation", "9:14:TypeRef", "16:21:TypeRef", "22:23:Annotation"}},
+		// A lifetime reads as a type, its quote included.
+		{"pub struct Repo<'a, T> {", []string{"0:3:Keyword", "4:10:Keyword", "11:15:TypeRef", "16:18:TypeRef", "20:21:TypeRef"}},
+		{"    name: &'a str,", []string{"4:8:Field", "11:13:TypeRef", "14:17:TypeRef"}},
+		{"    items: Vec<T>,", []string{"4:9:Field", "11:14:TypeRef", "15:16:TypeRef"}},
+		{"}", nil},
+		{"", nil},
+		{"impl<'a, T: Clone> Repo<'a, T> {", []string{"0:4:Keyword", "5:7:TypeRef", "9:10:TypeRef", "12:17:TypeRef", "19:23:TypeRef", "24:26:TypeRef", "28:29:TypeRef"}},
+		{"    pub fn find(&self, id: u32) -> Option<&T> {", []string{"4:7:Keyword", "8:10:Keyword", "11:15:FuncDeclaration", "17:21:Keyword", "23:25:Identifier", "27:30:TypeRef", "35:41:TypeRef", "43:44:TypeRef"}},
+		{"        let s = format!(\"id\\t{}\", id + 1);", []string{"8:11:Keyword", "12:13:Identifier", "16:23:Call", "24:27:StringLiteral", "27:29:Escape", "29:32:StringLiteral", "34:36:Identifier", "39:40:NumberLiteral"}},
+		// A macro invocation reads as a call, its ! included.
+		{"        println!(\"{s} {}\", MAX_SIZE);", []string{"8:16:Call", "17:25:StringLiteral", "27:35:Constant"}},
+		{"        self.items.iter().find(|x| x.id == id).or(None) // done", []string{"8:12:Keyword", "13:18:Field", "19:23:Call", "26:30:Call", "32:33:Identifier", "35:36:Identifier", "37:39:Field", "43:45:Identifier", "47:49:Call", "50:54:TypeRef", "56:63:Comment"}},
+		{"    }", nil},
+		{"}", nil},
+		{"", nil},
+		{"#[tokio::main]", []string{"0:7:Annotation", "9:14:Annotation"}},
+		{"async fn main() -> Result<(), Box<dyn std::error::Error>> {", []string{"0:5:Keyword", "6:8:Keyword", "9:13:FuncDeclaration", "19:25:TypeRef", "30:33:TypeRef", "34:37:Keyword", "38:41:ImportRef", "43:48:ImportRef", "50:55:TypeRef"}},
+		{"    let mut m = HashMap::<String, i64>::new();", []string{"4:7:Keyword", "8:11:Keyword", "12:13:Identifier", "16:23:TypeRef", "26:32:TypeRef", "34:37:TypeRef", "40:43:Call"}},
+		{"    match std::cmp::Ord::cmp(&1, &2) { std::cmp::Ordering::Less => true, _ => false };", []string{"4:9:Keyword", "10:13:ImportRef", "15:18:ImportRef", "20:23:TypeRef", "25:28:Call", "30:31:NumberLiteral", "34:35:NumberLiteral", "39:42:ImportRef", "44:47:ImportRef", "49:57:TypeRef", "59:63:TypeRef", "67:71:Constant", "78:83:Constant"}},
+		// A capitalized call is an enum variant or a tuple struct, which reads as a type.
+		{"    Ok(())", []string{"4:6:TypeRef"}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "main.rs", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -536,6 +575,7 @@ func TestLanguageForPath(t *testing.T) {
 		"App.tsx":         "typescriptreact",
 		"app.js":          "javascript",
 		"App.jsx":         "javascript",
+		"src/main.rs":     "rust",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",
