@@ -86,6 +86,11 @@
   (_) @embedded
   ")" @escape)
 
+(raw_interpolation
+  "\\#(" @escape
+  (_) @embedded
+  ")" @escape)
+
 [
   (number)
   (float)
@@ -98,11 +103,14 @@
 
 [
   "else"
+  "fallback"
   "for"
+  "func"
   "if"
   "import"
   "in"
   "let"
+  "otherwise"
   "package"
   "try"
 ] @keyword

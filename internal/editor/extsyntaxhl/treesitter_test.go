@@ -132,6 +132,19 @@ func TestCUEHighlight(t *testing.T) {
 		{"\tif port > 80 {tls: true}", []string{
 			"1:3:Keyword", "4:8:Identifier", "11:13:NumberLiteral", "15:18:Field", "20:24:Constant",
 		}},
+		{"\tif port > 443 {mode: 1} otherwise {mode: 2}", []string{
+			"1:3:Keyword", "4:8:Identifier", "11:14:NumberLiteral", "16:20:Field", "22:23:NumberLiteral",
+			"25:34:Keyword", "36:40:Field", "42:43:NumberLiteral",
+		}},
+		// Only \#( interpolates in a raw string, \( is its text.
+		{"\traw: #\"a \\#(name) \\(name)\"#", []string{
+			"1:4:Field", "6:10:StringLiteral", "10:13:Escape", "13:17:Identifier", "17:18:Escape",
+			"18:28:StringLiteral",
+		}},
+		{"\tinc: func(x: int) -> int: x + 1", []string{
+			"1:4:Field", "6:10:Keyword", "11:12:Identifier", "14:17:TypeRef", "22:25:TypeRef",
+			"27:28:Identifier", "31:32:NumberLiteral",
+		}},
 		{"\tn: len([for x in [1, 2.5] {x}])", []string{
 			"1:2:Field", "4:7:Call", "9:12:Keyword", "13:14:Identifier", "15:17:Keyword",
 			"19:20:NumberLiteral", "22:25:NumberLiteral", "28:29:Identifier",
