@@ -91,9 +91,14 @@ func fetch(repo, ref, subdir, dir, pkg string) (string, error) {
 	defer os.RemoveAll(tmp)
 
 	// Unlike clone --branch, a fetch takes a commit as well as a tag or a branch.
+	// The files are checked out as they are stored, with LF line endings, even
+	// where git is set to convert them, like on Windows: parser.c is edited by
+	// patterns matching its lines.
 	clone := filepath.Join(tmp, "repo")
 	for _, args := range [][]string{
 		{"init", "--quiet", clone},
+		{"-C", clone, "config", "core.autocrlf", "false"},
+		{"-C", clone, "config", "core.eol", "lf"},
 		{"-C", clone, "fetch", "--quiet", "--depth=1", repo, ref},
 		{"-C", clone, "checkout", "--quiet", "FETCH_HEAD"},
 	} {
