@@ -31,6 +31,8 @@ func TestVisual(t *testing.T) {
 		{"visual.c", visualC},
 		{"visual.cpp", visualCPP},
 		{"visual.cs", visualCSharp},
+		{"visual.java", visualJava},
+		{"visual.kt", visualKotlin},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
 		{".git/rebase-merge/git-rebase-todo", visualGitRebase},
 	} {
@@ -414,6 +416,97 @@ public class MemoryRepo : IRepo<Item>, IDisposable
 
     enum State { Open = 0x1, Closed = 2 }
 }
+`
+
+const visualJava = `// A word counter, to be looked at.
+package app.words;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/** Counts the words of the files. */
+@FunctionalInterface
+interface Counter {
+    long count(Path path) throws IOException;
+}
+
+public sealed class Report permits Report.Text {
+    private static final int TOP = 10;
+    protected final Map<String, Long> words;
+
+    public Report(Map<String, Long> words) { this.words = words; }
+
+    public static Report of(Path dir) throws IOException {
+        try (var files = Files.walk(dir)) {
+            var words = files.filter(Files::isRegularFile)
+                .flatMap(p -> lines(p).stream())
+                .collect(Collectors.groupingBy(w -> w, Collectors.counting()));
+            return new Text(words);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return switch (words.size()) {
+            case 0 -> "none";
+            default -> String.format("%d words\t%s", words.size(), 'w');
+        };
+    }
+
+    static final class Text extends Report {
+        Text(Map<String, Long> words) { super(words); }
+    }
+
+    enum Order { ASC, DESC }
+}
+`
+
+const visualKotlin = `// A word counter, to be looked at.
+@file:JvmName("Words")
+package app.words
+
+import java.io.File
+import kotlin.math.min
+
+/** Counts the words of the files. */
+fun interface Counter {
+    fun count(file: File): Long
+}
+
+data class Report(val words: Map<String, Long>, var order: Order = Order.DESC) {
+    private val total get() = words.values.sum()
+
+    override fun toString(): String = when {
+        words.isEmpty() -> "none"
+        else -> "${words.size} words, $total in all\t${'w'}"
+    }
+
+    companion object {
+        const val TOP = 10
+
+        fun of(dir: File): Report? {
+            if (!dir.isDirectory) return null
+            val words = dir.walk()
+                .filter { it.isFile }
+                .flatMap { f -> f.readLines().asSequence() }
+                .groupingBy { it }
+                .eachCount()
+                .mapValues { (_, n) -> n.toLong() }
+            return Report(words)
+        }
+    }
+}
+
+enum class Order { ASC, DESC }
+
+sealed interface Result<out T>
+object Empty : Result<Nothing>
+
+suspend inline fun <reified T> Any.cast(): T? = this as? T ?: run { null }
+
+val sizes = listOf(1, 2L, 0xFFu, 1.5f, 0b101).take(min(3, Report.TOP))
 `
 
 const visualGitMsg = `some/path: change title

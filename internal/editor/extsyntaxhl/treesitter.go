@@ -15,7 +15,9 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/java"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
 )
@@ -97,6 +99,26 @@ var csharpGrammar = &tsGrammar{
 	tokens: defaultCaptureTokens,
 }
 
+//go:embed queries/java.scm
+var javaQuery string
+
+// javaGrammar highlights Java using the tree-sitter grammar copied from upstream.
+var javaGrammar = &tsGrammar{
+	load:   java.Language,
+	query:  javaQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/kotlin.scm
+var kotlinQuery string
+
+// kotlinGrammar highlights Kotlin using the grammar copied from fwcd/tree-sitter-kotlin.
+var kotlinGrammar = &tsGrammar{
+	load:   kotlin.Language,
+	query:  kotlinQuery,
+	tokens: defaultCaptureTokens,
+}
+
 //go:embed queries/nix.scm
 var nixQuery string
 
@@ -135,6 +157,7 @@ var defaultCaptureTokens = map[string]code.TokenType{
 	"number":          code.TtNumberLiteral,
 	"constant":        code.TtConstant,
 	"comment":         code.TtComment,
+	"annotation":      code.TtAnnotation,
 	// Code embedded in a string, like an interpolated expression, is plain
 	// text again rather than a part of the string.
 	"embedded": code.TtIdentifier,

@@ -19,9 +19,10 @@ const (
 
 	// Programming language tokens.
 
-	TtConstant // language-defined constant, e.g. Go's true, false, nil, iota
-	TtField    // struct field or property reference
-	TtEscape   // escape sequence inside a string literal
+	TtConstant   // language-defined constant, e.g. Go's true, false, nil, iota
+	TtField      // struct field or property reference
+	TtEscape     // escape sequence inside a string literal
+	TtAnnotation // annotation or attribute, e.g. Java's @Override, C#'s [Serializable], C++'s [[nodiscard]]
 
 	// Markup tokens.
 

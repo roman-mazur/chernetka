@@ -8,6 +8,19 @@
 ; it would paint over the dotted names captured as a whole, like the
 ; namespace of a using directive, and plain identifiers are not colored anyway.
 
+; Attributes, with their brackets and target but not their arguments.
+
+(attribute_list
+  [
+    "["
+    "]"
+  ] @annotation)
+
+(attribute_target_specifier) @annotation
+
+(attribute
+  name: (_) @annotation)
+
 ; Declarations
 
 (method_declaration
@@ -104,9 +117,6 @@
 (type_parameter_constraint
   (type
     (identifier) @type))
-
-(attribute
-  name: (identifier) @type)
 
 (predefined_type) @type
 

@@ -6,6 +6,20 @@
 ; patterns capture the exact same node the one listed first here wins, so the
 ; specific patterns come before the catch-all identifier rules below.
 
+; Attributes, like [[nodiscard]], with their brackets but not their arguments.
+
+(attribute_declaration
+  [
+    "[["
+    "]]"
+  ] @annotation)
+
+(attribute
+  prefix: (identifier) @annotation)
+
+(attribute
+  name: (identifier) @annotation)
+
 ; Declarations
 
 (function_declarator

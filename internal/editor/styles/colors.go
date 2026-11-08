@@ -32,6 +32,7 @@ var DefaultColors = ColorTheme{
 		code.TtConstant:        parseColor("C77DBB"),
 		code.TtField:           parseColor("BCBEC4"),
 		code.TtEscape:          parseColor("CF8E6D"),
+		code.TtAnnotation:      parseColor("E5C07B"),
 
 		// Markup. Emphasis and strong text are also italic and bold, see ResolveTokenStyle.
 		code.TtPunctuation: parseColor("7A7E85"),

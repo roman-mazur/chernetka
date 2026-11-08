@@ -63,10 +63,10 @@
 
 ; An attribute, like @go(Name), is metadata for tools rather than a part of the
 ; value, so its names are not colorized as identifiers.
-(attribute) @constant
+(attribute) @annotation
 
 (attribute
-  (identifier) @constant)
+  (identifier) @annotation)
 
 ; Literals
 
