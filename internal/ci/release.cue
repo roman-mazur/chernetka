@@ -39,7 +39,8 @@ workflows: release: githubactions.#Workflow & {
 				}
 				run: """
 					mkdir -p ./out
-					go build -trimpath -tags=netgo -o ./out/che-linux-amd64 ./cmd/che
+					opts="-ldflags='-s -w' -trimpath -tags=netgo"
+					go build $opts -o ./out/che-linux-amd64 ./cmd/che
 					"""
 			},
 			{
