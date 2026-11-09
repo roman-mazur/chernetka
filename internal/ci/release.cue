@@ -68,15 +68,16 @@ workflows: release: githubactions.#Workflow & {
 						"""
 				},
 				{
+					// Manual runs only check that the binaries build: there is no release to
+					// upload them to.
 					name: "Upload release asset"
-					uses: "actions/upload-release-asset@v1"
-					with: {
-						upload_url:         "${{ github.event.release.upload_url }}"
-						asset_path:         "./out/\(t.asset)"
-						asset_name:         t.asset
-						asset_content_type: "application/octet-stream"
+					if:   "github.event_name == 'release'"
+					env: {
+						GH_TOKEN: "${{ github.token }}"
+						GH_REPO:  "${{ github.repository }}"
+						TAG:      "${{ github.event.release.tag_name }}"
 					}
-					env: GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+					run: "gh release upload \"$TAG\" ./out/\(t.asset) --clobber"
 				},
 			]])
 		}

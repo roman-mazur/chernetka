@@ -37,14 +37,12 @@ jobs:
           mkdir -p ./out
           go build -ldflags='-s -w' -trimpath -tags=netgo -o ./out/che-linux-amd64 ./cmd/che
       - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./out/che-linux-amd64
-          asset_name: che-linux-amd64
-          asset_content_type: application/octet-stream
+        if: github.event_name == 'release'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" ./out/che-linux-amd64 --clobber
   build-windows-amd64:
     runs-on: windows-latest
     permissions:
@@ -72,14 +70,12 @@ jobs:
           mkdir -p ./out
           go build -ldflags='-s -w' -trimpath -tags=netgo -o ./out/che-windows-amd64.exe ./cmd/che
       - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./out/che-windows-amd64.exe
-          asset_name: che-windows-amd64.exe
-          asset_content_type: application/octet-stream
+        if: github.event_name == 'release'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" ./out/che-windows-amd64.exe --clobber
   build-darwin-amd64:
     runs-on: macos-latest
     permissions:
@@ -107,11 +103,9 @@ jobs:
           mkdir -p ./out
           go build -ldflags='-s -w' -trimpath -tags=netgo -o ./out/che-darwin-amd64 ./cmd/che
       - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./out/che-darwin-amd64
-          asset_name: che-darwin-amd64
-          asset_content_type: application/octet-stream
+        if: github.event_name == 'release'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" ./out/che-darwin-amd64 --clobber
