@@ -2,40 +2,28 @@ package ci
 
 import (
 	"list"
-	"strings"
 
 	"cue.dev/x/githubactions"
 )
 
 // #target is a platform the release ships a binary for.
 //
-// The binary needs cgo (tree-sitter is C code), so a C toolchain for the target must be at hand.
-// Linux and Windows build on Linux: Windows with MinGW-w64, which links against the system DLLs
-// only. macOS builds on a macOS runner: cross-compiling to it needs the Apple SDK, which is
-// licensed for Apple hardware only. Apple's clang targets x86_64 from an arm64 runner, since Go
-// passes it -arch x86_64.
+// The binary needs cgo (tree-sitter is C code), so each target builds on a runner of its OS, with
+// its native C toolchain. Cross-compiling to macOS needs the Apple SDK, which is licensed for
+// Apple hardware only, so macOS needs its own runner, and the other targets follow suit. Apple's
+// clang targets x86_64 from an arm64 runner, since Go passes it -arch x86_64.
 #target: {
 	goos:   string
 	goarch: "amd64"
 	runner: string
-	// aptPackages are the packages installing the C toolchain the build uses.
-	aptPackages: *[] | [...string]
-	// cc is the C compiler; empty for the default one.
-	cc:  string | *""
-	ext: string | *""
+	ext:    string | *""
 
 	asset: "che-\(goos)-\(goarch)\(ext)"
 }
 
 releaseTargets: [...#target] & [
 	{goos: "linux", runner: "ubuntu-latest"},
-	{
-		goos:   "windows"
-		runner: "ubuntu-latest"
-		aptPackages: ["gcc-mingw-w64-x86-64"]
-		cc:  "x86_64-w64-mingw32-gcc"
-		ext: ".exe"
-	},
+	{goos: "windows", runner: "windows-latest", ext: ".exe"},
 	{goos: "darwin", runner: "macos-latest"},
 ]
 
@@ -46,6 +34,8 @@ workflows: release: githubactions.#Workflow & {
 		release: types: ["created"]
 	}
 
+	defaults: run: shell: "bash"
+
 	for t in releaseTargets {
 		jobs: "build-\(t.goos)-\(t.goarch)": {
 			"runs-on": t.runner
@@ -54,13 +44,6 @@ workflows: release: githubactions.#Workflow & {
 				contents:   "write"
 			}
 			steps: list.Concat([#goSetup, [
-				if len(t.aptPackages) > 0 {
-					name: "Install the C toolchain"
-					run:  """
-						sudo apt-get update
-						sudo apt-get install -y \(strings.Join(t.aptPackages, " "))
-						"""
-				},
 				{
 					name: "Print go env"
 					run: """
@@ -78,9 +61,6 @@ workflows: release: githubactions.#Workflow & {
 						GOOS:        t.goos
 						GOARCH:      t.goarch
 						CGO_ENABLED: "1"
-						if t.cc != "" {
-							CC: t.cc
-						}
 					}
 					run: """
 						mkdir -p ./out
