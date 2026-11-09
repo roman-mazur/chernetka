@@ -17,7 +17,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/pkg/fakenet"
@@ -28,8 +30,8 @@ import (
 // Client owns a single LSP session over JSON-RPC. It is safe to call its
 // methods from multiple goroutines because jsonrpc2.Conn serialises writes.
 type Client struct {
-	conn jsonrpc2.Conn
-	proc *os.Process // nil if the connection was supplied externally (tests).
+	conn   jsonrpc2.Conn
+	exited <-chan struct{} // closed once the server process is gone; nil for a supplied connection (tests)
 }
 
 // Start launches gopls for the workspace in rootDir (typically the directory
@@ -46,12 +48,14 @@ type Client struct {
 // toolchain: it inherits the environment of the session that spawns it.
 //
 // Server settings are per session, so they apply even with a shared daemon.
+//
+// On Windows, every session runs its own gopls (see serveArgs).
 func Start(ctx context.Context, rootDir string, opts Options) (*Client, error) {
 	logf := opts.Logf
 	if logf == nil {
 		logf = func(string, ...any) {}
 	}
-	opts.Args = []string{"-remote=auto", "serve"}
+	opts.Args = serveArgs("")
 
 	tc, err := FindToolchain(ctx, rootDir)
 	if err != nil {
@@ -61,7 +65,7 @@ func Start(ctx context.Context, rootDir string, opts Options) (*Client, error) {
 	logf("using %s selected by %s", tc.Version, tc.Source())
 
 	opts.Env = tc.Env(os.Environ())
-	opts.Args = []string{"-remote=auto;" + tc.Version, "serve"}
+	opts.Args = serveArgs(tc.Version)
 	if opts.GoplsCache != "" {
 		gopls, err := tc.Gopls(ctx, opts.GoplsCache, logf)
 		if err != nil {
@@ -71,6 +75,23 @@ func Start(ctx context.Context, rootDir string, opts Options) (*Client, error) {
 		}
 	}
 	return StartWith(ctx, rootDir, opts)
+}
+
+// serveArgs returns the gopls arguments making it forward to the daemon
+// shared by the sessions with the same id.
+//
+// On Windows, gopls panics given an id, and without one, the sessions of any
+// gopls binary and any toolchain share the daemon at a fixed address. So
+// there gopls serves the session itself.
+func serveArgs(id string) []string {
+	if runtime.GOOS == "windows" {
+		return []string{"serve"}
+	}
+	remote := "-remote=auto"
+	if id != "" {
+		remote += ";" + id
+	}
+	return []string{remote, "serve"}
 }
 
 // Options tune how the language server is launched and initialised.
@@ -88,7 +109,8 @@ type Options struct {
 	SnippetSupport        bool
 
 	// Logf receives errors the server reports, like a failed workspace load,
-	// and how Start chooses the gopls to run.
+	// what the server writes to its stderr, and how Start chooses the gopls to
+	// run. The server's stderr goes to os.Stderr when it's nil.
 	Logf func(format string, args ...any)
 
 	// Diagnostics receives the problems the server finds in a document,
@@ -110,28 +132,90 @@ func StartWith(ctx context.Context, rootDir string, opts Options) (*Client, erro
 	}
 	cmd := exec.Command(command, args...)
 	cmd.Env = opts.Env
-	cmd.Stderr = os.Stderr
+	var stderr *lineLogger
+	if opts.Logf != nil {
+		stderr = &lineLogger{logf: opts.Logf, prefix: filepath.Base(command) + " stderr: "}
+		cmd.Stderr = stderr
+	} else {
+		cmd.Stderr = os.Stderr
+	}
+	// Don't wait for the processes the server leaves behind with its stderr.
+	cmd.WaitDelay = time.Second
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("%s stdin pipe: %w", command, err)
 	}
-	stdout, err := cmd.StdoutPipe()
+	// Unlike the pipe of StdoutPipe, this one isn't closed by Wait, which runs
+	// while it's read.
+	stdout, serverStdout, err := os.Pipe()
 	if err != nil {
 		return nil, fmt.Errorf("%s stdout pipe: %w", command, err)
 	}
-	if err := cmd.Start(); err != nil {
+	cmd.Stdout = serverStdout
+	err = cmd.Start()
+	_ = serverStdout.Close() // The server has its own copy.
+	if err != nil {
+		_ = stdout.Close()
 		return nil, fmt.Errorf("start %s: %w", command, err)
 	}
 
-	c, err := newClient(ctx, newConn(stdout, stdin), rootDir, opts)
+	exited := make(chan struct{})
+	var waitErr error
+	go func() {
+		waitErr = cmd.Wait()
+		if stderr != nil {
+			stderr.flush()
+		}
+		close(exited)
+	}()
+
+	c, err := newClient(ctx, newConn(stdout, stdin), exited, rootDir, opts)
 	if err != nil {
+		select {
+		case <-exited:
+			err = fmt.Errorf("%w: %s exited: %v", err, filepath.Base(command), waitErr)
+		default:
+			_ = cmd.Process.Kill()
+		}
 		_ = stdin.Close()
-		_ = cmd.Process.Kill()
+		_ = stdout.Close()
 		return nil, err
 	}
-	c.proc = cmd.Process
+	c.exited = exited
 	return c, nil
+}
+
+// lineLogger passes what a process writes to logf line by line.
+type lineLogger struct {
+	logf   func(format string, args ...any)
+	prefix string
+	buf    []byte // the incomplete last line
+}
+
+func (l *lineLogger) Write(p []byte) (int, error) {
+	l.buf = append(l.buf, p...)
+	for {
+		i := bytes.IndexByte(l.buf, '\n')
+		if i < 0 {
+			break
+		}
+		l.log(l.buf[:i])
+		l.buf = l.buf[i+1:]
+	}
+	return len(p), nil
+}
+
+// flush logs the last line if it doesn't end with a newline.
+func (l *lineLogger) flush() {
+	l.log(l.buf)
+	l.buf = nil
+}
+
+func (l *lineLogger) log(line []byte) {
+	if line = bytes.TrimRight(line, "\r"); len(line) > 0 {
+		l.logf("%s%s", l.prefix, line)
+	}
 }
 
 // newConn wraps a stdio pair (server's stdout to our reader; server's stdin to
@@ -141,10 +225,23 @@ func newConn(serverOut io.ReadCloser, serverIn io.WriteCloser) jsonrpc2.Conn {
 	return jsonrpc2.NewConn(jsonrpc2.NewStream(netConn))
 }
 
-// newClient starts the connection's read loop and performs the LSP handshake.
-// It exists separately from Start so tests can supply a synthetic conn.
-func newClient(ctx context.Context, conn jsonrpc2.Conn, rootDir string, opts Options) (*Client, error) {
+// newClient starts the connection's read loop and performs the LSP handshake,
+// which is given up once serverExited is closed. It exists separately from
+// Start so tests can supply a synthetic conn.
+func newClient(ctx context.Context, conn jsonrpc2.Conn, serverExited <-chan struct{}, rootDir string, opts Options) (*Client, error) {
 	conn.Go(ctx, jsonrpc2.ReplyHandler(serverHandler(opts.Logf, opts.Diagnostics)))
+
+	// The connection doesn't fail the calls in flight when the server is gone:
+	// they would wait for a reply forever.
+	initCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-serverExited:
+			cancel()
+		case <-initCtx.Done():
+		}
+	}()
 
 	rootURI := uri.File(rootDir)
 	initParams := &protocol.InitializeParams{
@@ -168,10 +265,10 @@ func newClient(ctx context.Context, conn jsonrpc2.Conn, rootDir string, opts Opt
 		initParams.InitializationOptions = opts.InitializationOptions
 	}
 	var initResult protocol.InitializeResult
-	if _, err := conn.Call(ctx, protocol.MethodInitialize, initParams, &initResult); err != nil {
+	if _, err := conn.Call(initCtx, protocol.MethodInitialize, initParams, &initResult); err != nil {
 		return nil, fmt.Errorf("initialize: %w", err)
 	}
-	if err := conn.Notify(ctx, protocol.MethodInitialized, &protocol.InitializedParams{}); err != nil {
+	if err := conn.Notify(initCtx, protocol.MethodInitialized, &protocol.InitializedParams{}); err != nil {
 		return nil, fmt.Errorf("initialized: %w", err)
 	}
 	return &Client{conn: conn}, nil
@@ -355,8 +452,8 @@ func (c *Client) Shutdown(ctx context.Context) error {
 	_ = c.conn.Notify(ctx, protocol.MethodExit, nil)
 	_ = c.conn.Close()
 	<-c.conn.Done()
-	if c.proc != nil {
-		_, _ = c.proc.Wait()
+	if c.exited != nil {
+		<-c.exited
 	}
 	return nil
 }
