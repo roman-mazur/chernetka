@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -89,7 +93,7 @@ func TestClient_RoundTrip(t *testing.T) {
 		return reply(ctx, nil, nil)
 	}))
 
-	c, err := newClient(ctx, clientConn, "/tmp", Options{})
+	c, err := newClient(ctx, clientConn, nil, "/tmp", Options{})
 	if err != nil {
 		t.Fatalf("newClient: %v", err)
 	}
@@ -201,7 +205,7 @@ func TestClient_LogsServerErrors(t *testing.T) {
 
 	logged := make(chan string, 10)
 	logf := func(format string, args ...any) { logged <- fmt.Sprintf(format, args...) }
-	if _, err := newClient(ctx, clientConn, "/tmp", Options{Logf: logf}); err != nil {
+	if _, err := newClient(ctx, clientConn, nil, "/tmp", Options{Logf: logf}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -237,7 +241,7 @@ func TestClient_Diagnostics(t *testing.T) {
 
 	published := make(chan protocol.PublishDiagnosticsParams, 1)
 	opts := Options{Diagnostics: func(p protocol.PublishDiagnosticsParams) { published <- p }}
-	if _, err := newClient(ctx, clientConn, "/tmp", opts); err != nil {
+	if _, err := newClient(ctx, clientConn, nil, "/tmp", opts); err != nil {
 		t.Fatal(err)
 	}
 
@@ -285,5 +289,65 @@ func TestDecodeLocations(t *testing.T) {
 				t.Errorf("decodeLocations(%s): bad location %+v", tc.raw, l)
 			}
 		}
+	}
+}
+
+// TestStartWith_ServerExits checks that a server that exits before replying
+// to initialize, like gopls panicking on its arguments, fails the start with
+// its stderr logged instead of leaving it waiting for the reply forever.
+func TestStartWith_ServerExits(t *testing.T) {
+	if os.Getenv("LSP_TEST_EXITING_SERVER") != "" {
+		// The server: read the start of initialize, then die.
+		_, _ = io.ReadAtLeast(os.Stdin, make([]byte, 16), 16)
+		fmt.Fprintln(os.Stderr, "panic: boom")
+		os.Exit(2)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var (
+		mu     sync.Mutex
+		logged []string
+	)
+	logf := func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		logged = append(logged, fmt.Sprintf(format, args...))
+	}
+	_, err = StartWith(ctx, t.TempDir(), Options{
+		Command: exe,
+		Args:    []string{"-test.run=^TestStartWith_ServerExits$"},
+		Env:     append(os.Environ(), "LSP_TEST_EXITING_SERVER=1"),
+		Logf:    logf,
+	})
+	if err == nil {
+		t.Fatal("started")
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("waited for the server that is gone: %s", err)
+	}
+	if !strings.Contains(err.Error(), "exited: exit status 2") {
+		t.Errorf("error %q doesn't tell the server exited", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if want := filepath.Base(exe) + " stderr: panic: boom"; !slices.Contains(logged, want) {
+		t.Errorf("logged %q, want %q", logged, want)
+	}
+}
+
+func TestLineLogger(t *testing.T) {
+	var logged []string
+	l := &lineLogger{logf: func(format string, args ...any) { logged = append(logged, fmt.Sprintf(format, args...)) }, prefix: "p: "}
+	for _, s := range []string{"one\r\ntw", "o\n\nthr", "ee"} {
+		_, _ = l.Write([]byte(s))
+	}
+	l.flush()
+	if want := []string{"p: one", "p: two", "p: three"}; !slices.Equal(logged, want) {
+		t.Errorf("logged %q, want %q", logged, want)
 	}
 }
