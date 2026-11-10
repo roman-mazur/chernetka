@@ -432,7 +432,7 @@ func (b *Buffer) Mutate() content.Mutable {
 		b._mutator = b.history.Track(bufMutator{
 			Mutable: m,
 			Buffer:  b,
-		})
+		}, true)
 	}
 	return b._mutator
 }
@@ -471,6 +471,9 @@ func (b *Buffer) setMutated() {
 func (b *Buffer) resetMutated() (prev bool) {
 	prev = b._mutated
 	b._mutated = false
+	if prev && b._mutator != nil {
+		_ = b.history.ConsumeTrackedChanges(b._mutator) // TODO: pass to extensions.
+	}
 	return
 }
 

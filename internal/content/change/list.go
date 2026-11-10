@@ -77,6 +77,17 @@ func Deletion(pos int, lines []content.Line) Item {
 	}
 }
 
+func (it *Item) inverse() Item {
+	switch it.Operation {
+	case OperationDelete:
+		return Insertion(it.Span.Start.Line, it.Old)
+	case OperationInsert:
+		return Deletion(it.Span.Start.Line, it.New)
+	default:
+		return Replacement(it.Span.Start.Line, it.New[0], it.Old[0])
+	}
+}
+
 func (it *Item) apply(m content.Mutable) content.Position {
 	switch it.Operation {
 	case OperationDelete:
@@ -151,7 +162,8 @@ type History []*List
 const historyCap = 10
 
 // Track wraps the mutable content returning implementation that tracks the changes.
-func (h *History) Track(m content.Mutable) content.Mutable {
+// Passing trackUngrouped allows calling ConsumeTrackedChanges to get all recent changes.
+func (h *History) Track(m content.Mutable, trackUngrouped bool) content.Mutable {
 	base := content.Copy(m)
 	if base == nil {
 		// cannot be tracked
@@ -165,21 +177,41 @@ func (h *History) Track(m content.Mutable) content.Mutable {
 	*h = append((*h)[max(len(*h)-historyCap, 0):], &List{Base: base})
 
 	return &tracker{
-		Mutable: m,
-		list:    (*h)[len(*h)-1],
+		Mutable:        m,
+		list:           (*h)[len(*h)-1],
+		trackUngrouped: trackUngrouped,
 	}
+}
+
+// ConsumeTrackedChanges can be called by the editor to process all recent changes
+// since the last invocation of this method.
+func (h *History) ConsumeTrackedChanges(doc content.Mutable) (res []Item) {
+	t, ok := doc.(*tracker)
+	if !ok {
+		return nil
+	}
+	res, t.lastChanges = t.lastChanges, nil
+	return res
 }
 
 type tracker struct {
 	list *List
 	content.Mutable
+	trackUngrouped bool
+
 	currentPos     int
 	groupRequested bool
+
+	lastChanges []Item // list of all changes (ungrouped) to be consumed by the editor
 }
 
 const maxGroupDelay = 2 * time.Second
 
 func (t *tracker) trackChange(change Item) {
+	if t.trackUngrouped {
+		t.lastChanges = append(t.lastChanges, change)
+	}
+
 	if l := len(t.list.Edits); l == 0 || t.currentPos != l-1 || t.groupRequested {
 		t.startNewGroup(change)
 		return
@@ -258,6 +290,9 @@ func (t *tracker) Undo() (cursor content.Position) {
 	group := t.list.Edits[t.currentPos]
 	for _, change := range slices.Backward(group.Changes) {
 		cursor = change.revert(t.Mutable)
+		if t.trackUngrouped {
+			t.lastChanges = append(t.lastChanges, change.inverse())
+		}
 	}
 	t.currentPos--
 	return
@@ -267,6 +302,9 @@ func (t *tracker) Redo() (cursor content.Position) {
 	group := t.list.Edits[t.currentPos+1]
 	for _, change := range group.Changes {
 		cursor = change.apply(t.Mutable)
+		if t.trackUngrouped {
+			t.lastChanges = append(t.lastChanges, change)
+		}
 	}
 	t.currentPos++
 	return

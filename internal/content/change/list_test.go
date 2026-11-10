@@ -12,7 +12,7 @@ import (
 func TestHistory_Track(t *testing.T) {
 	var h History
 
-	m := h.Track(content.Empty().(content.Mutable))
+	m := h.Track(content.Empty().(content.Mutable), false)
 	m.Insert(0, content.TextLine("line 1"))
 	if len(h) != 1 {
 		t.Fatal("history didn't start on fist edit")
@@ -77,6 +77,44 @@ func TestHistory_Track(t *testing.T) {
 	}
 }
 
+func TestHistory_ConsumeTrackedChanges(t *testing.T) {
+	var h History
+
+	m := h.Track(content.Empty().(content.Mutable), true)
+	ur := m.(content.UndoRedo)
+
+	m.Insert(0, content.TextLine("line 1"))
+	m.Insert(1, content.TextLine("line 2"))
+	ur.SplitChangeGroup()
+
+	changes := h.ConsumeTrackedChanges(m)
+	if len(changes) != 2 {
+		t.Error("bad changes list after 2 inserts:", changes)
+	}
+
+	m.Update(1, content.TextLine("update line 2"))
+	m.Delete(0, 1)
+	ur.SplitChangeGroup()
+
+	changes = h.ConsumeTrackedChanges(m)
+	if len(changes) != 2 {
+		t.Error("bad changes list after update/delete", changes)
+	}
+
+	ur.Undo()
+	changes = h.ConsumeTrackedChanges(m)
+	if len(changes) != 2 {
+		t.Errorf("bad changes list after undo, len=%d: %v", len(changes), changes)
+	}
+
+	ur.Undo()
+	ur.Redo()
+	changes = h.ConsumeTrackedChanges(m)
+	if len(changes) != 4 {
+		t.Errorf("bad changes list after 2*undo + redo, len=%d: %v", len(changes), changes)
+	}
+}
+
 // TestHistory_MergedUpdateSpan checks the span of the updates of a line merged into one change:
 // it's the part of the line the updates changed together, so redo puts the cursor after it.
 func TestHistory_MergedUpdateSpan(t *testing.T) {
@@ -106,13 +144,17 @@ func TestHistory_MergedUpdateSpan(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var h History
 			doc := content.FullText{content.TextLine("0123456789")}
-			m := h.Track(&doc)
+			m := h.Track(&doc, true)
 			for _, u := range tc.updates {
 				m.Update(0, content.TextLine(u))
 			}
 			changes := slices.Collect[Item](h[0].iterateChanges)
 			if len(changes) != 1 {
 				t.Fatalf("got %d changes, want the updates merged into 1", len(changes))
+			}
+			if recentChanges := h.ConsumeTrackedChanges(m); len(changes) >= len(recentChanges) {
+				t.Errorf("len(changes) < len(h.ConsumeTrackedChanges(&doc)): %d < %d / %v",
+					len(changes), len(recentChanges), recentChanges)
 			}
 			if got := changes[0].Span; got != tc.want {
 				t.Errorf("span = %v, want %v", got, tc.want)
