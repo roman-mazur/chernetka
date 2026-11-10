@@ -174,3 +174,135 @@ func TestHistory_MergedUpdateSpan(t *testing.T) {
 		})
 	}
 }
+
+// TestHistory_UndoRedoCursor checks the cursor positions returned by Undo and Redo.
+// Undo puts the cursor where the first change of the group was reverted, redo puts it after
+// the last change of the group was applied.
+func TestHistory_UndoRedoCursor(t *testing.T) {
+	type group struct {
+		edit       func(m content.Mutable)
+		undo, redo content.Position
+	}
+	pos := func(line, col int) content.Position { return content.Position{Line: line, Col: col} }
+
+	for _, tc := range []struct {
+		name   string
+		doc    []string
+		groups []group
+	}{
+		{
+			name: "insert",
+			doc:  []string{"a"},
+			groups: []group{{
+				edit: func(m content.Mutable) { m.Insert(1, content.TextLine("x"), content.TextLine("yy")) },
+				undo: pos(1, 0), // start of the removed lines
+				redo: pos(2, 2), // end of the inserted lines
+			}},
+		},
+		{
+			name: "delete",
+			doc:  []string{"a", "bb", "ccc", "d"},
+			groups: []group{{
+				edit: func(m content.Mutable) { m.Delete(1, 3) },
+				undo: pos(2, 3), // end of the restored lines
+				redo: pos(1, 0), // where the lines were deleted
+			}},
+		},
+		{
+			name: "update",
+			doc:  []string{"a", "hello world"},
+			groups: []group{{
+				edit: func(m content.Mutable) { m.Update(1, content.TextLine("hello there world")) },
+				undo: pos(1, 6),  // start of the changed part
+				redo: pos(1, 12), // end of the changed part in the new line
+			}},
+		},
+		{
+			name: "group of changes",
+			doc:  []string{"a"},
+			groups: []group{{
+				edit: func(m content.Mutable) {
+					m.Insert(1, content.TextLine("x"))
+					m.Update(0, content.TextLine("ab"))
+				},
+				undo: pos(1, 0), // reverting the insert is the last undo step
+				redo: pos(0, 2), // applying the update is the last redo step
+			}},
+		},
+		{
+			// The editor splits a line by truncating it and inserting the rest below. Undo must put
+			// the cursor at the split point, not after the restored text.
+			name: "line split",
+			doc:  []string{"abcd"},
+			groups: []group{{
+				edit: func(m content.Mutable) {
+					m.Update(0, content.TextLine("ab"))
+					m.Insert(1, content.TextLine("cd"))
+				},
+				undo: pos(0, 2),
+				redo: pos(1, 2),
+			}},
+		},
+		{
+			name: "multiple groups",
+			doc:  []string{"a", "b"},
+			groups: []group{
+				{
+					edit: func(m content.Mutable) { m.Update(0, content.TextLine("a1")) },
+					undo: pos(0, 1),
+					redo: pos(0, 2),
+				},
+				{
+					edit: func(m content.Mutable) { m.Delete(1, 2) },
+					undo: pos(1, 1),
+					redo: pos(1, 0),
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var doc content.FullText
+			for _, l := range tc.doc {
+				doc = append(doc, content.TextLine(l))
+			}
+			var h History
+			m := h.Track(&doc, false)
+			ur := m.(content.UndoRedo)
+			for _, g := range tc.groups {
+				g.edit(m)
+				ur.SplitChangeGroup()
+			}
+
+			for i, g := range slices.Backward(tc.groups) {
+				if !ur.HasUndo() {
+					t.Fatalf("no undo for group %d", i)
+				}
+				if got := ur.Undo(); got != g.undo {
+					t.Errorf("group %d: undo cursor = %v, want %v", i, got, g.undo)
+				}
+			}
+			if ur.HasUndo() {
+				t.Error("unexpected undo after reverting all the groups")
+			}
+			var got []string
+			for _, l := range doc {
+				got = append(got, l.String())
+			}
+			if diff := cmp.Diff(tc.doc, got); diff != "" {
+				t.Errorf("doc after undo mismatch (-want +got):\n%s", diff)
+			}
+
+			for i, g := range tc.groups {
+				if !ur.HasRedo() {
+					t.Fatalf("no redo for group %d", i)
+				}
+				if got := ur.Redo(); got != g.redo {
+					t.Errorf("group %d: redo cursor = %v, want %v", i, got, g.redo)
+				}
+			}
+			if ur.HasRedo() {
+				t.Error("unexpected redo after applying all the groups")
+			}
+		})
+	}
+}
