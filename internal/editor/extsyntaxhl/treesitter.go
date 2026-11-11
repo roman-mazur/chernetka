@@ -22,6 +22,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/python"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/rust"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/toml"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsquery"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsx"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/typescript"
@@ -164,6 +165,16 @@ var pythonQuery string
 var pythonGrammar = &tsGrammar{
 	load:   python.Language,
 	query:  pythonQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/toml.scm
+var tomlQuery string
+
+// tomlGrammar highlights TOML using the tree-sitter grammar copied from upstream.
+var tomlGrammar = &tsGrammar{
+	load:   toml.Language,
+	query:  tomlQuery,
 	tokens: defaultCaptureTokens,
 }
 

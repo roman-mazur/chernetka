@@ -607,6 +607,32 @@ func TestPythonHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestTOMLHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"# The package.", []string{"0:14:Comment"}},
+		// The name of a table reads as a type, a key as a property.
+		{"[package]", []string{"1:8:TypeRef"}},
+		{"name = \"che\"", []string{"0:4:Field", "7:12:StringLiteral"}},
+		{"version = \"0.1.0\"", []string{"0:7:Field", "10:17:StringLiteral"}},
+		{"edition = 2021", []string{"0:7:Field", "10:14:NumberLiteral"}},
+		// A literal string, in single quotes, has no escapes.
+		{"\"quoted key\" = 'literal\\n'", []string{"0:12:Field", "15:26:StringLiteral"}},
+		{"escaped = \"tab\\there\"", []string{"0:7:Field", "10:14:StringLiteral", "14:16:Escape", "16:21:StringLiteral"}},
+		{"", nil},
+		{"[dependencies.serde]", []string{"1:13:TypeRef", "14:19:TypeRef"}},
+		{"features = [\"derive\"]", []string{"0:8:Field", "12:20:StringLiteral"}},
+		{"optional = true", []string{"0:8:Field", "11:15:Constant"}},
+		{"inline = { path = \"../x\", ratio = 1.5e3 }", []string{"0:6:Field", "11:15:Field", "18:24:StringLiteral", "26:31:Field", "34:39:NumberLiteral"}},
+		{"", nil},
+		{"[[bin]]", []string{"2:5:TypeRef"}},
+		// The dates and the times read as constants.
+		{"built = 1979-05-27T07:32:00Z", []string{"0:5:Field", "8:28:Constant"}},
+	}
+
+	buf, ext := openDoc(t, "Cargo.toml", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -693,7 +719,7 @@ func TestLanguageForPath(t *testing.T) {
 		"package.json":    "json",
 		"settings.jsonc":  "jsonc",
 		"a/flake.lock":    "json",
-		"Cargo.lock":      "",
+		"Cargo.lock":      "toml",
 		"ci.yaml":         "yaml",
 		"ci.yml":          "yaml",
 		"run.sh":          "shell",
@@ -718,6 +744,7 @@ func TestLanguageForPath(t *testing.T) {
 		"src/main.rs":     "rust",
 		"init.lisp":       "commonlisp",
 		"main.py":         "python",
+		"Cargo.toml":      "toml",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",

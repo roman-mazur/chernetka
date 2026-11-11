@@ -45,6 +45,8 @@ func TestSyntaxForPath(t *testing.T) {
 		"main.py":                                "python",
 		"typing/stubs.PYI":                       "python",
 		"gui.pyw":                                "python",
+		"pyproject.toml":                         "toml",
+		"Cargo.lock":                             "toml",
 		"init.lisp":                              "commonlisp",
 		"tools.LSP":                              "commonlisp",
 		"app.asd":                                "commonlisp",

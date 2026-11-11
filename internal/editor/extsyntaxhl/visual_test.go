@@ -38,6 +38,7 @@ func TestVisual(t *testing.T) {
 		{"visual.js", visualJavaScript},
 		{"visual.rs", visualRust},
 		{"visual.py", visualPython},
+		{"visual.toml", visualTOML},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -779,6 +780,23 @@ if __name__ == "__main__":
     except (OSError, IndexError) as e:
         print(e, file=sys.stderr)
         raise SystemExit(1) from None
+`
+
+const visualTOML = `# The package.
+[package]
+name = "che"
+version = "0.1.0"
+edition = 2021
+"quoted key" = 'literal\n'
+escaped = "tab\there"
+
+[dependencies.serde]
+features = ["derive"]
+optional = true
+inline = { path = "../x", ratio = 1.5e3 }
+
+[[bin]]
+built = 1979-05-27T07:32:00Z
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.
