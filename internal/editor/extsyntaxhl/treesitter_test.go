@@ -688,6 +688,28 @@ func TestHTMLHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestCSSHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"@import url(\"base.css\");", []string{"0:7:Keyword", "8:11:Call", "12:22:StringLiteral"}},
+		{"/* Layout. */", []string{"0:13:Comment"}},
+		// A custom property reads as a variable.
+		{":root { --gap: 4px; }", []string{"0:5:Annotation", "8:13:Identifier", "15:18:NumberLiteral"}},
+		// The tags read as keywords, the classes as types, the ids as constants, and the pseudo-classes as annotations.
+		{"body > .card:hover, #main::before, a[href^=\"http\"] {", []string{"0:4:Keyword", "7:12:TypeRef", "12:18:Annotation", "20:25:Constant", "25:33:Annotation", "35:36:Keyword", "37:41:Field", "43:49:StringLiteral"}},
+		{"  color: #ff0000 !important;", []string{"2:7:Field", "9:16:Constant", "17:27:Keyword"}},
+		{"  margin: calc(var(--gap) * 2) 1.5em;", []string{"2:8:Field", "10:14:Call", "15:18:Call", "19:24:Identifier", "28:29:NumberLiteral", "31:36:NumberLiteral"}},
+		{"  font-family: \"Fira Code\", monospace;", []string{"2:13:Field", "15:26:StringLiteral"}},
+		{"}", nil},
+		{"@media (max-width: 600px) and (orientation: landscape) {", []string{"0:6:Keyword", "8:17:Field", "19:24:NumberLiteral", "26:29:Keyword", "31:42:Field"}},
+		{"  .card { display: none; }", []string{"2:7:TypeRef", "10:17:Field"}},
+		{"}", nil},
+		{"@keyframes spin { from { opacity: 0; } to { opacity: 1; } }", []string{"0:10:Keyword", "11:15:TypeRef", "18:22:Keyword", "25:32:Field", "34:35:NumberLiteral", "39:41:Keyword", "44:51:Field", "53:54:NumberLiteral"}},
+	}
+
+	buf, ext := openDoc(t, "style.css", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -802,6 +824,7 @@ func TestLanguageForPath(t *testing.T) {
 		"Cargo.toml":      "toml",
 		"main.tf":         "hcl",
 		"index.html":      "html",
+		"style.css":       "css",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",

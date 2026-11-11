@@ -14,6 +14,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/commonlisp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cpp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/css"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/hcl"
@@ -197,6 +198,16 @@ var htmlQuery string
 var htmlGrammar = &tsGrammar{
 	load:   html.Language,
 	query:  htmlQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/css.scm
+var cssQuery string
+
+// cssGrammar highlights CSS using the tree-sitter grammar copied from upstream.
+var cssGrammar = &tsGrammar{
+	load:   css.Language,
+	query:  cssQuery,
 	tokens: defaultCaptureTokens,
 }
 

@@ -41,6 +41,7 @@ func TestVisual(t *testing.T) {
 		{"visual.toml", visualTOML},
 		{"visual.tf", visualHCL},
 		{"visual.html", visualHTML},
+		{"visual.css", visualCSS},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -836,6 +837,20 @@ const visualHTML = `<!DOCTYPE html>
   <script>let x = 1;</script>
 </body>
 </html>
+`
+
+const visualCSS = `@import url("base.css");
+/* Layout. */
+:root { --gap: 4px; }
+body > .card:hover, #main::before, a[href^="http"] {
+  color: #ff0000 !important;
+  margin: calc(var(--gap) * 2) 1.5em;
+  font-family: "Fira Code", monospace;
+}
+@media (max-width: 600px) and (orientation: landscape) {
+  .card { display: none; }
+}
+@keyframes spin { from { opacity: 0; } to { opacity: 1; } }
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.

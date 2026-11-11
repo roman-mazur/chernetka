@@ -69,6 +69,7 @@ var languages = map[*code.Syntax]*language{
 	code.TOML:            {newHighlighter: newTreeSitter(tomlGrammar)},
 	code.HCL:             {newHighlighter: newTreeSitter(hclGrammar)},
 	code.HTML:            {newHighlighter: newTreeSitter(htmlGrammar)},
+	code.CSS:             {newHighlighter: newTreeSitter(cssGrammar)},
 	code.CommonLisp:      {newHighlighter: newTreeSitter(commonLispGrammar)},
 	code.TreeSitterQuery: {newHighlighter: newTreeSitter(treeSitterQueryGrammar)},
 	code.Markdown:        {newHighlighter: newMarkdown},
