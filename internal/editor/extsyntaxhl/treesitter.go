@@ -16,6 +16,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/hcl"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/java"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
@@ -175,6 +176,16 @@ var tomlQuery string
 var tomlGrammar = &tsGrammar{
 	load:   toml.Language,
 	query:  tomlQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/hcl.scm
+var hclQuery string
+
+// hclGrammar highlights HCL, and the Terraform files written in it, using the tree-sitter grammar copied from upstream.
+var hclGrammar = &tsGrammar{
+	load:   hcl.Language,
+	query:  hclQuery,
 	tokens: defaultCaptureTokens,
 }
 

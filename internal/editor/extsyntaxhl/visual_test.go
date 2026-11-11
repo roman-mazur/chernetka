@@ -39,6 +39,7 @@ func TestVisual(t *testing.T) {
 		{"visual.rs", visualRust},
 		{"visual.py", visualPython},
 		{"visual.toml", visualTOML},
+		{"visual.tf", visualHCL},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -797,6 +798,32 @@ inline = { path = "../x", ratio = 1.5e3 }
 
 [[bin]]
 built = 1979-05-27T07:32:00Z
+`
+
+const visualHCL = `# A server.
+terraform {
+  required_version = ">= 1.5"
+}
+
+variable "region" {
+  type    = string
+  default = null
+}
+
+resource "aws_instance" "web" {
+  ami           = data.aws_ami.ubuntu.id
+  count         = var.enabled ? 2 : 0
+  tags = {
+    Name = "web-${count.index}"
+    Env  = upper(local.env)
+  }
+  user_data = <<-EOT
+    %{ if var.debug ~}
+    echo ${var.region}
+    %{ endif ~}
+  EOT
+  ports = [for p in var.ports : p * 2 if p > 0]
+}
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.

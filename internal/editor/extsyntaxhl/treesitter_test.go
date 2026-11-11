@@ -633,6 +633,42 @@ func TestTOMLHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestHCLHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"# A server.", []string{"0:11:Comment"}},
+		// The type of a block reads as a keyword.
+		{"terraform {", []string{"0:9:Keyword"}},
+		{"  required_version = \">= 1.5\"", []string{"2:18:Field", "21:29:StringLiteral"}},
+		{"}", nil},
+		{"", nil},
+		{"variable \"region\" {", []string{"0:8:Keyword", "9:17:StringLiteral"}},
+		{"  type    = string", []string{"2:6:Field", "12:18:Identifier"}},
+		{"  default = null", []string{"2:9:Field", "12:16:Constant"}},
+		{"}", nil},
+		{"", nil},
+		{"resource \"aws_instance\" \"web\" {", []string{"0:8:Keyword", "9:23:StringLiteral", "24:29:StringLiteral"}},
+		// The roots of the Terraform references read as namespaces.
+		{"  ami           = data.aws_ami.ubuntu.id", []string{"2:5:Field", "18:22:ImportRef", "23:30:Field", "31:37:Field", "38:40:Field"}},
+		{"  count         = var.enabled ? 2 : 0", []string{"2:7:Field", "18:21:ImportRef", "22:29:Field", "32:33:NumberLiteral", "36:37:NumberLiteral"}},
+		{"  tags = {", []string{"2:6:Field"}},
+		// An interpolation in a template is code, its delimiters escapes.
+		{"    Name = \"web-${count.index}\"", []string{"4:8:Field", "11:16:StringLiteral", "16:18:Escape", "18:23:ImportRef", "23:24:Identifier", "24:29:Field", "29:30:Escape", "30:31:StringLiteral"}},
+		{"    Env  = upper(local.env)", []string{"4:7:Field", "11:16:Call", "17:22:ImportRef", "23:26:Field"}},
+		{"  }", nil},
+		{"  user_data = <<-EOT", []string{"2:11:Field", "14:20:StringLiteral"}},
+		// So are the directives of a heredoc template.
+		{"    %{ if var.debug ~}", []string{"0:4:StringLiteral", "4:6:Escape", "6:7:Identifier", "7:9:Keyword", "9:10:Identifier", "10:13:ImportRef", "13:14:Identifier", "14:19:Field", "19:20:Identifier", "20:22:Escape"}},
+		{"    echo ${var.region}", []string{"0:9:StringLiteral", "9:11:Escape", "11:14:ImportRef", "14:15:Identifier", "15:21:Field", "21:22:Escape"}},
+		{"    %{ endif ~}", []string{"0:4:StringLiteral", "4:6:Escape", "6:7:Identifier", "7:12:Keyword", "12:13:Identifier", "13:15:Escape"}},
+		{"  EOT", []string{"0:5:StringLiteral"}},
+		{"  ports = [for p in var.ports : p * 2 if p > 0]", []string{"2:7:Field", "11:14:Keyword", "15:16:Identifier", "17:19:Keyword", "20:23:ImportRef", "24:29:Field", "32:33:Identifier", "36:37:NumberLiteral", "38:40:Keyword", "41:42:Identifier", "45:46:NumberLiteral"}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "main.tf", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -745,6 +781,7 @@ func TestLanguageForPath(t *testing.T) {
 		"init.lisp":       "commonlisp",
 		"main.py":         "python",
 		"Cargo.toml":      "toml",
+		"main.tf":         "hcl",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",
