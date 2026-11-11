@@ -37,6 +37,7 @@ func TestVisual(t *testing.T) {
 		{"visual.tsx", visualTSX},
 		{"visual.js", visualJavaScript},
 		{"visual.rs", visualRust},
+		{"visual.py", visualPython},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -711,6 +712,73 @@ const visualTreeSitterQuery = `; A highlight query, to be looked at.
   "break"
   "continue"
 ] @keyword
+`
+
+const visualPython = `#!/usr/bin/env python3
+"""A word counter, to be looked at."""
+from __future__ import annotations
+
+import os.path as osp
+import sys
+from collections import Counter
+from dataclasses import dataclass, field
+from typing import Iterator, TypeVar
+
+T = TypeVar("T")
+TOP_WORDS: int = 10
+SEPARATORS = frozenset(" \t\n")
+
+
+@dataclass(frozen=True)
+class Report:
+    """Counts of the words of a file."""
+
+    path: str
+    words: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def total(self) -> int:
+        return sum(self.words.values())
+
+    def render(self, top: int | None = None) -> str:
+        lines = [f"{self.path!r}: {self.total:,} words"]
+        for word, n in sorted(self.words.items(), key=lambda kv: -kv[1])[:top]:
+            lines.append(f"  {word:<20} {n:>{width}}  {{literal}}")
+        return "\n".join(lines)
+
+
+def split(line: str) -> Iterator[str]:
+    word = []
+    for ch in line:
+        if ch not in SEPARATORS:
+            word.append(ch)
+        elif word:
+            yield "".join(word)
+            word.clear()
+    if word:
+        yield "".join(word)
+
+
+async def count_words(path: os.PathLike, *, top=TOP_WORDS, **kw) -> Report:
+    counter: Counter[str] = Counter()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            counter.update(w.lower() for w in split(line) if w is not None)
+    match top:
+        case 0 | None:
+            pass
+        case int(n) if n > 0:
+            counter = Counter(dict(counter.most_common(n)))
+    type Words = dict[str, int]
+    return Report(osp.basename(path), dict(counter))
+
+
+if __name__ == "__main__":
+    try:
+        print(asyncio.run(count_words(sys.argv[1])).render(), end="")
+    except (OSError, IndexError) as e:
+        print(e, file=sys.stderr)
+        raise SystemExit(1) from None
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.

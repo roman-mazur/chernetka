@@ -571,6 +571,42 @@ func TestCommonLispHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestPythonHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"#!/usr/bin/env python3", []string{"0:22:Directive"}},
+		{"\"\"\"Counts the words.\"\"\"", []string{"0:23:StringLiteral"}},
+		// A module and its alias are modules, the names imported from it may be anything.
+		{"import os.path as osp", []string{"0:6:Keyword", "7:9:ImportRef", "10:14:ImportRef", "15:17:Keyword", "18:21:ImportRef"}},
+		{"from .util import split", []string{"0:4:Keyword", "6:10:ImportRef", "11:17:Keyword", "18:23:Identifier"}},
+		{"", nil},
+		{"MAX_WORDS: int = 10", []string{"0:9:Constant", "11:14:TypeRef", "17:19:NumberLiteral"}},
+		{"", nil},
+		// A decorator reads as an annotation, but its arguments do not.
+		{"@dataclass(frozen=True)", []string{"0:10:Annotation", "11:17:Identifier", "18:22:Constant"}},
+		{"class Report(Base):", []string{"0:5:Keyword", "6:12:TypeRef", "13:17:TypeRef"}},
+		{"    words: dict[str, int] | None = None", []string{"4:9:Identifier", "11:15:TypeRef", "16:19:TypeRef", "21:24:TypeRef", "28:32:Constant", "35:39:Constant"}},
+		{"", nil},
+		{"    @functools.cache", []string{"4:14:Annotation", "15:20:Annotation"}},
+		{"    def total(self) -> int:", []string{"4:7:Keyword", "8:13:FuncDeclaration", "14:18:Identifier", "23:26:TypeRef"}},
+		{"        return sum(self.words.values())", []string{"8:14:Keyword", "15:18:Call", "19:23:Identifier", "24:29:Field", "30:36:Call"}},
+		{"", nil},
+		{"async def count(path, *args: str, limit=MAX_WORDS):", []string{"0:5:Keyword", "6:9:Keyword", "10:15:FuncDeclaration", "16:20:Identifier", "23:27:Identifier", "29:32:TypeRef", "34:39:Identifier", "40:49:Constant"}},
+		// A capitalized call instantiates a class. The operators written as words are keywords.
+		{"    c = Counter(w for w in words if w is not None)", []string{"4:5:Identifier", "8:15:TypeRef", "16:17:Identifier", "18:21:Keyword", "22:23:Identifier", "24:26:Keyword", "27:32:Identifier", "33:35:Keyword", "36:37:Identifier", "38:44:Keyword", "45:49:Constant"}},
+		// An interpolated expression is code, its format specification a part of the string.
+		{"    print(f\"{path!r:>8} {{x}}\\t{len(c)}\")", []string{"4:9:Call", "10:12:StringLiteral", "12:13:Escape", "13:17:Identifier", "17:19:Escape", "19:22:StringLiteral", "22:23:Escape", "23:24:StringLiteral", "24:26:Escape", "26:27:StringLiteral", "27:32:Escape", "32:35:Call", "35:38:Identifier", "38:39:Escape", "39:40:StringLiteral"}},
+		// The soft keywords are keywords only where they act as ones.
+		{"    match c:", []string{"4:9:Keyword", "10:11:Identifier"}},
+		{"        case {\"a\": 1}:", []string{"8:12:Keyword", "14:17:StringLiteral", "19:20:NumberLiteral"}},
+		{"            pass", []string{"12:16:Keyword"}},
+		{"    type Alias = list[int]", []string{"4:8:Keyword", "9:14:TypeRef", "17:21:TypeRef", "22:25:TypeRef"}},
+		{"    type = lambda y: ...  # done", []string{"4:8:Identifier", "11:17:Keyword", "18:19:Identifier", "21:24:Constant", "26:32:Comment"}},
+	}
+
+	buf, ext := openDoc(t, "words.py", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -604,6 +640,10 @@ func TestDirectives(t *testing.T) {
 			{"#nullable enable", []string{"0:9:Directive"}},
 			{"#region Setup", []string{"0:7:Directive"}},
 			{"#endregion", []string{"0:10:Directive"}},
+		},
+		"run.py": {
+			{"#!/usr/bin/env python3", []string{"0:22:Directive"}},
+			{"# A comment, not a shebang.", []string{"0:27:Comment"}},
 		},
 		"build.kts": {
 			{"#!/usr/bin/env kotlin", []string{"0:21:Directive"}},
@@ -677,6 +717,7 @@ func TestLanguageForPath(t *testing.T) {
 		"App.jsx":         "javascript",
 		"src/main.rs":     "rust",
 		"init.lisp":       "commonlisp",
+		"main.py":         "python",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",
