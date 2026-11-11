@@ -17,6 +17,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/hcl"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/html"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/java"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
@@ -186,6 +187,16 @@ var hclQuery string
 var hclGrammar = &tsGrammar{
 	load:   hcl.Language,
 	query:  hclQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/html.scm
+var htmlQuery string
+
+// htmlGrammar highlights HTML using the tree-sitter grammar copied from upstream.
+var htmlGrammar = &tsGrammar{
+	load:   html.Language,
+	query:  htmlQuery,
 	tokens: defaultCaptureTokens,
 }
 

@@ -50,6 +50,8 @@ func TestSyntaxForPath(t *testing.T) {
 		"infra/main.tf":                          "hcl",
 		"prod.tfvars":                            "hcl",
 		"job.nomad.hcl":                          "hcl",
+		"docs/index.HTML":                        "html",
+		"page.htm":                               "html",
 		"init.lisp":                              "commonlisp",
 		"tools.LSP":                              "commonlisp",
 		"app.asd":                                "commonlisp",

@@ -147,6 +147,10 @@ var (
 		PathMatch:         suffixMatch(".hcl", ".tf", ".tfvars"),
 		LineCommentPrefix: "#",
 	}
+	HTML = &Syntax{
+		Name:      "html",
+		PathMatch: suffixMatch(".html", ".htm"),
+	}
 	CommonLisp = &Syntax{
 		Name:              "commonlisp",
 		PathMatch:         suffixMatch(".lisp", ".lsp", ".asd"),
@@ -175,7 +179,7 @@ var (
 	}
 
 	// syntaxes are all the supported syntaxes, in the order they are matched.
-	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, Java, Kotlin, TypeScript, TSX, JavaScript, Rust, Python, TOML, HCL, CommonLisp, TreeSitterQuery, GitCommitMsg, GitRebaseTodo}
+	syntaxes = []*Syntax{Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp, Java, Kotlin, TypeScript, TSX, JavaScript, Rust, Python, TOML, HCL, HTML, CommonLisp, TreeSitterQuery, GitCommitMsg, GitRebaseTodo}
 
 	// shellFileNames are the shell scripts recognized by their name alone. The zsh
 	// ones are parsed as bash, which covers most of what goes into them.

@@ -40,6 +40,7 @@ func TestVisual(t *testing.T) {
 		{"visual.py", visualPython},
 		{"visual.toml", visualTOML},
 		{"visual.tf", visualHCL},
+		{"visual.html", visualHTML},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -824,6 +825,17 @@ resource "aws_instance" "web" {
   EOT
   ports = [for p in var.ports : p * 2 if p > 0]
 }
+`
+
+const visualHTML = `<!DOCTYPE html>
+<html lang="en">
+<!-- The page. -->
+<head><meta charset=utf-8><title>Tom &amp; Jerry</title></head>
+<body class='main'>
+  <p id="x" hidden>Hello<br/></p>
+  <script>let x = 1;</script>
+</body>
+</html>
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.

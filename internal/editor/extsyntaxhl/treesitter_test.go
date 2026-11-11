@@ -669,6 +669,25 @@ func TestHCLHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestHTMLHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"<!DOCTYPE html>", []string{"0:15:Directive"}},
+		{"<html lang=\"en\">", []string{"1:5:Keyword", "6:10:Field", "11:15:StringLiteral"}},
+		{"<!-- The page. -->", []string{"0:18:Comment"}},
+		// A character reference reads as an escape.
+		{"<head><meta charset=utf-8><title>Tom &amp; Jerry</title></head>", []string{"1:5:Keyword", "7:11:Keyword", "12:19:Field", "20:25:StringLiteral", "27:32:Keyword", "37:42:Escape", "50:55:Keyword", "58:62:Keyword"}},
+		{"<body class='main'>", []string{"1:5:Keyword", "6:11:Field", "12:18:StringLiteral"}},
+		{"  <p id=\"x\" hidden>Hello<br/></p>", []string{"3:4:Keyword", "5:7:Field", "8:11:StringLiteral", "12:18:Field", "25:27:Keyword", "31:32:Keyword"}},
+		// The embedded scripts are left plain.
+		{"  <script>let x = 1;</script>", []string{"3:9:Keyword", "22:28:Keyword"}},
+		{"</body>", []string{"2:6:Keyword"}},
+		{"</html>", []string{"2:6:Keyword"}},
+	}
+
+	buf, ext := openDoc(t, "index.html", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -782,6 +801,7 @@ func TestLanguageForPath(t *testing.T) {
 		"main.py":         "python",
 		"Cargo.toml":      "toml",
 		"main.tf":         "hcl",
+		"index.html":      "html",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",
