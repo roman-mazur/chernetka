@@ -710,6 +710,37 @@ func TestCSSHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestMakefileHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"# Build.", []string{"0:8:Comment"}},
+		{"GO ?= go", []string{"0:2:Field"}},
+		{"BIN := che", []string{"0:3:Field"}},
+		// A function call is code, its delimiters escapes.
+		{"SRCS = $(wildcard *.go) $(shell ls cmd)", []string{"0:4:Field", "7:9:Escape", "9:17:Call", "17:22:Identifier", "22:23:Escape", "24:26:Escape", "26:31:Call", "31:38:Identifier", "38:39:Escape"}},
+		{"", nil},
+		// A special target is an instruction to make, the others declarations.
+		{".PHONY: all clean", []string{"0:6:Keyword"}},
+		{"", nil},
+		{"all: $(BIN)", []string{"0:3:FuncDeclaration", "5:7:Escape", "7:10:Field", "10:11:Escape"}},
+		{"", nil},
+		{"$(BIN): $(SRCS)", []string{"0:2:Escape", "2:5:Field", "5:6:Escape", "8:10:Escape", "10:14:Field", "14:15:Escape"}},
+		// The prefixes of a recipe line read as keywords, the automatic variables as builtin constants.
+		{"\t@echo building $@ from $<", []string{"1:2:Keyword", "16:18:Constant", "24:26:Constant"}},
+		{"\t-$(GO) build -o ${BIN} ./cmd/che", []string{"1:2:Keyword", "2:4:Escape", "4:6:Field", "6:7:Escape", "17:19:Escape", "19:22:Field", "22:23:Escape"}},
+		{"", nil},
+		{"ifeq ($(OS),\"Windows_NT\")", []string{"0:4:Keyword", "6:8:Escape", "8:10:Field", "10:11:Escape", "12:24:StringLiteral"}},
+		{"include win.mk", []string{"0:7:Keyword"}},
+		{"endif", []string{"0:5:Keyword"}},
+		{"", nil},
+		{"define HELP", []string{"0:6:Keyword", "7:11:Field"}},
+		{"usage", nil},
+		{"endef", []string{"0:5:Keyword"}},
+	}
+
+	buf, ext := openDoc(t, "Makefile", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 // TestDirectives covers the instructions to the toolchain, which read apart
 // from both the comments and the keywords, and the look-alikes that do not.
 func TestDirectives(t *testing.T) {
@@ -825,12 +856,12 @@ func TestLanguageForPath(t *testing.T) {
 		"main.tf":         "hcl",
 		"index.html":      "html",
 		"style.css":       "css",
+		"Makefile":        "makefile",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",
 		"notes.markdown":  "markdown",
 		"":                "",
-		"Makefile":        "",
 		"query.sql":       "",
 		"go":              "",
 		"archive.go.bak":  "",

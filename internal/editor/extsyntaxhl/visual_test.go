@@ -42,6 +42,7 @@ func TestVisual(t *testing.T) {
 		{"visual.tf", visualHCL},
 		{"visual.html", visualHTML},
 		{"visual.css", visualCSS},
+		{"visual.mk", visualMakefile},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -851,6 +852,28 @@ body > .card:hover, #main::before, a[href^="http"] {
   .card { display: none; }
 }
 @keyframes spin { from { opacity: 0; } to { opacity: 1; } }
+`
+
+const visualMakefile = `# Build.
+GO ?= go
+BIN := che
+SRCS = $(wildcard *.go) $(shell ls cmd)
+
+.PHONY: all clean
+
+all: $(BIN)
+
+$(BIN): $(SRCS)
+	@echo building $@ from $<
+	-$(GO) build -o ${BIN} ./cmd/che
+
+ifeq ($(OS),"Windows_NT")
+include win.mk
+endif
+
+define HELP
+usage
+endef
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.

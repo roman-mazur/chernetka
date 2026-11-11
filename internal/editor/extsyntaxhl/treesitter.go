@@ -22,6 +22,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/java"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/makefile"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/python"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/rust"
@@ -208,6 +209,16 @@ var cssQuery string
 var cssGrammar = &tsGrammar{
 	load:   css.Language,
 	query:  cssQuery,
+	tokens: defaultCaptureTokens,
+}
+
+//go:embed queries/makefile.scm
+var makefileQuery string
+
+// makefileGrammar highlights makefiles using the tree-sitter grammar copied from upstream.
+var makefileGrammar = &tsGrammar{
+	load:   makefile.Language,
+	query:  makefileQuery,
 	tokens: defaultCaptureTokens,
 }
 
