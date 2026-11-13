@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/editor"
 )
@@ -89,25 +90,38 @@ func TestCodeBlocks_OtherLanguages(t *testing.T) {
 	}
 }
 
-// TestCodeBlocks_ParsedOnce checks that the blocks follow the buffer even before the extension is notified
-// about an edit, while the document is still parsed once per revision.
+// TestCodeBlocks_ParsedOnce checks that another extension reading the blocks in its AfterEdit
+// gets the blocks of the edited buffer, as the syntax highlighter is notified first, while the
+// document is still parsed once per revision.
 func TestCodeBlocks_ParsedOnce(t *testing.T) {
-	buf, ext := openDoc(t, "notes.md", "```d2\na\n```")
-	blocks := codeBlocksOf(t, buf, ext)
+	reader := new(blocksReader)
+	h, buf, ext := openHarness(t, "notes.md", "```d2\na\n```", reader)
 	doc := buf.ExtensionData(ext.ID()).(*document)
+	doc.SyntaxSpans(0, "```d2") // Like the first render does.
 
 	buf.Mutate().Insert(0, content.TextLine("# Title"))
-	// Another extension asks for the blocks before AfterEdit reaches this one.
-	if got, want := formatBlocks(blocks.CodeBlocks()), []string{`"d2" 1:0-3:3`}; fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("CodeBlocks() after edit = %v, want %v", got, want)
+	h.NotifyExtensions(buf)
+	if got, want := reader.blocks, [][]string{{`"d2" 1:0-3:3`}}; fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the blocks read in AfterEdit = %v, want %v", got, want)
 	}
-	parsed := doc.src
-
-	ext.AfterEdit(nil, buf, nil)
-	if doc.src != parsed {
-		t.Error("the same revision is parsed again on AfterEdit")
-	}
+	parses := doc.parses
 	if spans := doc.SyntaxSpans(0, "# Title"); len(spans) == 0 {
 		t.Error("the edited line is not highlighted")
+	}
+	if doc.parses != parses {
+		t.Error("the same revision is parsed again on render")
+	}
+}
+
+// blocksReader is an extension reading the code blocks in AfterEdit, like extmd and extd2 do.
+type blocksReader struct{ blocks [][]string }
+
+func (r *blocksReader) ID() string { return "blocks reader" }
+func (r *blocksReader) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData {
+	return nil
+}
+func (r *blocksReader) AfterEdit(_ editor.Sender, buf *editor.Buffer, _ []change.Item) {
+	if provider, ok := editor.FindExtData[code.Blocks](buf); ok {
+		r.blocks = append(r.blocks, formatBlocks(provider.CodeBlocks()))
 	}
 }
