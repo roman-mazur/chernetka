@@ -69,12 +69,12 @@ func TestGoHighlightAfterEdit(t *testing.T) {
 		{"func main() {}", []string{"0:4:Keyword", "5:9:FuncDeclaration"}},
 	}
 
-	buf, ext := openDoc(t, "main.go", doc.text())
+	h, buf, ext := openHarness(t, "main.go", doc.text())
 	hl := highlighterOf(t, buf, ext)
 	doc.check(t, hl)
 
 	// Inserting a line shifts everything below it down by one.
-	insertLine(t, buf, ext, 1)
+	insertLine(t, h, buf, 1)
 	shifted := hlDoc{doc[0], {"", nil}, doc[1], doc[2]}
 	shifted.check(t, hl)
 }
@@ -905,7 +905,7 @@ func TestGoRealSources(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			buf, ext := openDoc(t, entry.Name(), string(src))
+			h, buf, ext := openHarness(t, entry.Name(), string(src))
 			hl := highlighterOf(t, buf, ext)
 
 			check := func(stage string) {
@@ -930,7 +930,7 @@ func TestGoRealSources(t *testing.T) {
 			check("initial")
 
 			before := buf.Content.Len()
-			insertLine(t, buf, ext, before/2)
+			insertLine(t, h, buf, before/2)
 			if buf.Content.Len() != before+1 {
 				t.Fatalf("content length %d after insert, want %d", buf.Content.Len(), before+1)
 			}

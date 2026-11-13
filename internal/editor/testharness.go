@@ -196,6 +196,14 @@ func (h *TestHarness) ScreenPosition(p content.Position) (x, y int, visible bool
 	return col + 1, b.y + row + 1, true
 }
 
+// NotifyExtensions calls AfterEdit of the registered extensions with the changes made to the buffer
+// since the previous notification, like the editor loop does after an input. It lets a test edit the
+// buffer with Mutate, and pass the edits to the extensions without running the loop.
+// Nothing is called if the buffer was not mutated.
+func (h *TestHarness) NotifyExtensions(buf *Buffer) {
+	h.handleAfterEdit(buf)
+}
+
 // RenderFrame renders the whole editor UI into out the way the run loop does on
 // every change. It lets benchmarks measure a frame without the loop.
 func (h *TestHarness) RenderFrame(out *bufio.Writer) {

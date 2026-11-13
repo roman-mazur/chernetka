@@ -1,6 +1,9 @@
 package editor_test
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -273,3 +276,151 @@ func TestFindExtData_Order(t *testing.T) {
 		}
 	}
 }
+
+// TestAfterEditChanges checks the number of changes passed to the extensions for the kinds of edits
+// made through the editor loop: every change of a line, or of the lines inserted or deleted at once,
+// undo and redo included. The changes of an edit splitting or joining lines are an update of a line
+// and an insertion or a deletion of the others.
+func TestAfterEditChanges(t *testing.T) {
+	for _, tc := range []struct {
+		name, text string
+		inputs     []string
+		changes    int
+	}{
+		{name: "typing", text: "one", inputs: []string{"A two\rthree\x1b"}, changes: 4 + 2 + 5},
+		{name: "joining lines", text: "one\ntwo", inputs: []string{"ji\x7f\x7f\x1b"}, changes: 2 + 1},
+		{name: "deleting the selected lines", text: "one\ntwo\nthree\nfour", inputs: []string{"l\x1b[1;2B\x1b[1;2Bx", "G\x1b[1;2Ax"}, changes: 2 + 2},
+		{name: "deleting the text", text: "one\ntwo", inputs: []string{"\x1b[1;2B\x1b[1;2Fx"}, changes: 2},
+		{name: "paste", text: "one\n", inputs: []string{"A\x1b[200~ pasted\n\ttext\nmore\x1b[201~\x1b"}, changes: 2},
+		{name: "undo and redo", text: "one\ntwo", inputs: []string{"otext\x1b", "\x1a", "\x1b[122;6u", "\x1a\x1a"}, changes: 5 + 2 + 2 + 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := editor.NewTestHarness(t)
+			rec := new(changesRecorder)
+			h.Extend(rec)
+			if err := h.OpenReader("file.txt", strings.NewReader(tc.text)); err != nil {
+				t.Fatal(err)
+			}
+			h.Run(t)
+			for _, in := range tc.inputs {
+				h.SendInput(t, []byte(in))
+			}
+			calls := rec.take(t, h)
+			changes := 0
+			for _, c := range calls {
+				if c == nil {
+					t.Errorf("unknown changes passed for an edit")
+				}
+				changes += len(c)
+			}
+			if changes != tc.changes {
+				t.Errorf("%d changes passed in %d calls, want %d: %v", changes, len(calls), tc.changes, calls)
+			}
+		})
+	}
+}
+
+// TestAfterEditChanges_Reload checks the changes passed to the extensions when a file is reloaded,
+// changed outside the editor: they are nil, the content is new, and the next edits are known again.
+func TestAfterEditChanges_Reload(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "file.txt")
+	if err := os.WriteFile(path, []byte("one\ntwo"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := editor.NewTestHarness(t)
+	rec := new(changesRecorder)
+	h.Extend(rec)
+	h.Run(t)
+	h.Post(t, &editor.OpenFile{Path: path})
+
+	h.SendInput(t, []byte("Azero\x1b"))
+	if calls := rec.take(t, h); !allKnown(calls) {
+		t.Fatalf("got the changes %v of typing, want them known", calls)
+	}
+
+	if err := os.WriteFile(path, []byte("reloaded\ncontent"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var calls [][]change.Item
+	for range 200 {
+		if calls = rec.take(t, h); len(calls) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(calls) != 1 || calls[0] != nil {
+		t.Fatalf("got the changes %v of the reload, want nil", calls)
+	}
+
+	h.SendInput(t, []byte("Anew\x1b"))
+	if calls := rec.take(t, h); !allKnown(calls) {
+		t.Fatalf("got the changes %v of typing after the reload, want them known", calls)
+	}
+}
+
+// allKnown reports whether the extensions were notified, and got known changes every time.
+func allKnown(calls [][]change.Item) bool {
+	for _, changes := range calls {
+		if len(changes) == 0 {
+			return false
+		}
+	}
+	return len(calls) > 0
+}
+
+// changesRecorder is an extension recording the changes passed to AfterEdit.
+type changesRecorder struct {
+	calls [][]change.Item
+}
+
+func (r *changesRecorder) ID() string { return "changes recorder" }
+func (r *changesRecorder) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData {
+	return nil
+}
+func (r *changesRecorder) AfterEdit(_ editor.Sender, _ *editor.Buffer, changes []change.Item) {
+	r.calls = append(r.calls, changes)
+}
+
+// take returns the changes recorded since the previous call, reading them on the editor loop.
+func (r *changesRecorder) take(t *testing.T, h *editor.TestHarness) (calls [][]change.Item) {
+	h.Post(t, editor.CommandFunc(func(*editor.Editor) { calls, r.calls = r.calls, nil }))
+	return calls
+}
+
+// TestAfterEditOrder checks that the syntax highlighters are notified first, whatever order
+// they are registered in.
+func TestAfterEditOrder(t *testing.T) {
+	var order []string
+	h := editor.NewTestHarness(t)
+	h.Extend(orderExt{id: "plain", order: &order})
+	h.Extend(highlighterOrderExt{orderExt{id: "highlighter", order: &order}})
+	h.Extend(orderExt{id: "plain2", order: &order})
+	h.Extend(highlighterOrderExt{orderExt{id: "highlighter2", order: &order}})
+	if err := h.OpenReader("file.txt", strings.NewReader("text")); err != nil {
+		t.Fatal(err)
+	}
+	h.Run(t)
+	h.SendInput(t, []byte("ix\x1b"))
+	var got []string
+	h.Post(t, editor.CommandFunc(func(*editor.Editor) { got = slices.Clone(order) }))
+	if want := []string{"highlighter", "highlighter2", "plain", "plain2"}; !slices.Equal(got, want) {
+		t.Errorf("notified %v, want %v", got, want)
+	}
+}
+
+// orderExt records the order of the AfterEdit calls.
+type orderExt struct {
+	id    string
+	order *[]string
+}
+
+func (oe orderExt) ID() string                                                        { return oe.id }
+func (oe orderExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData { return nil }
+func (oe orderExt) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {
+	*oe.order = append(*oe.order, oe.id)
+}
+
+// highlighterOrderExt is an orderExt that is a syntax highlighter.
+type highlighterOrderExt struct{ orderExt }
+
+func (highlighterOrderExt) HighlightsSyntax() {}

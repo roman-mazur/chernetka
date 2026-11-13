@@ -50,6 +50,13 @@ func openDoc(t *testing.T, ext *Integration, path, text string) *editor.Buffer {
 	return edit.Top()
 }
 
+// notify tells the extensions about the edits in the order the editor does: the syntax highlighter
+// first. The changes are not passed: the extension doesn't use them.
+func notify(buf *editor.Buffer, ext *Integration) {
+	new(extsyntaxhl.Integration).AfterEdit(nil, buf, nil)
+	ext.AfterEdit(nil, buf, nil)
+}
+
 // actionLines returns the indexes of the lines the extension provides actions for.
 func actionLines(t *testing.T, buf *editor.Buffer, ext *Integration) []int {
 	t.Helper()
@@ -139,14 +146,14 @@ func TestMarkdown(t *testing.T) {
 	// Edits move the blocks.
 	buf.Mutate().Insert(0, content.TextLine("```d2"))
 	buf.Mutate().Insert(1, content.TextLine("```"))
-	ext.AfterEdit(nil, buf, nil)
+	notify(buf, ext)
 	if got, want := actionLines(t, buf, ext), []int{0, 3, 9}; !slices.Equal(got, want) {
 		t.Errorf("action lines after edit = %v, want %v", got, want)
 	}
 
 	// The block is gone. Its closing fence opens a block without a language now.
 	buf.Mutate().Update(3, content.TextLine("text"))
-	ext.AfterEdit(nil, buf, nil)
+	notify(buf, ext)
 	if got, want := actionLines(t, buf, ext), []int{0, 9}; !slices.Equal(got, want) {
 		t.Errorf("action lines after edit = %v, want %v", got, want)
 	}
@@ -218,23 +225,26 @@ func TestEngageWithEnter(t *testing.T) {
 }
 
 // TestMarkdown_ExtensionsOrder checks that the blocks are up to date even if the syntax highlighter
-// is registered after this extension and has not been notified about an edit yet.
+// is registered after this extension: the editor keeps the syntax highlighters first.
 func TestMarkdown_ExtensionsOrder(t *testing.T) {
 	ext, _ := newIntegration(t)
-	var edit editor.Editor
-	edit.Extend(ext)
-	edit.Extend(new(extsyntaxhl.Integration))
-	if err := edit.OpenReader("a.md", strings.NewReader("```d2\na -> b\n```")); err != nil {
+	h := editor.NewTestHarness(t)
+	h.Extend(ext)
+	h.Extend(new(extsyntaxhl.Integration))
+	if err := h.OpenReader("a.md", strings.NewReader("```d2\na -> b\n```")); err != nil {
 		t.Fatal(err)
 	}
-	buf := edit.Top()
-	if got, want := actionLines(t, buf, ext), []int{0}; !slices.Equal(got, want) {
-		t.Errorf("action lines = %v, want %v", got, want)
+	h.Run(t)
+	var got []int
+	lines := editor.CommandFunc(func(e *editor.Editor) { got = actionLines(t, e.Top(), ext) })
+	if h.Post(t, lines); !slices.Equal(got, []int{0}) {
+		t.Errorf("action lines = %v, want [0]", got)
 	}
 
-	buf.Mutate().Insert(0, content.TextLine("# Title"))
-	ext.AfterEdit(nil, buf, nil)
-	if got, want := actionLines(t, buf, ext), []int{1}; !slices.Equal(got, want) {
-		t.Errorf("action lines after edit = %v, want %v", got, want)
+	h.SendBufferCmd(editor.BufferCommandFunc(func(b *editor.Buffer, _ editor.RenderPrefs) {
+		b.Mutate().Insert(0, content.TextLine("# Title"))
+	}))
+	if h.Post(t, lines); !slices.Equal(got, []int{1}) {
+		t.Errorf("action lines after edit = %v, want [1]", got)
 	}
 }

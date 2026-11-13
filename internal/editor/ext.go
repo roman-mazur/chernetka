@@ -20,8 +20,11 @@ type Extension interface {
 	// AfterEdit runs on the editor loop after the buffer is changed. The changes
 	// list the edits of the content since MakeBufferData or the previous AfterEdit,
 	// in the order they were made: each one is relative to the content left by
-	// the previous one. Replacing the whole content, like reloading the file,
-	// is reported as deleting all the lines and inserting the new ones.
+	// the previous one. The changes are nil when they are not known, like after
+	// the whole content is replaced on a reload: the content is to be taken as new.
+	// The extensions are notified in the order they are kept in (see Editor.Extend):
+	// the syntax highlighters come first, so the others can use what they found,
+	// like the code blocks.
 	// The results of the work started in the background are to be sent back to the loop.
 	AfterEdit(loop Sender, buf *Buffer, changes []change.Item)
 }
@@ -34,6 +37,15 @@ type Sender interface {
 	// SendBufferCmd queues the command changing the active buffer, the extensions are
 	// notified about the changes.
 	SendBufferCmd(cmd BufferCommand)
+}
+
+// SyntaxHighlighterExtension can be optionally implemented by an Extension whose buffer data
+// implement SyntaxHighlighter. The editor keeps these extensions before the others, so they
+// are notified about the edits first (see Extension.AfterEdit).
+type SyntaxHighlighterExtension interface {
+	Extension
+	// HighlightsSyntax only marks the extension.
+	HighlightsSyntax()
 }
 
 // InsertKeyHandler can be optionally implemented by an Extension to handle the keys
