@@ -40,6 +40,18 @@ func TestScanCommitMessage(t *testing.T) {
 			},
 		},
 		{
+			// The value of a trailer follows the colon and the spaces after it, if any.
+			name: "trailer values",
+			src:  "pkg: change\n\nNo-space:x\nTabs:\t\tv",
+			want: []string{
+				`0 "pkg: change" Heading`,
+				`2 "No-space:" Field`,
+				`2 "x" StringLiteral`,
+				`3 "Tabs:" Field`,
+				`3 "v" StringLiteral`,
+			},
+		},
+		{
 			// The template git opens for a new commit.
 			name: "template",
 			src:  "\n# Please enter the commit message\n# On branch main",
@@ -79,18 +91,43 @@ func TestScanCommitMessage(t *testing.T) {
 }
 
 func TestScanRebaseTodo(t *testing.T) {
-	// The commands and their shortcuts are followed by their arguments, and maybe
-	// a comment. An unknown command is not highlighted.
-	got := scan(t, ScanRebaseTodo, "pick 1234 change # note\np abc fix\nx make test\nnope 12 x\n# Commands:")
+	// The commands and their shortcuts, maybe after spaces, are followed by the
+	// commits they take, maybe after a flag, which are followed by plain
+	// subjects, and maybe a comment. The commands taking no commit, or no
+	// arguments at all, are highlighted too, but not the unknown ones.
+	got := scan(t, ScanRebaseTodo, strings.Join([]string{
+		"pick 1234 change # note",
+		"p abc fix",
+		"  reword 5678 indented",
+		"fixup -C 9abc amend",
+		"merge -C def0 topic # Merge topic",
+		"m topic",
+		"x make test",
+		"update-ref refs/heads/topic",
+		"break",
+		"nope 12 x",
+		"  # Commands:",
+	}, "\n"))
 	want := []string{
 		`0 "pick" Keyword`,
-		`0 "1234 change" NumberLiteral`,
-		`0 " # note" Comment`,
+		`0 "1234" NumberLiteral`,
+		`0 "# note" Comment`,
 		`1 "p" Keyword`,
-		`1 "abc fix" NumberLiteral`,
-		`2 "x" Keyword`,
-		`2 "make test" NumberLiteral`,
-		`4 "# Commands:" Comment`,
+		`1 "abc" NumberLiteral`,
+		`2 "reword" Keyword`,
+		`2 "5678" NumberLiteral`,
+		`3 "fixup" Keyword`,
+		`3 "-C" Constant`,
+		`3 "9abc" NumberLiteral`,
+		`4 "merge" Keyword`,
+		`4 "-C" Constant`,
+		`4 "def0" NumberLiteral`,
+		`4 "# Merge topic" Comment`,
+		`5 "m" Keyword`,
+		`6 "x" Keyword`,
+		`7 "update-ref" Keyword`,
+		`8 "break" Keyword`,
+		`10 "# Commands:" Comment`,
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
