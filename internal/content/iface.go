@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"strings"
 )
 
 // Document defines the minimal set of methods needed to get the content visualized by the editor.
@@ -47,13 +48,21 @@ type UndoRedo interface {
 }
 
 // Print is useful to dump a part of the document for check what's inside.
+// Lines are terminated with \n.
 func Print(out io.Writer, data Document, i, j int) {
 	lines := data.Lines()
 	_ = lines[i:j] // boundary check
 	for x := i; x < j; x++ {
 		out.Write([]byte(lines[x].String()))
-		out.Write([]byte("\r\n"))
+		out.Write([]byte("\n"))
 	}
+}
+
+// Sprint converts a part of the document to a string joining line content with \n.
+func Sprint(data Document, i, j int) string {
+	var b strings.Builder
+	Print(&b, data, i, j)
+	return b.String()
 }
 
 // IsText returns true if the document holds text. It's false for a file system document, for example.

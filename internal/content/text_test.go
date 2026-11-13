@@ -119,9 +119,7 @@ func TestFullText_Mutate(t *testing.T) {
 	data.Delete(1, 2)
 	data.Insert(3, TextLine("e"))
 
-	var buf strings.Builder
-	Print(&buf, &data, 0, data.Len())
-	if res := buf.String(); res != "0\r\nd\r\nc\r\ne\r\n" {
+	if res := Sprint(&data, 0, data.Len()); res != "0\nd\nc\ne\n" {
 		t.Log(res)
 		t.Error("mutations failed")
 	}
