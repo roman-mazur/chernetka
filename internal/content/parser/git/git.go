@@ -3,11 +3,10 @@
 //
 // Both are line oriented, so they are scanned line by line with hand written
 // scanners. Like git, the scanners take the lines starting with '#' as
-// comments wherever they are.
+// comments wherever they are, after spaces too in a rebase todo list.
 package git
 
 import (
-	"regexp"
 	"strings"
 
 	"rmazur.io/chernetka/internal/content/code"
@@ -67,12 +66,12 @@ func ScanCommitMessage(lines []string, emit func(Span)) {
 
 			case afterEmptyLine || inTrailers:
 				afterEmptyLine = false
-				key, _, found := strings.Cut(line, ":")
+				key, value, found := strings.Cut(line, ":")
 				inTrailers = found && !strings.ContainsAny(key, " \t")
 				if inTrailers {
 					parts = append(parts,
 						Span{Line: i, End: len(key) + 1, Token: code.TtField},
-						Span{Line: i, Start: len(key) + 2, End: len(line), Token: code.TtStringLiteral},
+						Span{Line: i, Start: len(line) - len(strings.TrimLeft(value, " \t")), End: len(line), Token: code.TtStringLiteral},
 					)
 				}
 			}
@@ -90,51 +89,92 @@ func ScanCommitMessage(lines []string, emit func(Span)) {
 }
 
 // ScanRebaseTodo walks the lines of a rebase todo list reporting its commands,
-// like pick or its shortcut p, their arguments, and the comments to emit.
+// like pick or its shortcut p, the commits they take, and the comments to emit.
+// Like git, it ignores the spaces before a command or a comment. The subject
+// following a commit is left plain, and so are the other arguments, like the
+// label of reset or the shell command of exec.
 func ScanRebaseTodo(lines []string, emit func(Span)) {
 	for i, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			emit(Span{Line: i, End: len(line), Token: code.TtComment})
+		start := len(line) - len(strings.TrimLeft(line, " \t"))
+		if strings.HasPrefix(line[start:], "#") {
+			emit(Span{Line: i, Start: start, End: len(line), Token: code.TtComment})
 			continue
 		}
 
-		m := rebaseCommandRegexp.FindStringSubmatchIndex(line)
-		if m == nil || !isRebaseCommand(line[m[2]:m[3]]) {
+		end := wordEnd(line, start)
+		args, ok := rebaseCommands[line[start:end]]
+		if !ok {
 			continue
 		}
-		for group, token := range []code.TokenType{1: code.TtKeyword, 2: code.TtNumberLiteral, 3: code.TtComment} {
-			if group > 0 && m[group*2] < m[group*2+1] {
-				emit(Span{Line: i, Start: m[group*2], End: m[group*2+1], Token: token})
+		emit(Span{Line: i, Start: start, End: end, Token: code.TtKeyword})
+
+		// A comment may follow the arguments, like the subject of merge.
+		comment := len(line)
+		for j := end; j+1 < len(line); j++ {
+			if isSpace(line[j]) && line[j+1] == '#' {
+				comment = j + 1
+				break
 			}
 		}
-	}
-}
 
-// rebaseCommandRegexp matches a command line, like "pick 1234 change # note": the
-// command, its arguments, and the comment after them.
-var rebaseCommandRegexp = regexp.MustCompile(`^(\w+)\s(.+?)(\s?#.*)?$`)
-
-func isRebaseCommand(name string) bool {
-	for _, cmd := range rebaseCommands {
-		if name == cmd.shortcut || name == cmd.name {
-			return true
+		// The commit, maybe after the -C or -c flag, which merge requires and
+		// fixup takes with no value of its own.
+		if args != argsOther {
+			ws, we := nextWord(line, end, comment)
+			if line[ws:we] == "-C" || line[ws:we] == "-c" {
+				emit(Span{Line: i, Start: ws, End: we, Token: code.TtConstant})
+				ws, we = nextWord(line, we, comment)
+			} else if args == argsMerge {
+				ws = we // a label with no commit
+			}
+			if ws < we {
+				emit(Span{Line: i, Start: ws, End: we, Token: code.TtNumberLiteral})
+			}
+		}
+		if comment < len(line) {
+			emit(Span{Line: i, Start: comment, End: len(line), Token: code.TtComment})
 		}
 	}
-	return false
 }
 
+// nextWord returns the range of the word after the index in line[:end].
+func nextWord(line string, i, end int) (start, stop int) {
+	for i < end && isSpace(line[i]) {
+		i++
+	}
+	return i, min(wordEnd(line, i), end)
+}
+
+func wordEnd(line string, i int) int {
+	for i < len(line) && !isSpace(line[i]) {
+		i++
+	}
+	return i
+}
+
+func isSpace(c byte) bool { return c == ' ' || c == '\t' }
+
+// rebaseArgs is what a command of a rebase todo list takes.
+type rebaseArgs int
+
+const (
+	argsOther  rebaseArgs = iota // nothing, a label, a ref, or a shell command
+	argsCommit                   // a commit and its subject
+	argsMerge                    // maybe a commit after -C or -c, and a label
+)
+
 // rebaseCommands are the commands of a rebase todo list, with their shortcuts.
-var rebaseCommands = []struct{ shortcut, name string }{
-	{"p", "pick"},
-	{"r", "reword"},
-	{"e", "edit"},
-	{"s", "squash"},
-	{"f", "fixup"},
-	{"x", "exec"},
-	{"b", "break"},
-	{"d", "drop"},
-	{"l", "label"},
-	{"t", "reset"},
-	{"m", "merge"},
-	{"u", "update-ref"},
+var rebaseCommands = map[string]rebaseArgs{
+	"pick": argsCommit, "p": argsCommit,
+	"reword": argsCommit, "r": argsCommit,
+	"edit": argsCommit, "e": argsCommit,
+	"squash": argsCommit, "s": argsCommit,
+	"fixup": argsCommit, "f": argsCommit,
+	"drop": argsCommit, "d": argsCommit,
+	"merge": argsMerge, "m": argsMerge,
+	"exec": argsOther, "x": argsOther,
+	"break": argsOther, "b": argsOther,
+	"label": argsOther, "l": argsOther,
+	"reset": argsOther, "t": argsOther,
+	"update-ref": argsOther, "u": argsOther,
 }
