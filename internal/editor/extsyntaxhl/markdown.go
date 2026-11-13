@@ -10,7 +10,8 @@ import (
 // Besides the highlighted regions, the scanner finds the fenced code blocks,
 // which mdHighlighter exposes implementing code.Blocks.
 type mdHighlighter struct {
-	blocks []code.Block // found by the last spans call
+	scanner markdown.Scanner
+	blocks  []code.Block // found by the last spans call
 }
 
 func newMarkdown() highlighter { return new(mdHighlighter) }
@@ -22,10 +23,11 @@ func (*mdHighlighter) reparse(*source, []treesitter.InputEdit) error { return ni
 func (*mdHighlighter) Close() error { return nil }
 
 func (m *mdHighlighter) spans(src *source, emit func(rawSpan)) {
+	for t := range m.scanner.Tokens(src.lines) {
+		emit(tokenSpan(t))
+	}
 	// A new slice for every revision: the previous one may still be in use.
-	m.blocks = markdown.Scan(src.lines, func(s markdown.Span) {
-		emit(lineSpan(s.Line, s.Start, s.End, s.Token))
-	})
+	m.blocks = m.scanner.Blocks()
 }
 
 // CodeBlocks implements code.Blocks. It reports the blocks found by the last spans call.

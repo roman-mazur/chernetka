@@ -10,6 +10,7 @@
 package markdown
 
 import (
+	"iter"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -18,21 +19,28 @@ import (
 	"rmazur.io/chernetka/internal/content/code"
 )
 
-// Span is a range of a line, [Start, End) in bytes, recognized as the Token.
-type Span struct {
-	Line, Start, End int
-	Token            code.TokenType
+// Scanner scans Markdown documents. The zero value is ready to use.
+type Scanner struct {
+	blocks []code.Block // found by the last scan
 }
 
-// Scan walks the document lines reporting the recognized ranges to emit. The spans
-// of the nested constructs follow the ones they are nested in, and a span may be
-// reported for a line preceding the current one (e.g., the setext heading text).
-// It returns the fenced code blocks of the document.
-func Scan(lines []string, emit func(Span)) []code.Block {
-	s := mdScanner{lines: lines, emit: emit}
-	s.run()
-	return s.blocks
+// Tokens returns the ranges of the document lines recognized as tokens, each of
+// them on a single line. The tokens of the nested constructs follow the ones they
+// are nested in, and a token may be yielded for a line preceding the current one
+// (e.g., the setext heading text). Once the tokens are iterated over, Blocks
+// returns the fenced code blocks of the document.
+func (sc *Scanner) Tokens(lines []string) iter.Seq[code.Token] {
+	return func(yield func(code.Token) bool) {
+		s := mdScanner{lines: lines, yield: yield}
+		s.run()
+		sc.blocks = s.blocks
+	}
 }
+
+// Blocks returns the fenced code blocks found by the last iteration over the
+// tokens. An iteration stopped early finds only the blocks before the stop.
+// The result must not be modified: it's shared with its other callers.
+func (sc *Scanner) Blocks() []code.Block { return sc.blocks }
 
 // TaskCheckbox returns the index of the mark within the checkbox of a task list item
 // line, like "- [ ] task" or "1. [x] done", or -1 if the line is not one.
@@ -53,8 +61,9 @@ func TaskCheckbox(line string) int {
 // mdScanner walks a document line by line, carrying the little bit of state
 // that spills across line boundaries.
 type mdScanner struct {
-	lines []string
-	emit  func(Span)
+	lines   []string
+	yield   func(code.Token) bool
+	stopped bool // the consumer of the tokens wants no more of them
 
 	// Open code fence, tracked so its body is colorized as raw text.
 	inFence     bool
@@ -124,6 +133,9 @@ func (f failure) covers(ln, from, to int) bool {
 func (s *mdScanner) run() {
 	s.para.line = -1
 	for ln, line := range s.lines {
+		if s.stopped {
+			return
+		}
 		s.above, s.para = s.para, paragraph{line: -1}
 		s.quotes, s.quoteEnd = 0, 0
 		if s.inFence && s.scanFenceLine(ln, line) {
@@ -837,7 +849,14 @@ func (s *mdScanner) mark(ln, start, end int, token code.TokenType) {
 	if start >= end {
 		return
 	}
-	s.emit(Span{Line: ln, Start: start, End: end, Token: token})
+	if s.stopped {
+		return
+	}
+	s.stopped = !s.yield(code.Token{
+		Start:     content.Position{Line: ln, Col: start},
+		End:       content.Position{Line: ln, Col: end},
+		TokenType: token,
+	})
 }
 
 // line returns the line with the given number, or an empty one if it's outside the document.

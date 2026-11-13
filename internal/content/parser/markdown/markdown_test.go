@@ -47,14 +47,15 @@ func TestScan_TaskCheckboxConsistent(t *testing.T) {
 	// The scanner marks the checkbox of a task list item where TaskCheckbox finds it.
 	lines := []string{"- [ ] task", "> 2. [x] quoted", "- [ ](link)", "-\t[ ] tab"}
 	var boxes []int
-	Scan(lines, func(s Span) {
-		if s.Token == code.TtConstant {
-			boxes = append(boxes, s.Line)
-			if want := TaskCheckbox(lines[s.Line]); s.Start+1 != want {
-				t.Errorf("checkbox of %q at %d, TaskCheckbox = %d", lines[s.Line], s.Start+1, want)
+	var sc Scanner
+	for tok := range sc.Tokens(lines) {
+		if tok.TokenType == code.TtConstant {
+			boxes = append(boxes, tok.Start.Line)
+			if want := TaskCheckbox(lines[tok.Start.Line]); tok.Start.Col+1 != want {
+				t.Errorf("checkbox of %q at %d, TaskCheckbox = %d", lines[tok.Start.Line], tok.Start.Col+1, want)
 			}
 		}
-	})
+	}
 	if len(boxes) != 3 || boxes[0] != 0 || boxes[1] != 1 || boxes[2] != 3 {
 		t.Errorf("checkboxes on lines %v, want [0 1 3]", boxes)
 	}
@@ -68,11 +69,12 @@ func TestScan_LongDelimiterRun(t *testing.T) {
 	for _, c := range []string{"*", "~"} {
 		line := "a " + strings.Repeat(c, n) + " b" + c
 		start := time.Now()
-		Scan([]string{line}, func(s Span) {
-			if s.Token == code.TtEmphasis || s.Token == code.TtStrong || s.Token == code.TtComment {
-				t.Errorf("%s: emphasis at %d-%d", c, s.Start, s.End)
+		var sc Scanner
+		for tok := range sc.Tokens([]string{line}) {
+			if tok.TokenType == code.TtEmphasis || tok.TokenType == code.TtStrong || tok.TokenType == code.TtComment {
+				t.Errorf("%s: emphasis at %d-%d", c, tok.Start.Col, tok.End.Col)
 			}
-		})
+		}
 		if d := time.Since(start); d > time.Second {
 			t.Errorf("scanning a run of %d %s takes %v", n, c, d)
 		}
@@ -104,7 +106,10 @@ func TestScan_UnclosedLinear(t *testing.T) {
 	} {
 		painted := 0
 		start := time.Now()
-		Scan([]string{line}, func(s Span) { painted += s.End - s.Start })
+		var sc Scanner
+		for tok := range sc.Tokens([]string{line}) {
+			painted += tok.End.Col - tok.Start.Col
+		}
 		if d := time.Since(start); d > time.Second {
 			t.Errorf("%s: scanning %d bytes takes %v", name, len(line), d)
 		}
@@ -122,4 +127,37 @@ func codeRuns(n int) string {
 		b.WriteString(strings.Repeat("`", i) + "a")
 	}
 	return b.String()
+}
+
+func TestScanner_Blocks(t *testing.T) {
+	lines := []string{"# Title", "```go", "x := 1", "```", "", "```sh", "ls"}
+	var sc Scanner
+	tokens := 0
+	for tok := range sc.Tokens(lines) {
+		if tok.Start.Line != tok.End.Line || tok.Start.Col >= tok.End.Col {
+			t.Errorf("token %+v is not a range of a single line", tok)
+		}
+		tokens++
+	}
+	if tokens == 0 {
+		t.Fatal("no tokens")
+	}
+	blocks := sc.Blocks()
+	if len(blocks) != 2 || blocks[0].Lang != "go" || !blocks[0].Closed || blocks[1].Lang != "sh" || blocks[1].Closed {
+		t.Errorf("got blocks %+v, want a closed go block and an unclosed sh one", blocks)
+	}
+
+	// An iteration stopped early yields no more tokens, and finds the blocks before the stop.
+	n := 0
+	for range sc.Tokens(lines) {
+		if n++; n == 2 {
+			break
+		}
+	}
+	if n != 2 {
+		t.Errorf("got %d tokens before the stop, want 2", n)
+	}
+	if len(sc.Blocks()) >= 2 {
+		t.Errorf("got %d blocks after an early stop, want fewer than 2", len(sc.Blocks()))
+	}
 }
