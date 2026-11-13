@@ -2,6 +2,8 @@ package change
 
 import (
 	"bytes"
+	"fmt"
+	"math/rand/v2"
 	"slices"
 	"testing"
 
@@ -304,5 +306,48 @@ func TestHistory_UndoRedoCursor(t *testing.T) {
 				t.Error("unexpected redo after applying all the groups")
 			}
 		})
+	}
+}
+
+// TestHistory_ConsumeTrackedChanges_Replay makes random edits, undoes and redoes them, and checks
+// that the changes consumed turn the document of the previous consumption into the current one.
+func TestHistory_ConsumeTrackedChanges_Replay(t *testing.T) {
+	var h History
+	doc := content.FullText{content.TextLine("one"), content.TextLine("two")}
+	m := h.Track(&doc, true)
+	ur := m.(content.UndoRedo)
+
+	rnd := rand.New(rand.NewPCG(1, 2))
+	consumed := content.Copy(&doc).(content.Mutable)
+	for i := range 2000 {
+		lines := doc.Lines()
+		switch op := rnd.IntN(8); {
+		case op < 3 && len(lines) > 0: // Typing, merged into a change of the history.
+			ln := rnd.IntN(len(lines))
+			text := lines[ln].String()
+			col := rnd.IntN(len(text) + 1)
+			m.Update(ln, content.TextLine(text[:col]+"x"+text[col:]))
+		case op == 3 && len(lines) > 0:
+			start := rnd.IntN(len(lines))
+			m.Delete(start, min(len(lines), start+1+rnd.IntN(2)))
+		case op == 4:
+			m.Insert(rnd.IntN(len(lines)+1), content.TextLine(fmt.Sprint(i)), content.TextLine(""))
+		case op == 5 && ur.HasUndo():
+			ur.Undo()
+		case op == 6 && ur.HasRedo():
+			ur.Redo()
+		case op == 7:
+			ur.SplitChangeGroup()
+		}
+
+		if rnd.IntN(3) == 0 {
+			changes := h.ConsumeTrackedChanges(m)
+			for _, ch := range changes {
+				ch.apply(consumed)
+			}
+			if got, want := content.Sprint(consumed, 0, consumed.Len()), content.Sprint(&doc, 0, doc.Len()); got != want {
+				t.Fatalf("edit %d: the changes %+v make\n%q\nwant\n%q", i, changes, got, want)
+			}
+		}
 	}
 }
