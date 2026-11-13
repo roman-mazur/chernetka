@@ -12,6 +12,7 @@ import (
 
 	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
+	"rmazur.io/chernetka/internal/content/parser/git"
 	"rmazur.io/chernetka/internal/editor"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	"rmazur.io/chernetka/internal/logger"
@@ -74,8 +75,8 @@ var languages = map[*code.Syntax]*language{
 	code.CommonLisp:      {newHighlighter: newTreeSitter(commonLispGrammar)},
 	code.TreeSitterQuery: {newHighlighter: newTreeSitter(treeSitterQueryGrammar)},
 	code.Markdown:        {newHighlighter: newMarkdown},
-	code.GitCommitMsg:    {newHighlighter: func() highlighter { return new(gitMessage) }},
-	code.GitRebaseTodo:   {newHighlighter: func() highlighter { return new(gitRebase) }},
+	code.GitCommitMsg:    {newHighlighter: newGitHighlighter(git.ScanCommitMessage)},
+	code.GitRebaseTodo:   {newHighlighter: newGitHighlighter(git.ScanRebaseTodo)},
 }
 
 func init() {

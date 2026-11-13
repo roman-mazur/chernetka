@@ -1,11 +1,6 @@
 package extsyntaxhl
 
-import (
-	"slices"
-	"testing"
-
-	"rmazur.io/chernetka/internal/content/code"
-)
+import "testing"
 
 func TestGitMessageHighlight(t *testing.T) {
 	for _, tc := range []struct {
@@ -56,21 +51,14 @@ func TestGitMessageHighlight(t *testing.T) {
 	}
 }
 
-func TestGitRebaseReparse(t *testing.T) {
-	var gr gitRebase
-	for _, text := range []string{"pick 1234 change\n# comment", "pick 1234 change"} {
-		if err := gr.reparse(newSource(text), nil); err != nil {
-			t.Fatal(err)
-		}
+func TestGitRebaseHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"pick 1234 change # note", []string{"0:4:Keyword", "5:9:NumberLiteral", "17:23:Comment"}},
+		{"update-ref refs/heads/topic", []string{"0:10:Keyword"}},
+		{"nope 12 x", nil},
+		{"# Commands:", []string{"0:11:Comment"}},
 	}
-	// Only the spans of the last text: no comment line left over from the first one.
-	var spans []rawSpan
-	gr.spans(nil, func(s rawSpan) { spans = append(spans, s) })
-	want := []rawSpan{
-		{EndCol: 4, TokenType: code.TtKeyword},
-		{StartCol: 5, EndCol: 16, TokenType: code.TtNumberLiteral},
-	}
-	if !slices.Equal(spans, want) {
-		t.Errorf("got spans %v, want %v", spans, want)
-	}
+
+	buf, ext := openDoc(t, ".git/rebase-merge/git-rebase-todo", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
 }
