@@ -4,11 +4,13 @@ package editor
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/debugflags"
 	"rmazur.io/chernetka/internal/editor/navigation"
 	"rmazur.io/chernetka/internal/logger"
@@ -88,6 +90,8 @@ type bufferAction struct {
 
 var debugInput = debugflags.IsEnabled("loginputs")
 
+// Extend registers the extension. The extensions are kept in the order they are added, except
+// the syntax highlighters (see SyntaxHighlighterExtension), which are kept before the others.
 func (e *Editor) Extend(ext Extension) {
 	if ext == nil {
 		panic("nil extension")
@@ -100,6 +104,17 @@ func (e *Editor) Extend(ext Extension) {
 		le := l.EmbeddedLogger()
 		*le = logger.Embed(logger.Prefix(e.Logf, ext.ID()+": "))
 		le.LogDebug = e.LogDebug
+	}
+	if _, ok := ext.(SyntaxHighlighterExtension); ok {
+		// After the syntax highlighters added before, and before the other extensions.
+		i := slices.IndexFunc(e.x, func(x Extension) bool {
+			_, highlights := x.(SyntaxHighlighterExtension)
+			return !highlights
+		})
+		if i >= 0 {
+			e.x = slices.Insert(e.x, i, ext)
+			return
+		}
 	}
 	e.x = append(e.x, ext)
 }
@@ -157,8 +172,13 @@ func (e *Editor) handleAfterEdit(buf *Buffer) {
 		// No edits since the last time.
 		return
 	}
+	changes := buf.history.ConsumeTrackedChanges(buf._mutator)
+	e.notifeExtensions(buf, changes)
+}
+
+func (e *Editor) notifeExtensions(buf *Buffer, changes []change.Item) {
 	for _, ext := range e.x {
-		ext.AfterEdit(e, buf, nil)
+		ext.AfterEdit(e, buf, changes)
 	}
 }
 
