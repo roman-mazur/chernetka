@@ -75,6 +75,7 @@ var languages = map[*code.Syntax]*language{
 	code.CommonLisp:      {newHighlighter: newTreeSitter(commonLispGrammar)},
 	code.TreeSitterQuery: {newHighlighter: newTreeSitter(treeSitterQueryGrammar)},
 	code.Markdown:        {newHighlighter: newMarkdown},
+	code.Dockerfile:      {newHighlighter: newDockerfile},
 	code.GitCommitMsg:    {newHighlighter: newGitHighlighter(git.ScanCommitMessage)},
 	code.GitRebaseTodo:   {newHighlighter: newGitHighlighter(git.ScanRebaseTodo)},
 }

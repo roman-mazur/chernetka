@@ -43,6 +43,7 @@ func TestVisual(t *testing.T) {
 		{"visual.html", visualHTML},
 		{"visual.css", visualCSS},
 		{"visual.mk", visualMakefile},
+		{"visual.dockerfile", visualDockerfile},
 		{"visual.lisp", visualCommonLisp},
 		{"queries/visual.scm", visualTreeSitterQuery},
 		{".git/COMMIT_EDITMSG", visualGitMsg},
@@ -874,6 +875,34 @@ endif
 define HELP
 usage
 endef
+`
+
+const visualDockerfile = `# syntax=docker/dockerfile:1
+# check=error=true
+
+# The build stage.
+ARG GO_VERSION=1.23
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
+WORKDIR /src
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    go mod download -x
+COPY <<EOF /etc/app.conf
+port=${PORT:-8080}
+EOF
+RUN <<-'SH' sh
+	echo "$HOME"
+	SH
+
+FROM gcr.io/distroless/static AS final
+LABEL org.opencontainers.image.source="https://example.com" version=1
+ENV TZ=UTC \
+    PATH="/app:$PATH"
+COPY --from=build --chown=nonroot /out/app /app
+EXPOSE 8080/tcp
+USER nonroot
+HEALTHCHECK --interval=30s CMD ["/app", "health"]
+ENTRYPOINT ["/app"]
 `
 
 const visualCommonLisp = `;;;; A word counter, to be looked at.
