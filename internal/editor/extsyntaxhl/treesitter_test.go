@@ -788,6 +788,13 @@ func TestDirectives(t *testing.T) {
 			// Only the first line of a script is a shebang.
 			{"#!/bin/bash", []string{"0:11:Comment"}},
 		},
+		"Dockerfile": {
+			{"# syntax=docker/dockerfile:1", []string{"0:28:Directive"}},
+			{"# escape=`", []string{"0:10:Directive"}},
+			// The directives end at the first other line.
+			{"", nil},
+			{"# check=error=true", []string{"0:18:Comment"}},
+		},
 		"ci.yaml": {
 			{"%YAML 1.2", []string{"0:9:Directive"}},
 			{"---", []string{"0:3:Keyword"}},
@@ -857,6 +864,7 @@ func TestLanguageForPath(t *testing.T) {
 		"index.html":      "html",
 		"style.css":       "css",
 		"Makefile":        "makefile",
+		"Dockerfile":      "dockerfile",
 		"queries/go.scm":  "query",
 		"lib/srfi.scm":    "",
 		"notes.md":        "markdown",

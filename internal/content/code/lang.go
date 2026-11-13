@@ -163,6 +163,14 @@ var (
 		),
 		LineCommentPrefix: "#",
 	}
+	// Dockerfile takes the Containerfiles too, and the variants of the names, like
+	// Dockerfile.dev or app.dockerfile, but not their ignore files, like
+	// Dockerfile.dockerignore.
+	Dockerfile = &Syntax{
+		Name:              "dockerfile",
+		PathMatch:         dockerfileMatch,
+		LineCommentPrefix: "#",
+	}
 	CommonLisp = &Syntax{
 		Name:              "commonlisp",
 		PathMatch:         suffixMatch(".lisp", ".lsp", ".asd"),
@@ -194,7 +202,8 @@ var (
 	syntaxes = []*Syntax{
 		Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp,
 		Java, Kotlin, TypeScript, TSX, JavaScript, Rust, Python, TOML, HCL, HTML, CSS,
-		Makefile, CommonLisp, TreeSitterQuery, GitCommitMsg, GitRebaseTodo,
+		Makefile, Dockerfile, CommonLisp, TreeSitterQuery, GitCommitMsg,
+		GitRebaseTodo,
 	}
 
 	// shellFileNames are the shell scripts recognized by their name alone. The zsh
@@ -227,6 +236,19 @@ func suffixMatch(s ...string) SyntaxPathMatcher {
 		}
 		return false
 	}
+}
+
+func dockerfileMatch(p string) bool {
+	name := strings.ToLower(filepath.Base(p))
+	if strings.HasSuffix(name, ".dockerignore") {
+		return false
+	}
+	for _, base := range []string{"dockerfile", "containerfile"} {
+		if name == base || strings.HasPrefix(name, base+".") || strings.HasSuffix(name, "."+base) {
+			return true
+		}
+	}
+	return false
 }
 
 func filenameMatch(names ...string) SyntaxPathMatcher {
