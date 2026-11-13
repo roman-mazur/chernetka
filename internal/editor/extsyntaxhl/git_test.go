@@ -53,7 +53,8 @@ func TestGitMessageHighlight(t *testing.T) {
 
 func TestGitRebaseHighlight(t *testing.T) {
 	doc := hlDoc{
-		{"pick 1234 change # note", []string{"0:4:Keyword", "5:16:NumberLiteral", "16:23:Comment"}},
+		{"pick 1234 change # note", []string{"0:4:Keyword", "5:9:NumberLiteral", "17:23:Comment"}},
+		{"update-ref refs/heads/topic", []string{"0:10:Keyword"}},
 		{"nope 12 x", nil},
 		{"# Commands:", []string{"0:11:Comment"}},
 	}
