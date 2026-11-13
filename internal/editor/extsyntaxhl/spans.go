@@ -41,6 +41,15 @@ func lineSpan(ln, start, end int, t code.TokenType) rawSpan {
 	return rawSpan{StartLine: ln, StartCol: start, EndLine: ln, EndCol: end, TokenType: t}
 }
 
+// tokenSpan returns the rawSpan of a token reported by a scanner.
+func tokenSpan(t code.Token) rawSpan {
+	return rawSpan{
+		StartLine: t.Start.Line, StartCol: t.Start.Col,
+		EndLine: t.End.Line, EndCol: t.End.Col,
+		TokenType: t.TokenType,
+	}
+}
+
 // piece is a rawSpan cut down to a single line and clipped to that line.
 type piece struct {
 	line       int
