@@ -1,17 +1,19 @@
 package extsyntaxhl
 
 import (
-	"rmazur.io/chernetka/internal/content/parser/git"
+	"iter"
+
+	"rmazur.io/chernetka/internal/content/code"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
 
 // gitHighlighter highlights a file git opens in the editor, a commit message or
 // a rebase todo list, with a scanner of the git package.
 type gitHighlighter struct {
-	scan func(lines []string, emit func(git.Span))
+	scan func(lines []string) iter.Seq[code.Token]
 }
 
-func newGitHighlighter(scan func([]string, func(git.Span))) func() highlighter {
+func newGitHighlighter(scan func([]string) iter.Seq[code.Token]) func() highlighter {
 	return func() highlighter { return gitHighlighter{scan: scan} }
 }
 
@@ -22,7 +24,7 @@ func (gitHighlighter) reparse(*source, []treesitter.InputEdit) error { return ni
 func (gitHighlighter) Close() error { return nil }
 
 func (h gitHighlighter) spans(src *source, emit func(rawSpan)) {
-	h.scan(src.lines, func(s git.Span) {
-		emit(lineSpan(s.Line, s.Start, s.End, s.Token))
-	})
+	for t := range h.scan(src.lines) {
+		emit(tokenSpan(t))
+	}
 }
