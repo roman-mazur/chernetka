@@ -2,23 +2,44 @@ package git
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 	"testing"
+
+	"rmazur.io/chernetka/internal/content/code"
 )
 
-// scan returns the spans the scanner emits for the document, each as its line,
-// its text and its token, checking they are within the lines.
-func scan(t *testing.T, scanner func([]string, func(Span)), src string) []string {
+// scan returns the tokens the scanner reports for the document, each as its
+// line, its text and its type, checking they are within a line.
+func scan(t *testing.T, scanner func([]string) iter.Seq[code.Token], src string) []string {
 	t.Helper()
 	lines := strings.Split(src, "\n")
 	var got []string
-	scanner(lines, func(s Span) {
-		if s.Line < 0 || s.Line >= len(lines) || s.Start < 0 || s.End > len(lines[s.Line]) || s.Start >= s.End {
-			t.Fatalf("span %+v is out of range", s)
+	for tok := range scanner(lines) {
+		ln, start, end := tok.Start.Line, tok.Start.Col, tok.End.Col
+		if tok.End.Line != ln || ln < 0 || ln >= len(lines) || start < 0 || end > len(lines[ln]) || start >= end {
+			t.Fatalf("token %+v is out of range", tok)
 		}
-		got = append(got, fmt.Sprintf("%d %q %s", s.Line, lines[s.Line][s.Start:s.End], s.Token))
-	})
+		got = append(got, fmt.Sprintf("%d %q %s", ln, lines[ln][start:end], tok.TokenType))
+	}
 	return got
+}
+
+// TestScan_Stop checks the scanners report nothing after the loop stops.
+func TestScan_Stop(t *testing.T) {
+	for name, tc := range map[string]struct {
+		scanner func([]string) iter.Seq[code.Token]
+		src     string
+	}{
+		"commit message": {ScanCommitMessage, "pkg: change\n\nKey: value\n# comment"},
+		"rebase todo":    {ScanRebaseTodo, "pick 1a2b subject\n# comment"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for range tc.scanner(strings.Split(tc.src, "\n")) {
+				break // The iterator panics if it yields again.
+			}
+		})
+	}
 }
 
 func TestScanCommitMessage(t *testing.T) {
@@ -62,12 +83,13 @@ func TestScanCommitMessage(t *testing.T) {
 		},
 		{
 			// The comments are stripped by git, so they don't separate the subject
-			// from the body. A line that is not a trailer ends the trailers.
+			// from the body: the subject is known after them. A line that is not a
+			// trailer ends the trailers.
 			name: "comment after subject",
 			src:  "pkg: change\n# comment\n\n# comment\nKey: value\nnot a trailer\nKey: value",
 			want: []string{
-				`0 "pkg: change" Heading`,
 				`1 "# comment" Comment`,
+				`0 "pkg: change" Heading`,
 				`3 "# comment" Comment`,
 				`4 "Key:" Field`,
 				`4 "value" StringLiteral`,
@@ -78,6 +100,15 @@ func TestScanCommitMessage(t *testing.T) {
 			src:  "first line\nsecond line\n\nKey: value\n# comment",
 			want: []string{
 				`4 "# comment" Comment`,
+			},
+		},
+		{
+			// The subject is known at the end of a message with nothing else.
+			name: "only subject",
+			src:  "\npkg: change\n# comment",
+			want: []string{
+				`2 "# comment" Comment`,
+				`1 "pkg: change" Heading`,
 			},
 		},
 	} {
