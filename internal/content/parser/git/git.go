@@ -113,7 +113,7 @@ func ScanRebaseTodo(lines []string) iter.Seq[code.Token] {
 // scanRebaseLine yields the tokens of the line i of a rebase todo list. It
 // returns false if yield does.
 func scanRebaseLine(yield func(code.Token) bool, i int, line string) bool {
-	start := len(line) - len(strings.TrimLeft(line, " \t"))
+	start := len(line) - len(strings.TrimLeft(line, spaces))
 	if strings.HasPrefix(line[start:], "#") {
 		return yield(token(i, start, len(line), code.TtComment))
 	}
@@ -130,7 +130,7 @@ func scanRebaseLine(yield func(code.Token) bool, i int, line string) bool {
 	// A comment may follow the arguments, like the subject of merge.
 	comment := len(line)
 	for j := end; j+1 < len(line); j++ {
-		if isSpace(line[j]) && line[j+1] == '#' {
+		if line[j+1] == '#' && strings.IndexByte(spaces, line[j]) >= 0 {
 			comment = j + 1
 			break
 		}
@@ -157,20 +157,20 @@ func scanRebaseLine(yield func(code.Token) bool, i int, line string) bool {
 
 // nextWord returns the range of the word after the index in line[:end].
 func nextWord(line string, i, end int) (start, stop int) {
-	for i < end && isSpace(line[i]) {
-		i++
-	}
+	i = end - len(strings.TrimLeft(line[i:end], spaces))
 	return i, min(wordEnd(line, i), end)
 }
 
 func wordEnd(line string, i int) int {
-	for i < len(line) && !isSpace(line[i]) {
-		i++
+	if k := strings.IndexAny(line[i:], spaces); k >= 0 {
+		return i + k
 	}
-	return i
+	return len(line)
 }
 
-func isSpace(c byte) bool { return c == ' ' || c == '\t' }
+// spaces separate the words of a rebase todo list. Like git, only the ASCII
+// space and tab do.
+const spaces = " \t"
 
 // rebaseArgs is what a command of a rebase todo list takes.
 type rebaseArgs int
