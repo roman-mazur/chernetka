@@ -55,6 +55,7 @@ func TestSyntaxForPath(t *testing.T) {
 		"pom.xml":                                "xml",
 		"icons/logo.SVG":                         "xml",
 		"schema.xsd":                             "xml",
+		"api/v1/service.proto":                   "proto",
 		"Makefile":                               "makefile",
 		"src/GNUmakefile":                        "makefile",
 		"rules.mk":                               "makefile",

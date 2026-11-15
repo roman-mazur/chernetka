@@ -30,6 +30,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/makefile"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/proto"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/python"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/rust"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/toml"
@@ -105,6 +106,7 @@ var languages = map[*code.Syntax]*language{
 	code.HTML:            treeSitter(html.Language, "html"),
 	code.CSS:             treeSitter(css.Language, "css"),
 	code.XML:             treeSitter(xml.Language, "xml"),
+	code.Proto:           treeSitter(proto.Language, "proto"),
 	code.Makefile:        treeSitter(makefile.Language, "makefile"),
 	code.CommonLisp:      treeSitter(commonlisp.Language, "commonlisp"),
 	code.TreeSitterQuery: treeSitter(tsquery.Language, "tsquery"),

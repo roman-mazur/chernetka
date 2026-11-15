@@ -43,6 +43,7 @@ func TestVisual(t *testing.T) {
 		{"visual.html", visualHTML},
 		{"visual.css", visualCSS},
 		{"visual.svg", visualXML},
+		{"visual.proto", visualProto},
 		{"visual.mk", visualMakefile},
 		{"visual.dockerfile", visualDockerfile},
 		{"visual.lisp", visualCommonLisp},
@@ -867,6 +868,35 @@ const visualXML = `<?xml version="1.0" encoding="UTF-8"?>
   <text x="10" y="14">passing &#x2713;</text>
   <style><![CDATA[text { font: 11px sans-serif; }]]></style>
 </svg>
+`
+
+const visualProto = `// The greeter service.
+syntax = "proto3";
+
+package demo.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "example.com/demo/v1;demov1";
+
+message HelloRequest {
+  string name = 1 [deprecated = true, json_name = "n\t"];
+  repeated int64 ids = 2;
+  map<string, google.protobuf.Timestamp> seen = 3;
+  oneof kind {
+    Status status = 4;
+  }
+  reserved 5 to 9, 100 to max;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_OK = 1 [(custom.label) = "ok"];
+}
+
+service Greeter {
+  rpc SayHello(HelloRequest) returns (stream HelloReply);
+}
 `
 
 const visualMakefile = `# Build.

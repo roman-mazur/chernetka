@@ -736,6 +736,44 @@ func TestXMLHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestProtoHighlight(t *testing.T) {
+	doc := hlDoc{
+		{"// The greeter service.", []string{"0:23:Comment"}},
+		{"syntax = \"proto3\";", []string{"0:6:Keyword", "9:17:StringLiteral"}},
+		{"package demo.v1;", []string{"0:7:Keyword", "8:12:ImportRef", "13:15:ImportRef"}},
+		{"import \"google/protobuf/timestamp.proto\";", []string{"0:6:Keyword", "7:40:StringLiteral"}},
+		// The options read as properties, the custom ones too.
+		{"option go_package = \"example.com/demo/v1;demov1\";", []string{"0:6:Keyword", "7:17:Field", "20:48:StringLiteral"}},
+		{"option (custom.opt).flag = true;", []string{"0:6:Keyword", "8:14:Field", "15:18:Field", "20:24:Field", "27:31:Constant"}},
+		{"", nil},
+		// The messages read as types, their fields as properties.
+		{"message HelloRequest {", []string{"0:7:Keyword", "8:20:TypeRef"}},
+		{"  string name = 1 [deprecated = true, json_name = \"n\\t\"];", []string{"2:8:TypeRef", "9:13:Field", "16:17:NumberLiteral", "19:29:Field", "32:36:Constant", "38:47:Field", "50:52:StringLiteral", "52:54:Escape", "54:55:StringLiteral"}},
+		{"  repeated int64 ids = 2;", []string{"2:10:Keyword", "11:16:TypeRef", "17:20:Field", "23:24:NumberLiteral"}},
+		{"  map<string, google.protobuf.Timestamp> seen = 3;", []string{"2:5:Keyword", "6:12:TypeRef", "14:39:TypeRef", "41:45:Field", "48:49:NumberLiteral"}},
+		{"  oneof kind {", []string{"2:7:Keyword", "8:12:Field"}},
+		{"    Status status = 4;", []string{"4:10:TypeRef", "11:17:Field", "20:21:NumberLiteral"}},
+		{"  }", nil},
+		{"  reserved 5 to 9, 100 to max;", []string{"2:10:Keyword", "11:12:NumberLiteral", "13:15:Keyword", "16:17:NumberLiteral", "19:22:NumberLiteral", "23:25:Keyword", "26:29:Keyword"}},
+		{"  reserved \"old\";", []string{"2:10:Keyword", "11:16:StringLiteral"}},
+		{"}", nil},
+		// The enum values read as constants.
+		{"enum Status {", []string{"0:4:Keyword", "5:11:TypeRef"}},
+		{"  STATUS_OK = 1 [(custom.label) = \"ok\"];", []string{"2:11:Constant", "14:15:NumberLiteral", "18:24:Field", "25:30:Field", "34:38:StringLiteral"}},
+		{"}", nil},
+		// The methods read as functions.
+		{"service Greeter {", []string{"0:7:Keyword", "8:15:TypeRef"}},
+		{"  rpc SayHello(HelloRequest) returns (stream HelloReply);", []string{"2:5:Keyword", "6:14:FuncDeclaration", "15:27:TypeRef", "29:36:Keyword", "38:44:Keyword", "45:55:TypeRef"}},
+		{"}", nil},
+		{"extend google.protobuf.FieldOptions {", []string{"0:6:Keyword", "7:13:TypeRef", "14:22:TypeRef", "23:35:TypeRef"}},
+		{"  optional string label = 50000;", []string{"2:10:Keyword", "11:17:TypeRef", "18:23:Field", "26:31:NumberLiteral"}},
+		{"}", nil},
+	}
+
+	buf, ext := openDoc(t, "greeter.proto", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 func TestMakefileHighlight(t *testing.T) {
 	doc := hlDoc{
 		{"# Build.", []string{"0:8:Comment"}},
@@ -891,6 +929,7 @@ func TestLanguageForPath(t *testing.T) {
 		"style.css":       "css",
 		"pom.xml":         "xml",
 		"logo.svg":        "xml",
+		"api.proto":       "proto",
 		"Makefile":        "makefile",
 		"Dockerfile":      "dockerfile",
 		"queries/go.scm":  "query",
