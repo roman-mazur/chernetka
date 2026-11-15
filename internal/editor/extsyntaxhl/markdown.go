@@ -5,7 +5,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/parser/markdown"
-	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
 
 // mdHighlighter highlights Markdown with the hand written scanner of the markdown package.
@@ -19,7 +18,7 @@ type mdHighlighter struct {
 func newMarkdown() highlighter { return new(mdHighlighter) }
 
 // reparse does nothing: the cheap scan happens in spans.
-func (*mdHighlighter) reparse(*source, []treesitter.InputEdit) error { return nil }
+func (*mdHighlighter) reparse(*source, []textEdit) error { return nil }
 
 func (*mdHighlighter) Close() error { return nil }
 

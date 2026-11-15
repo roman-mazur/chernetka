@@ -15,7 +15,6 @@ import (
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/parser/git"
 	"rmazur.io/chernetka/internal/editor"
-	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/bash"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/c"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/commonlisp"
@@ -51,7 +50,7 @@ type highlighter interface {
 	// The edits turn the previous revision into the new one, if they are known,
 	// letting the highlighter reuse what it found in the unchanged parts. They
 	// are nil for the first revision, and when the whole text is to be parsed.
-	reparse(src *source, edits []treesitter.InputEdit) error
+	reparse(src *source, edits []textEdit) error
 	// spans returns the highlighted regions of the document, which may span
 	// lines and nest; the caller flattens them. It's iterated once per revision.
 	spans(src *source) iter.Seq[code.Token]
@@ -181,9 +180,9 @@ func (d *document) parse(text string) {
 	if d.src != nil && d.src.text == text {
 		return // Like a line deleted and inserted back.
 	}
-	var edits []treesitter.InputEdit
+	var edits []textEdit
 	if d.src != nil && d.parseErr == nil {
-		edits = []treesitter.InputEdit{textEdit(d.src.text, text)}
+		edits = []textEdit{diffEdit(d.src.text, text)}
 	}
 	d.src = newSource(text)
 	err := d.hl.reparse(d.src, edits)

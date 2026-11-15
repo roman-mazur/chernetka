@@ -10,7 +10,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor"
-	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
 
 // snippets are typed into the documents by randomEdit: they open and close
@@ -67,18 +66,18 @@ func randomEdit(rnd *rand.Rand, m content.Mutable) {
 // checkEdit checks that the edit describes how before turned into after, the way a tree-sitter
 // edit does: the text before StartByte and the one after the old and new ends is the same,
 // and the positions are where the offsets are.
-func checkEdit(t *testing.T, before, after string, e treesitter.InputEdit) {
+func checkEdit(t *testing.T, before, after string, e textEdit) {
 	t.Helper()
-	start, oldEnd, newEnd := int(e.StartByte), int(e.OldEndByte), int(e.NewEndByte)
+	start, oldEnd, newEnd := e.StartByte, e.OldEndByte, e.NewEndByte
 	if start > oldEnd || start > newEnd || oldEnd > len(before) || newEnd > len(after) {
 		t.Fatalf("edit %+v is out of the texts of %d and %d bytes", e, len(before), len(after))
 	}
 	if before[:start] != after[:start] || before[oldEnd:] != after[newEnd:] {
 		t.Fatalf("edit %+v does not turn\n%q\ninto\n%q", e, before, after)
 	}
-	pointAt := func(text string, offset int) treesitter.Point {
+	pointAt := func(text string, offset int) content.Position {
 		lineStart := strings.LastIndexByte(text[:offset], '\n') + 1
-		return treesitter.NewPoint(uint(strings.Count(text[:offset], "\n")), uint(offset-lineStart))
+		return content.Position{Line: strings.Count(text[:offset], "\n"), Col: offset - lineStart}
 	}
 	if got := pointAt(before, start); got != e.StartPosition {
 		t.Errorf("edit %+v: the start is at %+v", e, got)
@@ -91,7 +90,7 @@ func checkEdit(t *testing.T, before, after string, e treesitter.InputEdit) {
 	}
 }
 
-func TestTextEdit(t *testing.T) {
+func TestDiffEdit(t *testing.T) {
 	buf, _ := openDoc(t, "text.txt", "one\ntwo\nthree")
 	rnd := rand.New(rand.NewPCG(1, 2))
 	for i := range 2000 {
@@ -100,7 +99,7 @@ func TestTextEdit(t *testing.T) {
 			randomEdit(rnd, buf.Mutate())
 		}
 		cur := buf.Text()
-		checkEdit(t, old, cur, textEdit(old, cur))
+		checkEdit(t, old, cur, diffEdit(old, cur))
 		if t.Failed() {
 			t.Fatalf("edit %d", i)
 		}

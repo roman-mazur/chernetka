@@ -4,7 +4,6 @@ import (
 	"iter"
 
 	"rmazur.io/chernetka/internal/content/code"
-	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
 
 // gitHighlighter highlights a file git opens in the editor, a commit message or
@@ -19,7 +18,7 @@ func newGitHighlighter(scan func([]string) iter.Seq[code.Token]) func() highligh
 
 // reparse does nothing: like with Markdown, scanning a document is cheap enough
 // that all the work happens in spans, which also runs once per revision.
-func (gitHighlighter) reparse(*source, []treesitter.InputEdit) error { return nil }
+func (gitHighlighter) reparse(*source, []textEdit) error { return nil }
 
 func (gitHighlighter) Close() error { return nil }
 

@@ -5,7 +5,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/parser/dockerfile"
-	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
 
 // dockerfileHighlighter highlights Dockerfiles with the hand written scanner of the
@@ -16,7 +15,7 @@ func newDockerfile() highlighter { return dockerfileHighlighter{} }
 
 // reparse does nothing: like with Markdown, scanning a document is cheap enough
 // that all the work happens in spans, which also runs once per revision.
-func (dockerfileHighlighter) reparse(*source, []treesitter.InputEdit) error { return nil }
+func (dockerfileHighlighter) reparse(*source, []textEdit) error { return nil }
 
 func (dockerfileHighlighter) Close() error { return nil }
 

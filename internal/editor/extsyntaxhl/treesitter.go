@@ -153,7 +153,7 @@ func newTreeSitter(g *tsGrammar) func() highlighter {
 	return func() highlighter { return &tsHighlighter{grammar: g} }
 }
 
-func (h *tsHighlighter) reparse(src *source, edits []treesitter.InputEdit) error {
+func (h *tsHighlighter) reparse(src *source, edits []textEdit) error {
 	if err := h.grammar.prepare(); err != nil {
 		h.closeTree()
 		return err
@@ -172,8 +172,8 @@ func (h *tsHighlighter) reparse(src *source, edits []treesitter.InputEdit) error
 	// the parser takes it as the parse of the new text otherwise.
 	old := h.tree
 	if old != nil && len(edits) > 0 {
-		for i := range edits {
-			old.Edit(&edits[i])
+		for _, e := range edits {
+			old.Edit(inputEdit(e))
 		}
 	} else {
 		h.closeTree()
@@ -235,6 +235,21 @@ func (h *tsHighlighter) closeTree() {
 	if h.tree != nil {
 		h.tree.Close()
 		h.tree = nil
+	}
+}
+
+// inputEdit returns the tree-sitter edit of the text edit.
+func inputEdit(e textEdit) *treesitter.InputEdit {
+	point := func(p content.Position) treesitter.Point {
+		return treesitter.NewPoint(uint(p.Line), uint(p.Col))
+	}
+	return &treesitter.InputEdit{
+		StartByte:      uint(e.StartByte),
+		OldEndByte:     uint(e.OldEndByte),
+		NewEndByte:     uint(e.NewEndByte),
+		StartPosition:  point(e.StartPosition),
+		OldEndPosition: point(e.OldEndPosition),
+		NewEndPosition: point(e.NewEndPosition),
 	}
 }
 
