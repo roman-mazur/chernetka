@@ -9,18 +9,19 @@ import (
 	"rmazur.io/chernetka/internal/content/code"
 )
 
-// scan returns the spans of the document in the order they are emitted, each
-// as its line, its text and its token, checking they are within the lines.
+// scan returns the tokens of the document in the order they are reported, each
+// as its line, its text and its type, checking they are within a line.
 func scan(t *testing.T, src string) []string {
 	t.Helper()
 	lines := strings.Split(src, "\n")
 	var got []string
-	Scan(lines, func(s Span) {
-		if s.Line < 0 || s.Line >= len(lines) || s.Start < 0 || s.End > len(lines[s.Line]) || s.Start >= s.End {
-			t.Fatalf("span %+v is out of range", s)
+	for tok := range Scan(lines) {
+		ln, start, end := tok.Start.Line, tok.Start.Col, tok.End.Col
+		if tok.End.Line != ln || ln < 0 || ln >= len(lines) || start < 0 || end > len(lines[ln]) || start >= end {
+			t.Fatalf("token %+v is out of range", tok)
 		}
-		got = append(got, fmt.Sprintf("%d %q %s", s.Line, lines[s.Line][s.Start:s.End], s.Token))
-	})
+		got = append(got, fmt.Sprintf("%d %q %s", ln, lines[ln][start:end], tok.TokenType))
+	}
 	return got
 }
 
@@ -333,7 +334,9 @@ func TestScan_Linear(t *testing.T) {
 	} {
 		painted := 0
 		start := time.Now()
-		Scan(strings.Split(src, "\n"), func(s Span) { painted += s.End - s.Start })
+		for tok := range Scan(strings.Split(src, "\n")) {
+			painted += tok.End.Col - tok.Start.Col
+		}
 		if d := time.Since(start); d > time.Second {
 			t.Errorf("%s: scanning %d bytes takes %v", name, len(src), d)
 		}
@@ -348,13 +351,26 @@ func TestScan_Incomplete(t *testing.T) {
 	// The instructions cut short, as they are while typed, end on their line.
 	for _, src := range []string{"#", "FROM", "RUN <<", `RUN <<""`, "ENV", "LABEL =", "EXPOSE -", "CMD [", "RUN ${", `RUN "$`, "HEALTHCHECK", "ONBUILD"} {
 		var tokens []code.TokenType
-		Scan([]string{src, "# done"}, func(s Span) {
-			if s.Line == 1 {
-				tokens = append(tokens, s.Token)
+		for tok := range Scan([]string{src, "# done"}) {
+			if tok.Start.Line == 1 {
+				tokens = append(tokens, tok.TokenType)
 			}
-		})
+		}
 		if len(tokens) != 1 || tokens[0] != code.TtComment {
 			t.Errorf("%q: the next line is %v, want a comment", src, tokens)
+		}
+	}
+}
+
+func TestScan_Stop(t *testing.T) {
+	// The scanner reports nothing after the loop stops, mid instruction too.
+	src := []string{"# syntax=docker/dockerfile:1", `RUN echo "$A" \`, "  && make", "# done"}
+	for n := range 6 {
+		got := 0
+		for range Scan(src) {
+			if got++; got == n {
+				break // The iterator panics if it yields again.
+			}
 		}
 	}
 }

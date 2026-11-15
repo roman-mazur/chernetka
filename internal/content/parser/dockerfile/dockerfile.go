@@ -16,27 +16,25 @@ package dockerfile
 
 import (
 	"encoding/json"
+	"iter"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 )
 
-// Span is a range of a line, [Start, End) in bytes, recognized as the Token.
-type Span struct {
-	Line, Start, End int
-	Token            code.TokenType
-}
-
-// Scan walks the document lines reporting the recognized ranges to emit. The spans
-// of the nested constructs, like a variable in a string, follow the ones they are
-// nested in.
-func Scan(lines []string, emit func(Span)) {
-	s := scanner{lines: lines, emit: emit, esc: defaultEscape, syntaxLine: -1}
-	s.run()
+// Scan returns the tokens of the document lines, each within a line. The tokens
+// of the nested constructs, like a variable in a string, follow the ones they
+// are nested in.
+func Scan(lines []string) iter.Seq[code.Token] {
+	return func(yield func(code.Token) bool) {
+		s := scanner{lines: lines, yield: yield, esc: defaultEscape, syntaxLine: -1}
+		s.run()
+	}
 }
 
 const (
@@ -68,8 +66,9 @@ var (
 // scanned as its logical line, the continued lines joined, which is mapped
 // back to the document by its segments.
 type scanner struct {
-	lines []string
-	emit  func(Span)
+	lines   []string
+	yield   func(code.Token) bool
+	stopped bool // the consumer of the tokens wants no more of them
 
 	esc        byte // the escape character, set by the escape directive
 	syntaxLine int  // the syntax directive following a shebang, or -1
@@ -97,7 +96,7 @@ type heredoc struct {
 
 func (s *scanner) run() {
 	ln := s.directives()
-	for ln < len(s.lines) {
+	for ln < len(s.lines) && !s.stopped {
 		if ln == s.syntaxLine {
 			ln++
 			continue
@@ -126,10 +125,16 @@ func (s *scanner) bounds(ln int) (start, end int) {
 	return start, start + len(strings.TrimRight(line[start:], "\r\n"))
 }
 
+// emitLine yields the token of the range [start, end) of the line ln in bytes.
 func (s *scanner) emitLine(ln, start, end int, token code.TokenType) {
-	if start < end {
-		s.emit(Span{Line: ln, Start: start, End: end, Token: token})
+	if s.stopped || start >= end {
+		return
 	}
+	s.stopped = !s.yield(code.Token{
+		Start:     content.Position{Line: ln, Col: start},
+		End:       content.Position{Line: ln, Col: end},
+		TokenType: token,
+	})
 }
 
 // directives highlights the parser directives at the top of the document and
@@ -290,7 +295,7 @@ func (s *scanner) match() {
 	s.stack = stack
 }
 
-// mark emits the range of the logical line, split by the lines it spans.
+// mark yields the range of the logical line, split by the lines it spans.
 func (s *scanner) mark(from, to int, token code.TokenType) {
 	if from >= to {
 		return
@@ -302,9 +307,8 @@ func (s *scanner) mark(from, to int, token code.TokenType) {
 		if i+1 < len(s.segs) {
 			end = s.segs[i+1].off
 		}
-		if a, b := max(from, seg.off), min(to, end); a < b {
-			s.emit(Span{Line: seg.line, Start: seg.col + a - seg.off, End: seg.col + b - seg.off, Token: token})
-		}
+		a, b := max(from, seg.off), min(to, end)
+		s.emitLine(seg.line, seg.col+a-seg.off, seg.col+b-seg.off, token)
 	}
 }
 
