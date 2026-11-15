@@ -242,11 +242,11 @@ func TestMarkdownAfterEdit(t *testing.T) {
 		{"- item", []string{"0:1:ListMarker"}},
 	}
 
-	buf, ext := openDoc(t, "notes.md", doc.text())
+	h, buf, ext := openHarness(t, "notes.md", doc.text())
 	hl := highlighterOf(t, buf, ext)
 	doc.check(t, hl)
 
-	insertLine(t, buf, ext, 1)
+	insertLine(t, h, buf, 1)
 	hlDoc{doc[0], {"", nil}, doc[1]}.check(t, hl)
 }
 

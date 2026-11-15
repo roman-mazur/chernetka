@@ -53,19 +53,30 @@ func (d hlDoc) check(t *testing.T, hl editor.SyntaxHighlighter) {
 // extension wiring as well as the highlighter itself.
 func openDoc(t *testing.T, path, text string) (*editor.Buffer, *Integration) {
 	t.Helper()
+	_, buf, ext := openHarness(t, path, text)
+	return buf, ext
+}
+
+// openHarness opens a buffer in a test harness with the extension, and the other extensions given.
+// The harness notifies the extensions about the edits made with Mutate (see TestHarness.NotifyExtensions).
+func openHarness(t testing.TB, path, text string, exts ...editor.Extension) (*editor.TestHarness, *editor.Buffer, *Integration) {
+	t.Helper()
 
 	ext := new(Integration)
 	ext.LogEmbed = logger.Embed(t.Logf)
 	ext.LogDebug = true
 
-	var edit editor.Editor
-	edit.Extend(ext)
-	if err := edit.OpenReader(path, strings.NewReader(text)); err != nil {
+	h := editor.NewTestHarness(t)
+	h.Extend(ext)
+	for _, x := range exts {
+		h.Extend(x)
+	}
+	if err := h.OpenReader(path, strings.NewReader(text)); err != nil {
 		t.Fatal(err)
 	}
-	buf := edit.Top()
+	buf := h.Top()
 	t.Cleanup(func() { _ = buf.Close() })
-	return buf, ext
+	return h, buf, ext
 }
 
 // highlighterOf returns the buffer's highlighter, failing the test if the
@@ -81,10 +92,10 @@ func highlighterOf(t *testing.T, buf *editor.Buffer, ext *Integration) editor.Sy
 
 // insertLine inserts an empty line in the middle of the buffer and lets the
 // extension react, which is what invalidates the cached spans.
-func insertLine(t *testing.T, buf *editor.Buffer, ext *Integration, at int) {
+func insertLine(t *testing.T, h *editor.TestHarness, buf *editor.Buffer, at int) {
 	t.Helper()
 	buf.Mutate().Insert(at, content.TextLine(""))
-	ext.AfterEdit(nil, buf, nil)
+	h.NotifyExtensions(buf)
 }
 
 func readFile(t *testing.T, path string) string {
