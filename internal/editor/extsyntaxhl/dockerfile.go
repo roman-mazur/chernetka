@@ -18,7 +18,7 @@ func (dockerfileHighlighter) reparse(*source, []treesitter.InputEdit) error { re
 func (dockerfileHighlighter) Close() error { return nil }
 
 func (dockerfileHighlighter) spans(src *source, emit func(rawSpan)) {
-	dockerfile.Scan(src.lines, func(s dockerfile.Span) {
-		emit(lineSpan(s.Line, s.Start, s.End, s.Token))
-	})
+	for t := range dockerfile.Scan(src.lines) {
+		emit(tokenSpan(t))
+	}
 }
