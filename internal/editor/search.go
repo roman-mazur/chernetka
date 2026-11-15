@@ -90,12 +90,9 @@ func (p *searchPrompt) submit(*Editor) (quit bool) {
 	return false
 }
 
-// cancel returns the cursor where it was before, and restores the previous search.
+// cancel restores the previous search.
 func (p *searchPrompt) cancel(*Editor) {
-	b := p.c.buf
-	b.offset, b.xoff = p.offset, p.xoff
-	b.updateCursor(p.origin)
-	b.search = p.prev
+	p.c.buf.search = p.prev
 }
 
 func (p *searchPrompt) height(int) int { return 1 }

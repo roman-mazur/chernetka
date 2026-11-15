@@ -168,7 +168,7 @@ func TestSearch(t *testing.T) {
 		b := e.Top()
 		b.updateCursor(pos(2, 1))
 		input("/two", esc)
-		if b.mode != ModeReview || b.c() != pos(2, 1) || b.search != nil || e.status.cmd != nil {
+		if b.mode != ModeReview || b.c() != pos(3, 0) || b.search != nil || e.status.cmd != nil {
 			t.Errorf("mode %s, cursor at %s, pattern %v, command line %+v", b.mode, b.c(), b.search, e.status.cmd)
 		}
 
@@ -182,7 +182,7 @@ func TestSearch(t *testing.T) {
 		e, input := newSearchEditor(t, sample...)
 		b := e.Top()
 		input("/two", enter, "/four", esc)
-		if b.search == nil || b.search.String() != "two" || b.c() != pos(0, 4) {
+		if b.search == nil || b.search.String() != "two" || b.c() != pos(2, 0) {
 			t.Errorf("pattern %v, cursor at %s", b.search, b.c())
 		}
 	})
@@ -201,7 +201,7 @@ func TestSearch(t *testing.T) {
 		b.updateCursor(pos(2, 1))
 		input("/two")
 		e.New()
-		if e.status.cmd != nil || b.c() != pos(2, 1) || b.search != nil {
+		if e.status.cmd != nil || b.c() != pos(3, 0) || b.search != nil {
 			t.Errorf("command line %+v, cursor at %s, pattern %v", e.status.cmd, b.c(), b.search)
 		}
 	})
