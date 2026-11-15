@@ -1,6 +1,7 @@
-; Highlight query for C++, adapted from tree-sitter-cpp's queries/highlights.scm.
-; The C++ grammar extends the C one, and like upstream this query only covers
-; what C++ adds: it's followed by c.scm, which it takes precedence over.
+; Highlight query for C++, adapted from tree-sitter-cpp's
+; queries/highlights.scm. The C++ grammar extends the C one, and like upstream
+; this query only covers what C++ adds: it's followed by the C query, which it
+; takes precedence over.
 
 ; Declarations
 

@@ -1,8 +1,8 @@
 ; Highlight query for Kotlin, adapted from tree-sitter-kotlin's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the catch-all identifier rule below.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the catch-all identifier rule below.
 
 ; Annotations, with their @ and use-site target but not their arguments.
 

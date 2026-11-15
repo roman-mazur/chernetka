@@ -1,7 +1,7 @@
 package extsyntaxhl
 
 import (
-	_ "embed"
+	"embed"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,28 +9,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content/code"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/bash"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/c"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/commonlisp"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cpp"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/css"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/hcl"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/html"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/java"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/makefile"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/python"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/rust"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/toml"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsquery"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsx"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/typescript"
-	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
 )
 
 func init() {
@@ -39,227 +17,24 @@ func init() {
 	go goGrammar.prepare()
 }
 
-//go:embed queries/go.scm
-var goQuery string
+// queries holds the highlight queries of the grammars, written for the capture
+// names of defaultCaptureTokens.
+//
+//go:embed grammars/*/highlights.scm
+var queries embed.FS
 
-// goGrammar highlights Go using the tree-sitter grammar copied from upstream.
-var goGrammar = &tsGrammar{
-	load:   golang.Language,
-	query:  goQuery,
-	tokens: defaultCaptureTokens,
+// newGrammar pairs the tree-sitter grammar the load function returns with its
+// highlight query, joined from the queries of the named packages of the
+// grammars directory. A grammar extending another one, like C++ extends C,
+// takes the query of the extended grammar after its own: when two patterns
+// capture the same node, the one listed first wins.
+func newGrammar(load func() (unsafe.Pointer, error), query ...string) *tsGrammar {
+	return &tsGrammar{load: load, query: query}
 }
 
-//go:embed queries/json.scm
-var jsonQuery string
-
-// jsonGrammar highlights JSON using the tree-sitter grammar copied from upstream.
-var jsonGrammar = &tsGrammar{
-	load:   json.Language,
-	query:  jsonQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/yaml.scm
-var yamlQuery string
-
-// yamlGrammar highlights YAML using the tree-sitter grammar copied from upstream.
-var yamlGrammar = &tsGrammar{
-	load:   yaml.Language,
-	query:  yamlQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/bash.scm
-var bashQuery string
-
-// bashGrammar highlights shell scripts using the tree-sitter-bash grammar copied from upstream.
-var bashGrammar = &tsGrammar{
-	load:   bash.Language,
-	query:  bashQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/c.scm
-var cQuery string
-
-// cGrammar highlights C using the tree-sitter grammar copied from upstream.
-var cGrammar = &tsGrammar{
-	load:   c.Language,
-	query:  cQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/cpp.scm
-var cppQuery string
-
-// cppGrammar highlights C++ using the tree-sitter grammar copied from upstream. Its grammar
-// extends the C one, and so does its query: the C patterns follow the C++ ones.
-var cppGrammar = &tsGrammar{
-	load:   cpp.Language,
-	query:  cppQuery + "\n" + cQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/csharp.scm
-var csharpQuery string
-
-// csharpGrammar highlights C# using the tree-sitter grammar copied from upstream.
-var csharpGrammar = &tsGrammar{
-	load:   csharp.Language,
-	query:  csharpQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/java.scm
-var javaQuery string
-
-// javaGrammar highlights Java using the tree-sitter grammar copied from upstream.
-var javaGrammar = &tsGrammar{
-	load:   java.Language,
-	query:  javaQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/kotlin.scm
-var kotlinQuery string
-
-// kotlinGrammar highlights Kotlin using the grammar copied from fwcd/tree-sitter-kotlin.
-var kotlinGrammar = &tsGrammar{
-	load:   kotlin.Language,
-	query:  kotlinQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/typescript.scm
-var typescriptQuery string
-
-// typescriptGrammar highlights TypeScript using the tree-sitter grammar copied from upstream.
-var typescriptGrammar = &tsGrammar{
-	load:   typescript.Language,
-	query:  typescriptQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/jsx.scm
-var jsxQuery string
-
-// tsxGrammar highlights TypeScript with JSX, and JavaScript, using the
-// tree-sitter grammar copied from upstream. Its grammar extends the TypeScript
-// one, and so does its query: the TypeScript patterns follow the JSX ones.
-var tsxGrammar = &tsGrammar{
-	load:   tsx.Language,
-	query:  jsxQuery + "\n" + typescriptQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/rust.scm
-var rustQuery string
-
-// rustGrammar highlights Rust using the tree-sitter grammar copied from upstream.
-var rustGrammar = &tsGrammar{
-	load:   rust.Language,
-	query:  rustQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/python.scm
-var pythonQuery string
-
-// pythonGrammar highlights Python using the tree-sitter grammar copied from upstream.
-var pythonGrammar = &tsGrammar{
-	load:   python.Language,
-	query:  pythonQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/toml.scm
-var tomlQuery string
-
-// tomlGrammar highlights TOML using the tree-sitter grammar copied from upstream.
-var tomlGrammar = &tsGrammar{
-	load:   toml.Language,
-	query:  tomlQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/hcl.scm
-var hclQuery string
-
-// hclGrammar highlights HCL, and the Terraform files written in it, using the tree-sitter grammar copied from upstream.
-var hclGrammar = &tsGrammar{
-	load:   hcl.Language,
-	query:  hclQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/html.scm
-var htmlQuery string
-
-// htmlGrammar highlights HTML using the tree-sitter grammar copied from upstream.
-var htmlGrammar = &tsGrammar{
-	load:   html.Language,
-	query:  htmlQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/css.scm
-var cssQuery string
-
-// cssGrammar highlights CSS using the tree-sitter grammar copied from upstream.
-var cssGrammar = &tsGrammar{
-	load:   css.Language,
-	query:  cssQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/makefile.scm
-var makefileQuery string
-
-// makefileGrammar highlights makefiles using the tree-sitter grammar copied from upstream.
-var makefileGrammar = &tsGrammar{
-	load:   makefile.Language,
-	query:  makefileQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/commonlisp.scm
-var commonLispQuery string
-
-// commonLispGrammar highlights Common Lisp using the grammar copied from upstream.
-var commonLispGrammar = &tsGrammar{
-	load:   commonlisp.Language,
-	query:  commonLispQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/query.scm
-var treeSitterQueryQuery string
-
-// treeSitterQueryGrammar highlights tree-sitter queries using the grammar copied from upstream.
-var treeSitterQueryGrammar = &tsGrammar{
-	load:   tsquery.Language,
-	query:  treeSitterQueryQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/nix.scm
-var nixQuery string
-
-// nixGrammar highlights Nix using the grammar copied from tree-sitter-nix.
-var nixGrammar = &tsGrammar{
-	load:   nix.Language,
-	query:  nixQuery,
-	tokens: defaultCaptureTokens,
-}
-
-//go:embed queries/cue.scm
-var cueQuery string
-
-// cueGrammar highlights CUE using the grammar copied from tree-sitter-cue.
-var cueGrammar = &tsGrammar{
-	load:   cue.Language,
-	query:  cueQuery,
-	tokens: defaultCaptureTokens,
+// treeSitter returns a language highlighted with a grammar of its own, see newGrammar.
+func treeSitter(load func() (unsafe.Pointer, error), query ...string) *language {
+	return &language{newHighlighter: newTreeSitter(newGrammar(load, query...))}
 }
 
 // defaultCaptureTokens maps the capture names used by tree-sitter highlight
@@ -290,9 +65,8 @@ var defaultCaptureTokens = map[string]code.TokenType{
 // tsGrammar is a tree-sitter grammar paired with its highlight query. Both are
 // immutable and shared by every buffer of the language, so they are built once.
 type tsGrammar struct {
-	load   func() (unsafe.Pointer, error)
-	query  string
-	tokens map[string]code.TokenType
+	load  func() (unsafe.Pointer, error)
+	query []string // the packages holding the parts of the highlight query, see newGrammar
 
 	once     sync.Once
 	lang     *treesitter.Language
@@ -313,9 +87,19 @@ func (g *tsGrammar) prepare() error {
 			return
 		}
 		g.lang = treesitter.NewLanguage(ptr)
+		var query strings.Builder
+		for _, pkg := range g.query {
+			text, err := queries.ReadFile("grammars/" + pkg + "/highlights.scm")
+			if err != nil {
+				g.err = err
+				return
+			}
+			query.Write(text)
+			query.WriteByte('\n')
+		}
 		// NewQuery returns a concrete *QueryError rather than an error, so it
 		// has to be nil checked before being treated as one.
-		compiled, queryErr := treesitter.NewQuery(g.lang, g.query)
+		compiled, queryErr := treesitter.NewQuery(g.lang, query.String())
 		if queryErr != nil {
 			g.err = fmt.Errorf("highlight query: %s", queryErr.Error())
 			return
@@ -325,7 +109,7 @@ func (g *tsGrammar) prepare() error {
 		names := compiled.CaptureNames()
 		g.captureTokens = make([]code.TokenType, len(names))
 		for i, name := range names {
-			g.captureTokens[i] = tokenForCapture(g.tokens, name)
+			g.captureTokens[i] = tokenForCapture(defaultCaptureTokens, name)
 		}
 	})
 	return g.err

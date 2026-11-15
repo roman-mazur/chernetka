@@ -1,8 +1,8 @@
 ; Highlight query for YAML, adapted from tree-sitter-yaml's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; mapping keys come before the scalars they are made of.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the mapping keys come before the scalars they are made of.
 
 ; Keys
 

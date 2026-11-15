@@ -1,8 +1,8 @@
 ; Highlight query for CSS, adapted from tree-sitter-css's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the general ones.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the general ones.
 
 ; Selectors. Like in HTML, the tags read as keywords. The classes read as
 ; types and the ids as constants, with their . and #, and the pseudo-classes

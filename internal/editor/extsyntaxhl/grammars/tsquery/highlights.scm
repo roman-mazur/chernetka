@@ -1,8 +1,8 @@
 ; Highlight query for tree-sitter queries, like this file, adapted from
 ; tree-sitter-query's queries/query/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins.
 
 ; A node type reads as a type, and a capture names what it captures, like a
 ; constant.

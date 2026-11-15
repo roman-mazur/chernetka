@@ -1,9 +1,9 @@
 ; Highlight query for makefiles, adapted from tree-sitter-make's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the general ones. The recipes are left plain,
-; but for the variables and the functions they use.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the general ones. The recipes are left
+; plain, but for the variables and the functions they use.
 
 ; Rules. A target is declared by its rule, like a function, but the special
 ; targets, like .PHONY, are instructions to make.

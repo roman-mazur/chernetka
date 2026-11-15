@@ -1,8 +1,8 @@
 ; Highlight query for TOML, adapted from tree-sitter-toml's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; keys come before the strings they may be made of.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the keys come before the strings they may be made of.
 
 ; Tables. The name of a table reads as a type, a key as a property.
 

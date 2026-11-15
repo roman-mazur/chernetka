@@ -15,6 +15,28 @@ import (
 	"rmazur.io/chernetka/internal/content/parser/git"
 	"rmazur.io/chernetka/internal/editor"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/bash"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/c"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/commonlisp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cpp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/csharp"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/css"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/cue"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/golang"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/hcl"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/html"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/java"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/json"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/kotlin"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/makefile"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/nix"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/python"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/rust"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/toml"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsquery"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsx"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/typescript"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
 	"rmazur.io/chernetka/internal/logger"
 )
 
@@ -49,31 +71,42 @@ func languageForPath(path string) *language {
 	return languages[code.SyntaxForPath(path)]
 }
 
+// The grammars shared by several languages, or prepared at the start, see init.
+var (
+	goGrammar   = newGrammar(golang.Language, "golang")
+	jsonGrammar = newGrammar(json.Language, "json")
+	// TSX extends TypeScript, and so does its query.
+	tsxGrammar = newGrammar(tsx.Language, "tsx", "typescript")
+)
+
+// languages are the highlighted languages. A language highlighted with a tree-sitter
+// grammar takes a package of the grammars directory, which holds the grammar and
+// its highlight query, highlights.scm.
 var languages = map[*code.Syntax]*language{
 	code.Go:              {newHighlighter: newTreeSitter(goGrammar)},
-	code.Nix:             {newHighlighter: newTreeSitter(nixGrammar)},
-	code.CUE:             {newHighlighter: newTreeSitter(cueGrammar)},
 	code.JSON:            {newHighlighter: newTreeSitter(jsonGrammar)},
 	code.JSONC:           {newHighlighter: newTreeSitter(jsonGrammar)},
-	code.YAML:            {newHighlighter: newTreeSitter(yamlGrammar)},
-	code.Shell:           {newHighlighter: newTreeSitter(bashGrammar)},
-	code.C:               {newHighlighter: newTreeSitter(cGrammar)},
-	code.CPP:             {newHighlighter: newTreeSitter(cppGrammar)},
-	code.CSharp:          {newHighlighter: newTreeSitter(csharpGrammar)},
-	code.Java:            {newHighlighter: newTreeSitter(javaGrammar)},
-	code.Kotlin:          {newHighlighter: newTreeSitter(kotlinGrammar)},
-	code.TypeScript:      {newHighlighter: newTreeSitter(typescriptGrammar)},
 	code.TSX:             {newHighlighter: newTreeSitter(tsxGrammar)},
 	code.JavaScript:      {newHighlighter: newTreeSitter(tsxGrammar)},
-	code.Rust:            {newHighlighter: newTreeSitter(rustGrammar)},
-	code.Python:          {newHighlighter: newTreeSitter(pythonGrammar)},
-	code.TOML:            {newHighlighter: newTreeSitter(tomlGrammar)},
-	code.HCL:             {newHighlighter: newTreeSitter(hclGrammar)},
-	code.HTML:            {newHighlighter: newTreeSitter(htmlGrammar)},
-	code.CSS:             {newHighlighter: newTreeSitter(cssGrammar)},
-	code.Makefile:        {newHighlighter: newTreeSitter(makefileGrammar)},
-	code.CommonLisp:      {newHighlighter: newTreeSitter(commonLispGrammar)},
-	code.TreeSitterQuery: {newHighlighter: newTreeSitter(treeSitterQueryGrammar)},
+	code.Nix:             treeSitter(nix.Language, "nix"),
+	code.CUE:             treeSitter(cue.Language, "cue"),
+	code.YAML:            treeSitter(yaml.Language, "yaml"),
+	code.Shell:           treeSitter(bash.Language, "bash"),
+	code.C:               treeSitter(c.Language, "c"),
+	code.CPP:             treeSitter(cpp.Language, "cpp", "c"), // C++ extends C
+	code.CSharp:          treeSitter(csharp.Language, "csharp"),
+	code.Java:            treeSitter(java.Language, "java"),
+	code.Kotlin:          treeSitter(kotlin.Language, "kotlin"),
+	code.TypeScript:      treeSitter(typescript.Language, "typescript"),
+	code.Rust:            treeSitter(rust.Language, "rust"),
+	code.Python:          treeSitter(python.Language, "python"),
+	code.TOML:            treeSitter(toml.Language, "toml"),
+	code.HCL:             treeSitter(hcl.Language, "hcl"),
+	code.HTML:            treeSitter(html.Language, "html"),
+	code.CSS:             treeSitter(css.Language, "css"),
+	code.Makefile:        treeSitter(makefile.Language, "makefile"),
+	code.CommonLisp:      treeSitter(commonlisp.Language, "commonlisp"),
+	code.TreeSitterQuery: treeSitter(tsquery.Language, "tsquery"),
 	code.Markdown:        {newHighlighter: newMarkdown},
 	code.Dockerfile:      {newHighlighter: newDockerfile},
 	code.GitCommitMsg:    {newHighlighter: newGitHighlighter(git.ScanCommitMessage)},

@@ -1,9 +1,9 @@
 ; Highlight query for HCL. The grammar comes with no highlight query of its
 ; own.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the catch-all identifier rule below.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the catch-all identifier rule below.
 
 ; Blocks. The type of a block, like resource, reads as a keyword, and its
 ; labels written as names as types. The quoted labels stay strings.

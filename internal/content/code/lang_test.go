@@ -70,6 +70,8 @@ func TestSyntaxForPath(t *testing.T) {
 		"queries/go.scm":                         "query",
 		"/nvim/queries/rust/highlights.scm":      "query",
 		"extsyntaxhl/queries/c.SCM":              "query",
+		"grammars/golang/highlights.scm":         "query",
+		"grammars/golang/locals.scm":             "",
 		"lib/srfi.scm":                           "",
 		"queries.scm":                            "",
 		"myqueries/go.scm":                       "",

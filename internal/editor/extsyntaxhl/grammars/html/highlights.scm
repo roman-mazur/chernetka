@@ -1,7 +1,7 @@
 ; Highlight query for HTML, adapted from tree-sitter-html's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. Like the
-; elements of JSX, the tags read as keywords and their attributes as
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; Like the elements of JSX, the tags read as keywords and their attributes as
 ; properties. The scripts and the style sheets embedded in a page are left
 ; plain.
 

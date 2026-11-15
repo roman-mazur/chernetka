@@ -2,9 +2,9 @@
 ; its own: it parses the syntax of the reader, so the forms are told apart by
 ; their first symbol, ignoring the case as the reader does.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the general ones.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the general ones.
 
 ; A reader conditional, like #+sbcl, is an instruction to the reader.
 

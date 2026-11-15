@@ -1,12 +1,12 @@
 ; Highlight query for TypeScript, adapted from tree-sitter-javascript's and
 ; tree-sitter-typescript's queries/highlights.scm. The TSX grammar extends the
-; TypeScript one with JSX, and the TSX query is jsx.scm followed by this file:
-; everything here has to compile against both grammars. JavaScript is read
+; TypeScript one with JSX, and the TSX query is the JSX one followed by this
+; file: everything here has to compile against both grammars. JavaScript is read
 ; with the TSX grammar.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the catch-all identifier rule below.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the catch-all identifier rule below.
 
 ; Directives: the shebang, and the directive prologues like "use strict" and
 ; React's "use client".

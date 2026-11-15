@@ -1,8 +1,8 @@
 ; Highlight query for Java, adapted from tree-sitter-java's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the general ones.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the general ones.
 ;
 ; Like the C# query, this one has no catch-all rule for identifiers: it would
 ; paint over the dotted names captured as a whole, like the package of an

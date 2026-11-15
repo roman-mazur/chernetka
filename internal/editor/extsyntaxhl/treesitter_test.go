@@ -514,15 +514,17 @@ func TestTreeSitterQueryHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
-// TestQueriesParse reads the highlight queries of this package with the query
+// TestQueriesParse reads the highlight queries of the grammars with the query
 // grammar, which they must parse with without an error.
 func TestQueriesParse(t *testing.T) {
-	entries, err := os.ReadDir("queries")
+	paths, err := filepath.Glob("grammars/*/highlights.scm")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, entry := range entries {
-		path := filepath.Join("queries", entry.Name())
+	if len(paths) == 0 {
+		t.Fatal("no queries found")
+	}
+	for _, path := range paths {
 		src, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)

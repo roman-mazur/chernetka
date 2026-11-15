@@ -1,8 +1,8 @@
 ; Highlight query for shell scripts, adapted from tree-sitter-bash's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the general ones.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the general ones.
 
 ; Declarations and calls. A command's name reads as a call, including the
 ; builtins, as the grammar doesn't tell them apart.

@@ -1,8 +1,8 @@
 ; Highlight query for Python, adapted from tree-sitter-python's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the catch-all identifier rule below.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the catch-all identifier rule below.
 
 ; The shebang, an instruction to the loader, is parsed as the first comment.
 ((module

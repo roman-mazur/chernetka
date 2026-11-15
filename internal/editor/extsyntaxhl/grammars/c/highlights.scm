@@ -1,10 +1,10 @@
 ; Highlight query for C, adapted from tree-sitter-c's queries/highlights.scm.
-; The C++ grammar extends the C one, so the C++ query is cpp.scm followed by
+; The C++ grammar extends the C one, so the C++ query is its own followed by
 ; this file: everything here has to compile against both grammars.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the catch-all identifier rules below.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the catch-all identifier rules below.
 
 ; Attributes, like [[nodiscard]], with their brackets but not their arguments.
 

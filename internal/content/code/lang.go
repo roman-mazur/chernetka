@@ -178,13 +178,14 @@ var (
 	}
 	// TreeSitterQuery is the language of tree-sitter queries. Scheme files share
 	// their .scm extension, so only the ones in a queries directory are taken
-	// for queries, as the tree-sitter grammars and the editors keep them there.
+	// for queries, as the tree-sitter grammars and the editors keep them there,
+	// and the highlight queries kept next to the grammars of extsyntaxhl.
 	// Its name is the language identifier of the query language server.
 	TreeSitterQuery = &Syntax{
 		Name: "query",
-		PathMatch: func(p string) bool {
+		PathMatch: compose(filenameMatch("highlights.scm"), func(p string) bool {
 			return suffixMatch(".scm")(p) && slices.Contains(strings.Split(filepath.ToSlash(filepath.Dir(p)), "/"), "queries")
-		},
+		}),
 		LineCommentPrefix: ";",
 	}
 	GitCommitMsg = &Syntax{

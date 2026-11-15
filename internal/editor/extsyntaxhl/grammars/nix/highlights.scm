@@ -1,8 +1,8 @@
 ; Highlight query for Nix, adapted from tree-sitter-nix's queries/highlights.scm.
 ;
-; Patterns are matched against the capture names in treesitter.go. When two
-; patterns capture the exact same node the one listed first here wins, so the
-; specific patterns come before the catch-all identifier rules below.
+; Patterns are matched against the capture names in extsyntaxhl's treesitter.go.
+; When two patterns capture the exact same node the one listed first here wins,
+; so the specific patterns come before the catch-all identifier rules below.
 
 ; Declarations: an attribute bound to a function.
 
