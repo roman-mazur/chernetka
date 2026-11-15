@@ -42,6 +42,7 @@ func TestVisual(t *testing.T) {
 		{"visual.tf", visualHCL},
 		{"visual.html", visualHTML},
 		{"visual.css", visualCSS},
+		{"visual.svg", visualXML},
 		{"visual.mk", visualMakefile},
 		{"visual.dockerfile", visualDockerfile},
 		{"visual.lisp", visualCommonLisp},
@@ -853,6 +854,19 @@ body > .card:hover, #main::before, a[href^="http"] {
   .card { display: none; }
 }
 @keyframes spin { from { opacity: 0; } to { opacity: 1; } }
+`
+
+const visualXML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg [
+  <!ENTITY accent "#e91e63">
+]>
+<!-- A badge. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
+  <title>Tom &amp; Jerry</title>
+  <rect width="120" height="20" rx="3" fill="&accent;"/>
+  <text x="10" y="14">passing &#x2713;</text>
+  <style><![CDATA[text { font: 11px sans-serif; }]]></style>
+</svg>
 `
 
 const visualMakefile = `# Build.

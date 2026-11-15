@@ -712,6 +712,30 @@ func TestCSSHighlight(t *testing.T) {
 	doc.check(t, highlighterOf(t, buf, ext))
 }
 
+func TestXMLHighlight(t *testing.T) {
+	doc := hlDoc{
+		// The declaration and the processing instructions read as directives.
+		{"<?xml version=\"1.0\" encoding=\"UTF-8\"?>", []string{"0:38:Directive"}},
+		{"<?xml-stylesheet type=\"text/xsl\" href=\"style.xsl\"?>", []string{"0:51:Directive"}},
+		{"<!DOCTYPE note SYSTEM \"note.dtd\" [", []string{"2:9:Directive", "10:14:TypeRef", "15:21:Keyword", "22:32:StringLiteral"}},
+		{"  <!ELEMENT note (to, body)>", []string{"4:11:Keyword", "12:16:Keyword"}},
+		{"  <!ATTLIST note id ID #REQUIRED>", []string{"4:11:Keyword", "12:16:Keyword", "17:19:Field", "20:22:Constant", "23:32:Constant"}},
+		{"  <!ENTITY sig \"Tom\">", []string{"4:10:Keyword", "11:14:Constant", "15:20:StringLiteral"}},
+		{"]>", nil},
+		{"<!-- A note. -->", []string{"0:16:Comment"}},
+		// Like in HTML, the tags read as keywords and their attributes as properties.
+		{"<note id=\"n1\" xmlns:x='urn:x'>", []string{"1:5:Keyword", "6:8:Field", "9:13:StringLiteral", "14:21:Field", "22:29:StringLiteral"}},
+		// A reference reads as an escape, and so do the delimiters of a CDATA section.
+		{"  <to>Tove &amp; &#x41;</to>", []string{"3:5:Keyword", "11:16:Escape", "17:23:Escape", "25:27:Keyword"}},
+		{"  <x:body><![CDATA[a < b]]></x:body>", []string{"3:9:Keyword", "10:19:Escape", "24:27:Escape", "29:35:Keyword"}},
+		{"  <br/>", []string{"3:5:Keyword"}},
+		{"</note>", []string{"2:6:Keyword"}},
+	}
+
+	buf, ext := openDoc(t, "note.xml", doc.text())
+	doc.check(t, highlighterOf(t, buf, ext))
+}
+
 func TestMakefileHighlight(t *testing.T) {
 	doc := hlDoc{
 		{"# Build.", []string{"0:8:Comment"}},
@@ -865,6 +889,8 @@ func TestLanguageForPath(t *testing.T) {
 		"main.tf":         "hcl",
 		"index.html":      "html",
 		"style.css":       "css",
+		"pom.xml":         "xml",
+		"logo.svg":        "xml",
 		"Makefile":        "makefile",
 		"Dockerfile":      "dockerfile",
 		"queries/go.scm":  "query",

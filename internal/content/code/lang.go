@@ -155,6 +155,10 @@ var (
 		Name:      "css",
 		PathMatch: suffixMatch(".css"),
 	}
+	XML = &Syntax{
+		Name:      "xml",
+		PathMatch: suffixMatch(".xml", ".svg", ".xsd", ".xsl", ".xslt"),
+	}
 	Makefile = &Syntax{
 		Name: "makefile",
 		PathMatch: compose(
@@ -203,7 +207,7 @@ var (
 	syntaxes = []*Syntax{
 		Go, Nix, CUE, JSON, JSONC, YAML, Shell, Markdown, D2, SQL, C, CPP, CSharp,
 		Java, Kotlin, TypeScript, TSX, JavaScript, Rust, Python, TOML, HCL, HTML, CSS,
-		Makefile, Dockerfile, CommonLisp, TreeSitterQuery, GitCommitMsg,
+		XML, Makefile, Dockerfile, CommonLisp, TreeSitterQuery, GitCommitMsg,
 		GitRebaseTodo,
 	}
 

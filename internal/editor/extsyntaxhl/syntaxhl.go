@@ -36,6 +36,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsquery"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/tsx"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/typescript"
+	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/xml"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl/grammars/yaml"
 	"rmazur.io/chernetka/internal/logger"
 )
@@ -103,6 +104,7 @@ var languages = map[*code.Syntax]*language{
 	code.HCL:             treeSitter(hcl.Language, "hcl"),
 	code.HTML:            treeSitter(html.Language, "html"),
 	code.CSS:             treeSitter(css.Language, "css"),
+	code.XML:             treeSitter(xml.Language, "xml"),
 	code.Makefile:        treeSitter(makefile.Language, "makefile"),
 	code.CommonLisp:      treeSitter(commonlisp.Language, "commonlisp"),
 	code.TreeSitterQuery: treeSitter(tsquery.Language, "tsquery"),
