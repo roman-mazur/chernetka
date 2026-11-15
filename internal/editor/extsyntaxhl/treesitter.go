@@ -3,10 +3,12 @@ package extsyntaxhl
 import (
 	"embed"
 	"fmt"
+	"iter"
 	"strings"
 	"sync"
 	"unsafe"
 
+	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/content/code"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
@@ -183,34 +185,40 @@ func (h *tsHighlighter) reparse(src *source, edits []treesitter.InputEdit) error
 	return nil
 }
 
-func (h *tsHighlighter) spans(src *source, emit func(rawSpan)) {
-	if h.tree == nil {
-		return
-	}
-	root := h.tree.RootNode()
-	if root == nil {
-		return
-	}
-
-	cursor := treesitter.NewQueryCursor()
-	defer cursor.Close()
-
-	captures := cursor.Captures(h.grammar.compiled, root, []byte(src.text))
-	for {
-		match, i := captures.Next()
-		if match == nil {
+func (h *tsHighlighter) spans(src *source) iter.Seq[code.Token] {
+	// The cursor lives as long as the iteration does: it's closed when the
+	// iteration ends, not when spans returns.
+	return func(yield func(code.Token) bool) {
+		if h.tree == nil {
 			return
 		}
-		if int(i) >= len(match.Captures) {
-			continue
+		root := h.tree.RootNode()
+		if root == nil {
+			return
 		}
-		capture := match.Captures[i]
-		token := h.grammar.tokenType(capture.Index)
-		if token == code.TtNothing {
-			continue
+
+		cursor := treesitter.NewQueryCursor()
+		defer cursor.Close()
+
+		captures := cursor.Captures(h.grammar.compiled, root, []byte(src.text))
+		for {
+			match, i := captures.Next()
+			if match == nil {
+				return
+			}
+			if int(i) >= len(match.Captures) {
+				continue
+			}
+			capture := match.Captures[i]
+			token := h.grammar.tokenType(capture.Index)
+			if token == code.TtNothing {
+				continue
+			}
+			// Read now: Next reuses the match memory.
+			if !yield(tokenFromNode(&capture.Node, token)) {
+				return
+			}
 		}
-		// Next reuses the match memory, so the positions are read out now.
-		emit(spanFromNode(&capture.Node, token))
 	}
 }
 
@@ -230,16 +238,13 @@ func (h *tsHighlighter) closeTree() {
 	}
 }
 
-// spanFromNode converts a node's position to a rawSpan. A tree-sitter column is
-// a byte offset within its row, which is what the editor slices lines by. Nodes
-// covering several rows stay multi-line here and are cut up by the spanBuilder.
-func spanFromNode(node *treesitter.Node, token code.TokenType) rawSpan {
+// tokenFromNode returns the token of the node. Tree-sitter columns are byte
+// offsets, as the editor expects.
+func tokenFromNode(node *treesitter.Node, token code.TokenType) code.Token {
 	start, end := node.StartPosition(), node.EndPosition()
-	return rawSpan{
-		StartLine: int(start.Row),
-		StartCol:  int(start.Column),
-		EndLine:   int(end.Row),
-		EndCol:    int(end.Column),
+	return code.Token{
+		Start:     content.Position{Line: int(start.Row), Col: int(start.Column)},
+		End:       content.Position{Line: int(end.Row), Col: int(end.Column)},
 		TokenType: token,
 	}
 }

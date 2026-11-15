@@ -1,6 +1,9 @@
 package extsyntaxhl
 
 import (
+	"iter"
+
+	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/parser/dockerfile"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
 )
@@ -17,8 +20,6 @@ func (dockerfileHighlighter) reparse(*source, []treesitter.InputEdit) error { re
 
 func (dockerfileHighlighter) Close() error { return nil }
 
-func (dockerfileHighlighter) spans(src *source, emit func(rawSpan)) {
-	for t := range dockerfile.Scan(src.lines) {
-		emit(tokenSpan(t))
-	}
+func (dockerfileHighlighter) spans(src *source) iter.Seq[code.Token] {
+	return dockerfile.Scan(src.lines)
 }

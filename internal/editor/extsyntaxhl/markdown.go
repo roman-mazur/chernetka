@@ -1,6 +1,8 @@
 package extsyntaxhl
 
 import (
+	"iter"
+
 	"rmazur.io/chernetka/internal/content/code"
 	"rmazur.io/chernetka/internal/content/parser/markdown"
 	treesitter "rmazur.io/chernetka/internal/editor/extsyntaxhl/gotreesitter"
@@ -11,24 +13,26 @@ import (
 // which mdHighlighter exposes implementing code.Blocks.
 type mdHighlighter struct {
 	scanner markdown.Scanner
-	blocks  []code.Block // found by the last spans call
+	blocks  []code.Block // found by the last spans iteration
 }
 
 func newMarkdown() highlighter { return new(mdHighlighter) }
 
-// reparse does nothing: scanning a document is cheap enough that all the work
-// happens in spans, which also runs once per revision.
+// reparse does nothing: the cheap scan happens in spans.
 func (*mdHighlighter) reparse(*source, []treesitter.InputEdit) error { return nil }
 
 func (*mdHighlighter) Close() error { return nil }
 
-func (m *mdHighlighter) spans(src *source, emit func(rawSpan)) {
-	for t := range m.scanner.Tokens(src.lines) {
-		emit(tokenSpan(t))
+func (m *mdHighlighter) spans(src *source) iter.Seq[code.Token] {
+	return func(yield func(code.Token) bool) {
+		defer func() { m.blocks = m.scanner.Blocks() }()
+		for t := range m.scanner.Tokens(src.lines) {
+			if !yield(t) {
+				return
+			}
+		}
 	}
-	// A new slice for every revision: the previous one may still be in use.
-	m.blocks = m.scanner.Blocks()
 }
 
-// CodeBlocks implements code.Blocks. It reports the blocks found by the last spans call.
+// CodeBlocks implements code.Blocks.
 func (m *mdHighlighter) CodeBlocks() []code.Block { return m.blocks }

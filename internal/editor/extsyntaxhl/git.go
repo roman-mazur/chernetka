@@ -23,8 +23,6 @@ func (gitHighlighter) reparse(*source, []treesitter.InputEdit) error { return ni
 
 func (gitHighlighter) Close() error { return nil }
 
-func (h gitHighlighter) spans(src *source, emit func(rawSpan)) {
-	for t := range h.scan(src.lines) {
-		emit(tokenSpan(t))
-	}
+func (h gitHighlighter) spans(src *source) iter.Seq[code.Token] {
+	return h.scan(src.lines)
 }

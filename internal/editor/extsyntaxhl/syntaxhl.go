@@ -3,12 +3,13 @@
 // A buffer is matched to a language by its file name, and the language provides
 // a highlighter: either a tree-sitter grammar driven by a highlight query, or a
 // hand written scanner for the formats that have no Go grammar bindings.
-// Whatever the source, a highlighter reports coarse rawSpans that the
+// Whatever the source, a highlighter reports coarse tokens that the
 // spanBuilder flattens into the per-line spans the renderer consumes.
 package extsyntaxhl
 
 import (
 	"io"
+	"iter"
 
 	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
@@ -51,10 +52,9 @@ type highlighter interface {
 	// letting the highlighter reuse what it found in the unchanged parts. They
 	// are nil for the first revision, and when the whole text is to be parsed.
 	reparse(src *source, edits []treesitter.InputEdit) error
-	// spans reports every highlighted region of the document. Reported spans may
-	// cover several lines and may be nested inside one another; the caller
-	// flattens them.
-	spans(src *source, emit func(rawSpan))
+	// spans returns the highlighted regions of the document, which may span
+	// lines and nest; the caller flattens them. It's iterated once per revision.
+	spans(src *source) iter.Seq[code.Token]
 
 	io.Closer
 }
@@ -199,7 +199,9 @@ func (d *document) parse(text string) {
 func (d *document) build() {
 	d.built = true
 	d.builder.reset()
-	d.hl.spans(d.src, func(rs rawSpan) { d.builder.add(d.src, rs) })
+	for token := range d.hl.spans(d.src) {
+		d.builder.add(d.src, token)
+	}
 	d.spans = d.builder.build(d.spans)
 	d.Debugf("built %d spans for %d %s lines", len(d.spans), len(d.src.lines), d.lang.name())
 }

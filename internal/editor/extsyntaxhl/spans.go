@@ -28,29 +28,7 @@ func (s *source) line(n int) string {
 	return s.lines[n]
 }
 
-// rawSpan is a region of the document reported by a highlighter. Unlike the
-// editor.SyntaxSpan it ends up as, it may cover several lines, may be nested in
-// or overlap another span, and may reach past the end of a line.
-type rawSpan struct {
-	StartLine, StartCol int
-	EndLine, EndCol     int
-	TokenType           code.TokenType
-}
-
-func lineSpan(ln, start, end int, t code.TokenType) rawSpan {
-	return rawSpan{StartLine: ln, StartCol: start, EndLine: ln, EndCol: end, TokenType: t}
-}
-
-// tokenSpan returns the rawSpan of a token reported by a scanner.
-func tokenSpan(t code.Token) rawSpan {
-	return rawSpan{
-		StartLine: t.Start.Line, StartCol: t.Start.Col,
-		EndLine: t.End.Line, EndCol: t.End.Col,
-		TokenType: t.TokenType,
-	}
-}
-
-// piece is a rawSpan cut down to a single line and clipped to that line.
+// piece is a code.Token cut down to a single line and clipped to that line.
 type piece struct {
 	line       int
 	start, end int
@@ -77,21 +55,21 @@ func (sb *spanBuilder) reset() {
 	sb.pieces = sb.pieces[:0]
 }
 
-// add cuts a raw span into per-line pieces, dropping whatever falls outside the
+// add cuts a token into per-line pieces, dropping whatever falls outside the
 // document or outside its line.
-func (sb *spanBuilder) add(src *source, rs rawSpan) {
-	if rs.TokenType == code.TtNothing || rs.EndLine < rs.StartLine {
+func (sb *spanBuilder) add(src *source, t code.Token) {
+	if t.TokenType == code.TtNothing || t.End.Line < t.Start.Line {
 		return
 	}
-	for ln := max(rs.StartLine, 0); ln <= min(rs.EndLine, len(src.lines)-1); ln++ {
+	for ln := max(t.Start.Line, 0); ln <= min(t.End.Line, len(src.lines)-1); ln++ {
 		start, end := 0, len(src.line(ln))
-		if ln == rs.StartLine {
-			start = rs.StartCol
+		if ln == t.Start.Line {
+			start = t.Start.Col
 		}
-		if ln == rs.EndLine {
-			end = rs.EndCol
+		if ln == t.End.Line {
+			end = t.End.Col
 		}
-		sb.addPiece(src, ln, start, end, rs.TokenType)
+		sb.addPiece(src, ln, start, end, t.TokenType)
 	}
 }
 
