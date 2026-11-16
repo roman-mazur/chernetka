@@ -32,6 +32,13 @@ func TestKeys(t *testing.T) {
 		{name: "esc", input: "\x1b", keys: []Key{Of(Esc)}, n: -1},
 		{name: "esc and command", input: "\x1bi", keys: []Key{Of(Esc), Rune('i')}, n: -1},
 		{name: "unknown sequence", input: "\x1b[3~a", keys: []Key{Rune('a')}, n: -1},
+		{name: "function keys", input: "\x1bOP\x1bOS\x1b[15~\x1b[24~\x1b[13~",
+			keys: []Key{Fn(1, 0), Fn(4, 0), Fn(5, 0), Fn(12, 0), Fn(3, 0)}, n: -1},
+		{name: "function keys with modifiers", input: "\x1b[17;2~\x1b[18;3~\x1b[1;5P\x1b[Q",
+			keys: []Key{Fn(6, ModShift), Fn(7, ModAlt), Fn(1, ModCtrl), Fn(2, 0)}, n: -1},
+		{name: "incomplete ss3", input: "a\x1bO", keys: []Key{Rune('a')}, n: 1},
+		{name: "esc and O", input: "\x1bOx", keys: []Key{Of(Esc), Rune('O'), Rune('x')}, n: -1},
+		{name: "cursor position report is not F3", input: "\x1b[12;40R", n: -1},
 		{name: "incomplete sequence", input: "a\x1b[1;", keys: []Key{Rune('a')}, n: 1},
 		{name: "before mouse", input: "a\x1b[<0;1;2M", keys: []Key{Rune('a')}, n: 1},
 		{name: "before paste", input: "a\x1b[200~b", keys: []Key{Rune('a')}, n: 1},
@@ -81,6 +88,7 @@ func TestKey_String(t *testing.T) {
 		Of(Enter):                         "Enter",
 		Move(CursorArrowLeft, ModShift):   "Shift+ArrowLeft",
 		Move(CursorEnd, ModMotion|ModAlt): "Alt+Motion+End",
+		Fn(6, ModShift):                   "Shift+F6",
 	} {
 		if got := k.String(); got != want {
 			t.Errorf("%#v.String() = %q, want %q", k, got, want)

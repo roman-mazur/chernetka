@@ -12,7 +12,7 @@ import (
 // Keys are comparable: a keymap can check them with ==, like key == Ctrl('s').
 type Key struct {
 	Special Special  // Text for a typed character
-	Rune    rune     // the typed character, or the letter pressed with Ctrl
+	Rune    rune     // the typed character, the letter pressed with Ctrl, or the number of the function key
 	Cursor  Cursor   // the cursor key if Special is CursorMove
 	Mod     Modifier // Shift, Ctrl, etc.; only Ctrl for the letters without the kitty keyboard protocol
 }
@@ -32,6 +32,7 @@ const (
 	CursorMove                // one of the arrows, Home, or End, see Key.Cursor
 	FocusIn                   // the terminal window got the focus (with focus reporting enabled)
 	FocusOut                  // the terminal window lost the focus
+	Function                  // one of the function keys F1 to F12, the number is in Key.Rune
 )
 
 // Modifier bits.
@@ -57,6 +58,9 @@ func CtrlShift(letter rune) Key { return Key{Rune: letter, Mod: ModCtrl | ModShi
 // Of returns the special key with no modifiers.
 func Of(s Special) Key { return Key{Special: s} }
 
+// Fn returns the function key with the number pressed with the modifiers: Fn(6, ModShift) is Shift+F6.
+func Fn(number int, mod Modifier) Key { return Key{Special: Function, Rune: rune(number), Mod: mod} }
+
 // Move returns the cursor key with the modifiers.
 func Move(c Cursor, mod Modifier) Key { return Key{Special: CursorMove, Cursor: c, Mod: mod} }
 
@@ -74,6 +78,17 @@ func Keys(b []byte) (keys []Key, n int) {
 		c := b[n]
 		switch {
 		case c == escByte:
+			if n+1 < len(b) && b[n+1] == 'O' {
+				// SS3: F1 to F4 as "ESC O P" to "ESC O S" in the terminals without the kitty keyboard protocol.
+				if n+2 == len(b) {
+					return keys, n // Incomplete.
+				}
+				if fn := ss3Function(b[n+2]); fn != 0 {
+					keys = append(keys, Fn(fn, 0))
+					n += 3
+					continue
+				}
+			}
 			if n+1 == len(b) || b[n+1] != '[' {
 				keys = append(keys, Of(Esc))
 				n++
@@ -160,6 +175,18 @@ func decodeCSI(seq []byte) (k Key, size int, ok bool) {
 		return Of(FocusIn), size, params == ""
 	case 'O':
 		return Of(FocusOut), size, params == ""
+	case '~':
+		k, ok := decodeTildeKey(params)
+		return k, size, ok
+	case 'P', 'Q', 'R', 'S':
+		// F1 to F4 as "CSI P" or "CSI 1 ; modifiers P". "CSI row ; col R" is a cursor
+		// position report, which is not expected: only "1" is taken as the first parameter.
+		first, m, found := strings.Cut(params, ";")
+		mod, ok := csiModifier(m, found)
+		if !ok || (first != "" && first != "1") {
+			return Key{}, size, false
+		}
+		return Fn(int(final-'P')+1, mod), size, true
 	}
 
 	var c Cursor
@@ -183,11 +210,10 @@ func decodeCSI(seq []byte) (k Key, size int, ok bool) {
 	if params != "" {
 		// "1;m": the modifiers are encoded as m-1.
 		first, m, found := strings.Cut(params, ";")
-		v, err := strconv.Atoi(m)
-		if first != "1" || !found || err != nil || v < 1 {
+		var ok bool
+		if mod, ok = csiModifier(m, found); first != "1" || !ok {
 			return Key{}, size, false
 		}
-		mod = Modifier(v - 1)
 	}
 	// Cmd+Left and Cmd+Right in some terminals.
 	if mod.HasMotion() && c == CursorArrowLeft {
@@ -197,6 +223,45 @@ func decodeCSI(seq []byte) (k Key, size int, ok bool) {
 		c = CursorEnd
 	}
 	return Move(c, mod), size, true
+}
+
+// csiModifier decodes the modifiers parameter of a control sequence, encoded as the
+// modifier bits plus one. It's zero if the parameter is not given.
+func csiModifier(m string, given bool) (Modifier, bool) {
+	if !given {
+		return 0, m == ""
+	}
+	v, err := strconv.Atoi(m)
+	if err != nil || v < 1 {
+		return 0, false
+	}
+	return Modifier(v - 1), true
+}
+
+// tildeKeys are the function keys sent as "CSI number ~", also with ";modifiers" before the tilde.
+var tildeKeys = map[string]int{
+	"11": 1, "12": 2, "13": 3, "14": 4, "15": 5,
+	"17": 6, "18": 7, "19": 8, "20": 9, "21": 10,
+	"23": 11, "24": 12,
+}
+
+// decodeTildeKey decodes the parameters of a "CSI number ; modifiers ~" sequence.
+func decodeTildeKey(params string) (Key, bool) {
+	number, m, found := strings.Cut(params, ";")
+	fn, isFunction := tildeKeys[number]
+	mod, ok := csiModifier(m, found)
+	if !isFunction || !ok {
+		return Key{}, false
+	}
+	return Fn(fn, mod), true
+}
+
+// ss3Function returns the function key sent as "ESC O final", or 0.
+func ss3Function(final byte) int {
+	if 'P' <= final && final <= 'S' {
+		return int(final-'P') + 1
+	}
+	return 0
 }
 
 // decodeKittyKey decodes the params "code[:alternates][;modifiers[:event]]" of a key sent
@@ -271,6 +336,8 @@ func (k Key) String() string {
 		sb.WriteRune(k.Rune)
 	case CursorMove:
 		sb.WriteString(k.Cursor.String())
+	case Function:
+		sb.WriteString("F" + strconv.Itoa(int(k.Rune)))
 	default:
 		sb.WriteString(k.Special.String())
 	}
