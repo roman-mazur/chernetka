@@ -10,6 +10,7 @@ package extsyntaxhl
 import (
 	"io"
 	"iter"
+	"slices"
 
 	"rmazur.io/chernetka/internal/content/change"
 	"rmazur.io/chernetka/internal/content/code"
@@ -58,6 +59,22 @@ type highlighter interface {
 	spans(src *source) iter.Seq[code.Token]
 
 	io.Closer
+}
+
+// incrementalHighlighter can be implemented by a highlighter that tells where the syntax changed
+// with an incremental reparse, so that only the spans of the lines that changed are rebuilt.
+type incrementalHighlighter interface {
+	highlighter
+	// changedLines returns the ranges of the lines [first, last] of the new revision whose syntax
+	// changed with the last reparse, besides the edited lines. ok is false if the reparse was not
+	// incremental: the whole document is to be taken as changed.
+	changedLines() (lines [][2]int, ok bool)
+	// expandLines returns the lines that are highlighted again when the lines [first, last]
+	// change, as the highlighting of some of them may depend on these lines.
+	expandLines(first, last int) (int, int)
+	// spansOfLines is spans for the regions on the lines [first, last]. The regions reported may
+	// reach beyond these lines.
+	spansOfLines(src *source, first, last int) iter.Seq[code.Token]
 }
 
 // language ties a syntax to the highlighter that understands it.
@@ -153,21 +170,24 @@ func (in *Integration) AfterEdit(_ editor.Sender, buf *editor.Buffer, changes []
 }
 
 // document is the per-buffer extension data. It owns the language highlighter
-// and the flattened spans of the whole document.
+// and the flattened spans of the whole document, kept per line.
 //
 // The document is parsed when its spans or code blocks are requested, not on every edit:
 // the keys typed between two renders are parsed at once, with all their changes.
 // The text is not kept between the parses: the changes are located in the text
-// with the lengths of the lines parsed the last time.
+// with the lengths of the lines parsed the last time. When the highlighter tells
+// where the syntax changed, only the spans of the edited lines and of those where
+// the syntax changed are rebuilt: the others are kept, moved with the lines.
 type document struct {
 	*logger.LogEmbed
 	buf  *editor.Buffer
 	lang *language
 	hl   highlighter
 
-	lineLens []int // the lengths of the lines parsed the last time, nil until the first parse
-	parseErr error // of the last parse
-	parses   int   // counts the parses
+	lineLens   []int // the lengths of the lines parsed the last time, nil until the first parse
+	parseErr   error // of the last parse
+	parses     int   // counts the parses
+	fullBuilds int   // counts the builds of the spans of all the lines
 
 	// stale is set when the buffer is edited after the last parse. The pending changes turn
 	// the parsed revision into the edited one, unless changesLost is set.
@@ -176,7 +196,10 @@ type document struct {
 	changesLost bool
 
 	builder spanBuilder
-	spans   []editor.SyntaxSpan // sorted by line number, then by start offset
+	// lines are the spans of each line, sorted by the start offset. Their LineNumber may be the one
+	// of a line before the edits moved it: it's set when the spans are requested.
+	lines [][]editor.SyntaxSpan
+	all   []editor.SyntaxSpan // holds the spans of the lines built at once by buildAll
 }
 
 // edited records the changes made to the buffer, the document is parsed again when
@@ -255,18 +278,135 @@ func (d *document) parse(changes []change.Item) {
 	}
 	d.parseErr = err
 
+	if err != nil || !incremental || !d.buildChanged(src, edits) {
+		d.buildAll(src)
+	}
+}
+
+// buildAll builds the spans of all the lines.
+func (d *document) buildAll(src *source) {
+	d.fullBuilds++
 	d.builder.reset()
 	for token := range d.hl.spans(src) {
 		d.builder.add(src, token)
 	}
-	d.spans = d.builder.build(d.spans[:0])
-	d.Debugf("built %d spans for %d %s lines", len(d.spans), len(src.lines), d.lang.name())
+	d.all = d.builder.build(d.all[:0])
+	d.lines = slices.Grow(d.lines[:0], len(src.lines))[:len(src.lines)]
+	clear(d.lines)
+	d.setLines(d.all)
+	d.Debugf("built %d spans for %d %s lines", len(d.all), len(src.lines), d.lang.name())
+}
+
+// maxChangedShare is the share of the lines changed above which all the lines are built
+// at once, with one query: it's faster than querying the many changed parts.
+const maxChangedShare = 0.5
+
+// buildChanged rebuilds the spans of the lines changed by the edits after an incremental reparse,
+// moving the spans of the other lines with them. It reports false if the highlighter can't tell
+// what changed, or so much changed that the spans are better built from scratch (see buildAll).
+func (d *document) buildChanged(src *source, edits []textEdit) bool {
+	ih, ok := d.hl.(incrementalHighlighter)
+	if !ok || d.lines == nil {
+		return false
+	}
+	syntaxChanged, ok := ih.changedLines()
+	if !ok {
+		return false
+	}
+
+	// The edits go one after another: each one moves the lines of the following ones,
+	// so applying them to the lines in turn finds where they are in the new revision.
+	dirty := make([]bool, len(d.lines))
+	for _, e := range edits {
+		first, oldLast, newLast := e.StartPosition.Line, e.OldEndPosition.Line, e.NewEndPosition.Line
+		if first < 0 || oldLast < first || newLast < first || oldLast >= len(d.lines) {
+			return false
+		}
+		d.lines = slices.Replace(d.lines, first, oldLast+1, make([][]editor.SyntaxSpan, newLast-first+1)...)
+		edited := make([]bool, newLast-first+1)
+		for i := range edited {
+			edited[i] = true
+		}
+		dirty = slices.Replace(dirty, first, oldLast+1, edited...)
+	}
+	if len(d.lines) != len(src.lines) {
+		return false
+	}
+	for _, r := range syntaxChanged {
+		for ln := max(r[0], 0); ln <= min(r[1], len(dirty)-1); ln++ {
+			dirty[ln] = true
+		}
+	}
+	// The changed ranges the highlighter reports may miss lines whose highlighting changes
+	// with the context, like after an error: the lines around are highlighted again too.
+	for first := 0; first < len(dirty); first++ {
+		if !dirty[first] {
+			continue
+		}
+		last := first
+		for last+1 < len(dirty) && dirty[last+1] {
+			last++
+		}
+		from, to := ih.expandLines(first, last)
+		for ln := max(from, 0); ln <= min(to, len(dirty)-1); ln++ {
+			dirty[ln] = true
+		}
+		first = max(last, to)
+	}
+	changed := 0
+	for _, isDirty := range dirty {
+		if isDirty {
+			changed++
+		}
+	}
+	if float64(changed) > maxChangedShare*float64(len(dirty)) {
+		return false
+	}
+
+	for first := 0; first < len(dirty); first++ {
+		if !dirty[first] {
+			continue
+		}
+		last := first
+		for last+1 < len(dirty) && dirty[last+1] {
+			last++
+		}
+		d.builder.reset()
+		for token := range ih.spansOfLines(src, first, last) {
+			d.builder.addLines(src, token, first, last)
+		}
+		clear(d.lines[first : last+1])
+		d.setLines(d.builder.build(nil))
+		first = last
+	}
+	d.Debugf("rebuilt the spans of %d of %d %s lines", changed, len(src.lines), d.lang.name())
+	return true
+}
+
+// setLines sets the spans of the lines they are on, from the spans sorted by line.
+func (d *document) setLines(spans []editor.SyntaxSpan) {
+	for i := 0; i < len(spans); {
+		ln := spans[i].LineNumber
+		j := i
+		for j < len(spans) && spans[j].LineNumber == ln {
+			j++
+		}
+		d.lines[ln] = spans[i:j:j]
+		i = j
+	}
 }
 
 // SyntaxSpans implements editor.SyntaxHighlighter.
 func (d *document) SyntaxSpans(ln int, line string) []editor.SyntaxSpan {
 	d.ensureParsed()
-	return clipSpans(spansOfLine(d.spans, ln), line)
+	if ln < 0 || ln >= len(d.lines) {
+		return nil
+	}
+	spans := d.lines[ln]
+	for i := range spans {
+		spans[i].LineNumber = ln // The line may be moved by the edits.
+	}
+	return clipSpans(spans, line)
 }
 
 // CodeBlocks implements code.Blocks for the languages embedding code blocks, it's empty for others.

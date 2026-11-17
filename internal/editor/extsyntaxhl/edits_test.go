@@ -1,6 +1,7 @@
 package extsyntaxhl
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"os"
 	"slices"
@@ -244,8 +245,9 @@ func TestIncrementalParse(t *testing.T) {
 			doc.ensureParsed() // Like the first render does.
 
 			rnd := rand.New(rand.NewPCG(3, 4))
+			incrementalBuilds := 0
 			for i := range 200 {
-				oldLens, oldText, parses := slices.Clone(doc.lineLens), buf.Text(), doc.parses
+				oldLens, oldText, parses, fullBuilds := slices.Clone(doc.lineLens), buf.Text(), doc.parses, doc.fullBuilds
 				// The keys handled between two renders.
 				rec.changes = nil
 				for range 1 + rnd.IntN(3) {
@@ -268,15 +270,37 @@ func TestIncrementalParse(t *testing.T) {
 					t.Fatalf("edit %d: the document is parsed from scratch", i)
 				}
 
+				if doc.fullBuilds == fullBuilds {
+					incrementalBuilds++
+				}
+
 				fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
 				fresh.parse(nil)
 				_ = fresh.Close()
-				if !slices.Equal(doc.spans, fresh.spans) {
+				if got, want := allSpans(doc), allSpans(fresh); !slices.Equal(got, want) {
 					t.Fatalf("edit %d: the incremental parse highlights the text differently:\n%s", i, buf.Text())
 				}
 			}
+			// Typing an opening quote or a comment changes the syntax of all the lines after it:
+			// the spans of all the lines are built then.
+			if incrementalBuilds == 0 {
+				t.Error("the spans are never rebuilt incrementally")
+			}
+			t.Logf("%d incremental builds of the spans, %d of all of them", incrementalBuilds, doc.fullBuilds)
 		})
 	}
+}
+
+// allSpans returns the spans of all the lines of the document, with their line numbers.
+func allSpans(d *document) []editor.SyntaxSpan {
+	var spans []editor.SyntaxSpan
+	for ln := range d.lines {
+		for _, s := range d.lines[ln] {
+			s.LineNumber = ln
+			spans = append(spans, s)
+		}
+	}
+	return spans
 }
 
 // BenchmarkKeystroke measures typing a character into a Go file: the edit, the parse, and building the spans.
@@ -328,8 +352,8 @@ func TestCodeBlocksInAfterEdit(t *testing.T) {
 	fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
 	fresh.parse(nil)
 	doc.SyntaxSpans(0, "```d2")
-	if !slices.Equal(doc.spans, fresh.spans) {
-		t.Errorf("got spans\n%v\nwant\n%v", doc.spans, fresh.spans)
+	if got, want := allSpans(doc), allSpans(fresh); !slices.Equal(got, want) {
+		t.Errorf("got spans\n%v\nwant\n%v", got, want)
 	}
 }
 
@@ -385,10 +409,74 @@ func TestUnknownChanges(t *testing.T) {
 	fresh := &document{LogEmbed: &ext.LogEmbed, buf: buf, lang: doc.lang, hl: doc.lang.newHighlighter()}
 	fresh.parse(nil)
 	_ = fresh.Close()
-	if !slices.Equal(doc.spans, fresh.spans) {
-		t.Errorf("got spans\n%v\nwant\n%v", doc.spans, fresh.spans)
+	if got, want := allSpans(doc), allSpans(fresh); !slices.Equal(got, want) {
+		t.Errorf("got spans\n%v\nwant\n%v", got, want)
 	}
 	if doc.changesLost {
 		t.Error("the changes are still lost after the parse")
+	}
+}
+
+// TestIncrementalSpans edits the documents randomly, checking that the spans rebuilt for the lines
+// that changed are the spans a query over the whole tree finds. Unlike TestIncrementalParse,
+// it doesn't compare the tree with a fresh parse, which may recover from the errors differently.
+func TestIncrementalSpans(t *testing.T) {
+	for _, tc := range []struct {
+		path, src string
+		seeds     []uint64
+	}{
+		{"edited.go", "testdata/incremental.go.txt", []uint64{0, 1, 2}},
+		// A fixed copy of a Go file: the edits of the seed 5 used to find spans that the changed
+		// ranges reported by tree-sitter miss, without highlighting the top-level nodes again.
+		{"buffer.go", "testdata/buffer.go.txt", []uint64{5}},
+		{"edited.yaml", "../../../.github/workflows/test.yml", []uint64{0, 1, 2}},
+		{"edited.cue", "../../ci/test.cue", []uint64{0, 1, 2}},
+		{"edited.sh", "../../ci/fuzz/check.sh", []uint64{0, 1, 2}},
+		{"edited.c", "gotreesitter/allocator.c", []uint64{0, 1, 2}},
+		{"edited.json", "", []uint64{0, 1, 2}},
+	} {
+		text := `{"a": [1, "two", {"b": null}], "c": {"d": [true, false]}}`
+		if tc.src != "" {
+			data, err := os.ReadFile(tc.src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			text = string(data)
+		}
+		for _, seed := range tc.seeds {
+			t.Run(fmt.Sprintf("%s/%d", tc.path, seed), func(t *testing.T) {
+				h, buf, ext := openHarness(t, tc.path, text)
+				doc := buf.ExtensionData(ext.ID()).(*document)
+				doc.ensureParsed()
+
+				rnd := rand.New(rand.NewPCG(seed, 99))
+				incrementalBuilds := 0
+				for i := range 200 {
+					fullBuilds := doc.fullBuilds
+					for range 1 + rnd.IntN(3) {
+						for range 1 + rnd.IntN(3) {
+							randomEdit(rnd, buf.Mutate())
+						}
+						h.NotifyExtensions(buf)
+					}
+					doc.ensureParsed() // Like the render does.
+					if doc.fullBuilds == fullBuilds {
+						incrementalBuilds++
+					}
+
+					src := newSource(buf.Text())
+					var sb spanBuilder
+					for token := range doc.hl.spans(src) {
+						sb.add(src, token)
+					}
+					if got, want := allSpans(doc), sb.build(nil); !slices.Equal(got, want) {
+						t.Fatalf("edit %d: the spans rebuilt incrementally differ from the ones of the whole tree:\n%s", i, buf.Text())
+					}
+				}
+				if incrementalBuilds == 0 {
+					t.Error("the spans are never rebuilt incrementally")
+				}
+			})
+		}
 	}
 }

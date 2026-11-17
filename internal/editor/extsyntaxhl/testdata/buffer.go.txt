@@ -1,0 +1,515 @@
+package editor
+
+import (
+	"bytes"
+	"errors"
+	"io"
+	"regexp"
+	"slices"
+
+	"rmazur.io/chernetka/internal/content"
+	"rmazur.io/chernetka/internal/content/change"
+	"rmazur.io/chernetka/internal/content/symbol"
+	"rmazur.io/chernetka/internal/editor/input"
+	"rmazur.io/chernetka/internal/vt/escape"
+)
+
+type Buffer struct {
+	Path    string
+	Content content.Document
+
+	hideLineNumbers     bool
+	hideLineActions     bool // don't mark actionable lines
+	noCurrentLineHL     bool
+	engageOnDoubleClick bool
+
+	mode       Mode
+	dirty      bool // if buffer content is different from the source file
+	noKeyboard bool // a flag that indicates that the last input was not from the keyboard
+
+	_c     content.Position // cursor position, use updateCursor() and c()
+	offset int              // first visible row (scroll)
+	reveal bool             // scroll the cursor line to the upper part of the screen on the next render
+	xoff   int              // first visible screen column of the text (horizontal scroll)
+	y      int              // first screen row of the area to render the content in, set by the layout
+	w, h   int              // dimensions of the area to render the content in
+
+	sel       []content.Span // selected text
+	selecting bool
+
+	search *regexp.Regexp // the search pattern to highlight the matches of
+
+	ext bufExtensions // extensions registered for this buffer
+
+	version uint64 // internal edits version
+
+	srcFingerprint string    // the fingerprint of the content loaded from the source
+	unwatch        func()    // stops reloading the content changed outside the editor
+	dirWatch       *dirWatch // watches the shown directories of a directory listing
+
+	_mutated   bool   // If Buffer was mutated since the last check. Don't use outside resetMutated and setMutated.
+	_textCache string // cached result for Text()
+
+	history  change.History
+	_mutator content.Mutable
+
+	_printer contentPrinter // kept on the buffer to avoid extra allocations on render
+}
+
+// NewScratchBuffer constructs a new Buffer with empty content.
+func NewScratchBuffer() *Buffer {
+	return &Buffer{
+		Content: content.Empty(),
+	}
+}
+
+// ExtensionData returns an object managed by the Extension with the provided id.
+// Can be nil if such object of Extension does not exist.
+func (b *Buffer) ExtensionData(id string) BufferExtData { return b.ext.data(id) }
+
+// Pos provides a pair of coordinates pointing to the current cursor location.
+// cx is the byte offset within the content line.
+// cy is the line index in the Content.
+func (b *Buffer) Pos() (cx, cy int) { return b._c.Col, b._c.Line }
+
+// Mode returns the current editing mode.
+func (b *Buffer) Mode() Mode { return b.mode }
+
+// Close propagates the call to the Content and extension objects if they implement io.Closer.
+// It also stops watching the file changes.
+func (b *Buffer) Close() error {
+	allErrors := make([]error, 0, len(b.ext.xData)+1)
+	if b.unwatch != nil {
+		b.unwatch()
+	}
+	if closer, ok := b.Content.(io.Closer); ok {
+		allErrors = append(allErrors, closer.Close())
+	}
+	b.ext.close(&allErrors)
+	return errors.Join(allErrors...)
+}
+
+// HoldsTextFile reports whether the buffer is backed by a file and its content is plain text.
+// It returns false for scratch and tool buffers (no Path), as well as for non-text documents
+// like a folder listing or an error message (see content.IsText).
+// Extensions can use it to decide whether there is a text file to process
+// instead of inspecting the buffer's path and content on their own.
+func (b *Buffer) HoldsTextFile() bool {
+	return b.Path != "" && content.IsText(b.Content)
+}
+
+func (b *Buffer) replaceContent(doc content.Document) {
+	b.Content = doc
+	b._mutator = nil
+	b.cancelSelection()
+	b.setMutated()
+	b.dirty = false
+}
+
+func (b *Buffer) c() content.Position { return b._c }
+
+func (b *Buffer) updateCursor(p content.Position) {
+	b._c = p
+	b.clampPos()
+}
+
+func (b *Buffer) clampCursor(tabSize int) {
+	lines := b.Content.Lines()
+	// The content may shrink while it's scrolled by the mouse, which leaves the cursor as is.
+	b.offset = max(0, min(b.offset, len(lines)-1))
+
+	var line string
+	if len(lines) > 0 {
+		line = lines[b.c().Line].String()
+	}
+
+	if b.reveal && (b.c().Line < b.offset || b.c().Line >= b.offset+b.h) {
+		b.offset = max(0, min(b.c().Line-b.h/3, len(lines)-b.h))
+	}
+	b.reveal = false
+
+	// Adjust scroll so cursor is visible.
+	if !b.noKeyboard {
+		if b.c().Line < b.offset {
+			b.offset = b.c().Line
+		}
+		if b.c().Line >= b.offset+b.h {
+			b.offset = b.c().Line - b.h + 1
+		}
+		b.followCursorX(runeToScreenCol(line, b.c().Col, tabSize))
+	}
+}
+
+// cursorAfterInsert puts the cursor after the text inserted before p. The text may have joined
+// the character following it: the cursor then goes past that character, not back to its start.
+func (b *Buffer) cursorAfterInsert(p content.Position) {
+	if p.Line < b.Content.Len() {
+		p.Col = symbol.ClusterEnd(b.Content.Lines()[p.Line].String(), p.Col)
+	}
+	b.updateCursor(p)
+}
+
+// clampPos moves the cursor to the closest valid content position.
+func (b *Buffer) clampPos() {
+	lines := b.Content.Lines()
+
+	b._c.Line = max(0, min(b._c.Line, len(lines)-1))
+
+	var line string
+	if len(lines) > 0 {
+		line = lines[b._c.Line].String()
+	}
+	b._c.Col = max(0, min(b._c.Col, len(line)))
+
+	// Vertical movement may land cx in the middle of a character; snap back to its start.
+	b._c.Col = symbol.ClusterStart(line, b._c.Col)
+}
+
+// sideScrollMargin is how many columns are kept visible around the cursor when scrolling horizontally.
+const sideScrollMargin = 8
+
+// followCursorX adjusts the horizontal scroll so that the cursor at screen column sc is visible.
+// The text is not scrolled at all if the cursor is visible without it.
+func (b *Buffer) followCursorX(sc int) {
+	tw := b.textWidth()
+	if tw <= 0 {
+		return
+	}
+	margin := min(sideScrollMargin, tw/3)
+	switch {
+	case sc < tw-margin:
+		b.xoff = 0
+	case sc < b.xoff+margin:
+		b.xoff = max(0, sc-margin)
+	case sc >= b.xoff+tw-margin:
+		b.xoff = sc - tw + margin + 1
+	}
+}
+
+// textWidth returns the number of screen columns available for the content text.
+func (b *Buffer) textWidth() int { return b.w - b.lineNumberPrefixWidth() }
+
+func (b *Buffer) screenToContentPosition(row, col int, tabSize int) content.Position {
+	if b.Content.Len() == 0 {
+		return content.Position{}
+	}
+	line := max(0, min(row+b.offset, b.Content.Len()-1))
+	str := b.Content.Lines()[line].String()
+	target := col - b.lineNumberPrefixWidth() + b.xoff
+	x, i := 0, 0 // the screen column and the index where the cluster starts
+	for cluster, width := range symbol.Clusters(str, tabSize) {
+		// Both columns of a wide character stand for it.
+		if x >= target || (cluster != "\t" && target < x+width) {
+			return content.Position{Line: line, Col: i}
+		}
+		x += width
+		i += len(cluster)
+	}
+	return content.Position{Line: line, Col: len(str)}
+}
+
+// runeToScreenCol returns the terminal column at the given byte index, which must be
+// the start of a character, expanding tabs by tabSize, and counting the columns the characters take.
+func runeToScreenCol(line string, runeIdx, tabSize int) int {
+	return symbol.DisplayWidth(line[:max(0, min(runeIdx, len(line)))], tabSize)
+}
+
+// Render visualizes the buffer UI content writing to the provided output.
+// It fills h rows with the visible part of the content, the status bar is rendered separately below.
+func (b *Buffer) Render(out io.Writer, prefs *RenderPrefs) {
+	// Main content first.
+	printableCount := b.printableLinesCount()
+	b._printer = contentPrinter{}
+	cr := &b._printer // Keeping the contentPrinter as a Buffer field avoids extra heap allocations.
+	cr.prepare(b, b.offset, b.offset+printableCount, prefs)
+	cr.render(out)
+
+	// Empty space.
+	for row := printableCount; row < b.h; row++ {
+		if row > 0 {
+			printLineEnding(out)
+		}
+		escape.ClearLine(out)
+	}
+}
+
+// RenderCursorPosition asks the Buffer to instruct the terminal to position the cursor
+// to allow input for this buffer. Usually called on the top buffer of the Editor.
+func (b *Buffer) RenderCursorPosition(out io.Writer, prefs *RenderPrefs) {
+	lines := b.Content.Lines()
+	var cursorLine string
+	if len(lines) > 0 {
+		cursorLine = lines[b.c().Line].String()
+	}
+
+	screenCol := runeToScreenCol(cursorLine, b.c().Col, prefs.TabSize) - b.xoff
+	screenRow := b.y + b.c().Line - b.offset + 1
+	numDisplayWidth := b.lineNumberPrefixWidth()
+	escape.SetCursorPosition(out, screenRow, screenCol+numDisplayWidth+1)
+}
+
+// printableLinesCount calculates how many lines of content can be visualized given current offset
+func (b *Buffer) printableLinesCount() int {
+	return min(b.h, len(b.Content.Lines())-b.offset)
+}
+
+// lineNumberPrefixWidth returns the length of line numbers presented on the left.
+func (b *Buffer) lineNumberPrefixWidth() int {
+	if b.hideLineNumbers {
+		return 0
+	}
+	return nlDigitsLen(b.offset+b.printableLinesCount()) + 1
+}
+
+// lineAction returns the action for the content line at the given index, if any.
+// Beside the content itself, actions can be provided by the extensions data implementing content.LineActions.
+func (b *Buffer) lineAction(lineNumber int) content.LineAction {
+	return content.ActionAt(b.Content, lineNumber, b.ext.actionProviders...)
+}
+
+func (b *Buffer) selectionsOnLine(line int) (res []content.Span) {
+	for i := range b.sel {
+		if b.sel[i].ContainsLine(line) {
+			lineLen := b.Content.Lines()[line].Len()
+			res = append(res, b.sel[i].LineProjection(line, lineLen))
+		}
+	}
+	return
+}
+
+// AcceptSuggestion inserts the active inline suggestion at the cursor and
+// moves the cursor to the given offset in it (len(sug) to advance past it).
+// It is a no-op when there is no suggestion or the buffer is read-only.
+func (b *Buffer) AcceptSuggestion(sug string, cursor int) {
+	if sug == "" || !b.canEdit() {
+		return
+	}
+	c := b.c()
+	line := b.Content.Lines()[c.Line].String()
+	c.Col = min(c.Col, len(line))
+	b.Mutate().Update(c.Line, content.TextLine(line[:c.Col]+sug+line[c.Col:]))
+	c.Col += min(max(cursor, 0), len(sug))
+	b.updateCursor(c)
+}
+
+// ReplaceText replaces the text of span with text, which may span several
+// lines. The cursor and the selection ends stay on the same content: they move
+// along if the change is before them, or land at the end of the new text if they
+// were inside the span. It is a no-op for a read-only buffer or a span outside the content.
+func (b *Buffer) ReplaceText(span content.Span, text string) {
+	start, end := span.Min(), span.Max()
+	lines := b.Content.Lines()
+	if !b.canEdit() || end.Line >= len(lines) ||
+		start.Col > lines[start.Line].Len() || end.Col > lines[end.Line].Len() {
+		return
+	}
+	c := b.c() // The mutations clamp the cursor to the changed content.
+	mut := b.Mutate()
+	content.DeleteSpan(mut, content.Span{Start: start, End: end})
+	newEnd := content.InsertText(mut, start, text)
+
+	follow := func(p *content.Position) {
+		switch {
+		case p.Line > end.Line:
+			p.Line += (newEnd.Line - start.Line) - (end.Line - start.Line)
+		case p.Line == end.Line && p.Col >= end.Col:
+			*p = content.Position{Line: newEnd.Line, Col: newEnd.Col + p.Col - end.Col}
+		case p.Line > start.Line || (p.Line == start.Line && p.Col > start.Col):
+			*p = newEnd
+		}
+	}
+	follow(&c)
+	b.updateCursor(c)
+	for i := range b.sel {
+		follow(&b.sel[i].Start)
+		follow(&b.sel[i].End)
+	}
+}
+
+func (b *Buffer) canEdit() bool {
+	_, ok := b.Content.(content.Mutable)
+	return ok
+}
+
+func (b *Buffer) handleCursor(cursorType input.Cursor, mod input.Modifier, prefs *RenderPrefs) {
+	if !b.selecting && mod.HasShift() {
+		StartTextSelection.DoOnBuffer(b, *prefs)
+	}
+	if b.selecting && !mod.HasShift() {
+		StopTextSelection.DoOnBuffer(b, *prefs)
+	}
+	switch cursorType {
+	case input.CursorArrowUp:
+		RelMove{Dy: -1}.DoOnBuffer(b, *prefs)
+	case input.CursorArrowDown:
+		RelMove{Dy: 1}.DoOnBuffer(b, *prefs)
+	case input.CursorArrowRight:
+		RelMove{Dx: 1}.DoOnBuffer(b, *prefs)
+	case input.CursorArrowLeft:
+		RelMove{Dx: -1}.DoOnBuffer(b, *prefs)
+	case input.CursorHome:
+		MoveHome.DoOnBuffer(b, *prefs)
+	case input.CursorEnd:
+		MoveEnd.DoOnBuffer(b, *prefs)
+	}
+	if !b.selecting {
+		b.sel = nil
+	}
+}
+
+// CheckContentCoordinates returns true if on-screen coordinates are part of the displayed content.
+func (b *Buffer) CheckContentCoordinates(row, col int) bool {
+	// Check buffer bounds.
+	if row < 0 || row >= b.h || col < 0 || col >= b.w {
+		return false
+	}
+
+	// Check visible content length.
+	if row+b.offset >= b.Content.Len() {
+		return false
+	}
+	if col < b.lineNumberPrefixWidth() {
+		return false
+	}
+
+	return true
+}
+
+// Text returns a string representation of the full buffer content.
+// It can be used, for example, to send the buffer content to an LSP server.
+func (b *Buffer) Text() string {
+	if b._textCache != "" {
+		return b._textCache
+	}
+
+	var buf bytes.Buffer
+	_ = content.SaveToWriter(b.Content, &buf)
+	b._textCache = buf.String()
+	return b._textCache
+}
+
+// Selection returns the selected spans normalized by content.NormalizeSpans: not empty,
+// going forward, sorted, and apart. It's empty if no text is selected.
+func (b *Buffer) Selection() []content.Span {
+	return content.NormalizeSpans(slices.Clone(b.sel))
+}
+
+func (b *Buffer) SelectedText() string {
+	return content.Select(b.Content, b.Selection())
+}
+
+// HasSelection reports whether any text is selected, that is whether Selection is not empty.
+func (b *Buffer) HasSelection() bool {
+	for i := range b.sel {
+		if b.sel[i].Start != b.sel[i].End {
+			return true
+		}
+	}
+	return false
+}
+
+// updateSelection extends the selection being made to the cursor.
+// The cursor must be clamped first: the selection must not refer to positions outside the content.
+func (b *Buffer) updateSelection() {
+	if b.selecting {
+		b.sel[len(b.sel)-1].End = b.c()
+	}
+}
+
+func (b *Buffer) cancelSelection() {
+	b.selecting = false
+	b.sel = nil
+}
+
+// Mutate is used to start changing the buffer content.
+// If underlying Content is not mutable, the returned implementation is a noop.
+func (b *Buffer) Mutate() content.Mutable {
+	if !b.canEdit() {
+		return bufMutator{Buffer: b} // noop
+	}
+	if b._mutator == nil {
+		m, _ := b.Content.(content.Mutable)
+		b._mutator = b.history.Track(bufMutator{
+			Mutable: m,
+			Buffer:  b,
+		}, true)
+	}
+	return b._mutator
+}
+
+// MutateAsGroup applies the provided operation on a mutable buffer content ensuring this is tracked as
+// a separate group of changes (that can be undone separately from previous and future changes).
+func (b *Buffer) MutateAsGroup(op func(m content.Mutable)) {
+	m := b.Mutate()
+	ur, ok := m.(content.UndoRedo)
+	if ok {
+		ur.SplitChangeGroup()
+		defer ur.SplitChangeGroup()
+	}
+	op(m)
+}
+
+// setMode switches the mode of the buffer. The changes made in one mode are undone
+// separately from the ones made in another.
+func (b *Buffer) setMode(m Mode) {
+	if b.mode != m && b._mutator != nil {
+		if ur, ok := b.Mutate().(content.UndoRedo); ok {
+			ur.SplitChangeGroup()
+		}
+	}
+	b.mode = m
+}
+
+func (b *Buffer) setMutated() {
+	b.dirty = true
+	b._mutated = true
+	b._textCache = ""
+	b.clampPos()
+	b.version++
+}
+
+func (b *Buffer) resetMutated() (prev bool) {
+	prev = b._mutated
+	b._mutated = false
+	return
+}
+
+type bufMutator struct {
+	content.Mutable
+	*Buffer
+}
+
+func (bm bufMutator) Insert(pos int, lines ...content.Line) {
+	if bm.Mutable == nil {
+		return
+	}
+	bm.Mutable.Insert(pos, lines...)
+	bm.setMutated()
+}
+func (bm bufMutator) Update(pos int, line content.Line) {
+	if bm.Mutable == nil {
+		return
+	}
+	bm.Mutable.Update(pos, line)
+	bm.setMutated()
+}
+func (bm bufMutator) Delete(startPos, endPos int) {
+	if bm.Mutable == nil {
+		return
+	}
+	bm.Mutable.Delete(startPos, endPos)
+	bm.setMutated()
+}
+
+func (bm bufMutator) Lines() []content.Line {
+	if bm.Mutable == nil {
+		return bm.Content.Lines()
+	}
+	return bm.Mutable.Lines()
+}
+func (bm bufMutator) Len() int {
+	if bm.Mutable == nil {
+		return bm.Content.Len()
+	}
+	return bm.Mutable.Len()
+}
