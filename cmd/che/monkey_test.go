@@ -191,7 +191,7 @@ func runMonkey(t *testing.T, rnd *rand.Rand, bin string, env []string, path stri
 		Ban: emulation.Ban{
 			Runes:     "qy",   // Quitting ends the test early. Copying uses the system clipboard.
 			Ctrl:      "cxvq", // The clipboard, and exiting, which ends the test early.
-			CtrlMouse: true,  // Going to a definition opens files outside the test directory.
+			CtrlMouse: true,   // Going to a definition opens files outside the test directory.
 		},
 		// Close the prompts, leave the insert mode, and quit the buffer.
 		Quit:  "\x1b\x1b\x1b:q\r",

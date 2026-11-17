@@ -357,10 +357,8 @@ func (c *Client) Completion(ctx context.Context, fileURI uri.URI, line, characte
 func (c *Client) SignatureHelp(ctx context.Context, fileURI uri.URI, line, character uint32) (*protocol.SignatureHelp, error) {
 	var help *protocol.SignatureHelp
 	if _, err := c.conn.Call(ctx, protocol.MethodTextDocumentSignatureHelp, &protocol.SignatureHelpParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
-			Position:     protocol.Position{Line: line, Character: character},
-		},
+		TextDocument: protocol.TextDocumentIdentifier{URI: fileURI},
+		Position:     protocol.Position{Line: line, Character: character},
 	}, &help); err != nil {
 		return nil, err
 	}
