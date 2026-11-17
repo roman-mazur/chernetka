@@ -12,24 +12,39 @@ type OpenFile interface {
 	OpenFile(p string)
 }
 
+// LoadFolder lists the directory as a Tree: the directories are expanded when they
+// are engaged, and the files are opened with open.
 func LoadFolder(dir string, open OpenFile) *FsContent {
 	fc := &FsContent{
+		Tree:     Tree{Indent: "\t", MimeType: MimeTypeFileName},
 		rootPath: dir,
 		root:     os.DirFS(dir),
 		open:     open,
+		entries:  make(map[*TreeItem]fsEntry),
 	}
-	fc.insert(-1, ".")
+	fc.Add(fc.list(".")...)
 	return fc
 }
 
+// MimeTypeFileName is the mime type of the lines of a folder listing.
+const MimeTypeFileName = "text/filename"
+
 // FsContent implements the content Document for a particular directory path.
 type FsContent struct {
+	Tree
+
 	rootPath string
 	root     fs.FS
 	open     OpenFile
 
-	entries []fs.DirEntry
-	lines   []Line
+	entries map[*TreeItem]fsEntry // what the items of the tree show
+}
+
+// fsEntry is what a line of the listing shows: an entry of a directory, or the
+// error of listing the directory if entry is nil.
+type fsEntry struct {
+	dir   string // slash-separated, relative to the root
+	entry fs.DirEntry
 }
 
 // RootPath returns the directory the content was loaded from.
@@ -39,25 +54,30 @@ func (fc *FsContent) RootPath() string { return fc.rootPath }
 // to the root ("." for the root itself). It's the directory shown on the line,
 // or the parent of the entry shown there otherwise.
 func (fc *FsContent) DirAt(line int) string {
-	if line < 0 || line >= len(fc.lines) {
+	if line < 0 || line >= fc.Len() {
 		return "."
 	}
-	fl := fc.lines[line].(*fsEntryLine)
-	if fl.isDir() {
-		return path.Join(fl.dir, fl.entry.Name())
+	e := fc.entries[fc.Lines()[line].(*TreeItem)]
+	if e.entry != nil && e.entry.IsDir() {
+		return path.Join(e.dir, e.entry.Name())
 	}
-	return fl.dir
+	return e.dir
 }
 
 // ExpandedDirs returns the directories whose entries are listed, as slash-separated paths
 // relative to the root. The root (".") is always expanded.
 func (fc *FsContent) ExpandedDirs() []string {
 	dirs := []string{"."}
-	for _, l := range fc.lines {
-		if fl := l.(*fsEntryLine); fl.isDir() && fl.expIdx == 1 {
-			dirs = append(dirs, path.Join(fl.dir, fl.entry.Name()))
+	var visit func(items []*TreeItem)
+	visit := func(items []*TreeItem) {
+		for _, it := range items {
+			if it.Expanded {
+				dirs = append(dirs, fc.DirAt(slices.Index(fc.Lines(), Line(it))))
+				visit(it.Children())
+			}
 		}
 	}
+	visit(fc.Roots())
 	return dirs
 }
 
@@ -65,195 +85,74 @@ func (fc *FsContent) ExpandedDirs() []string {
 // path relative to the root, as the ones returned by ExpandedDirs.
 func (fc *FsContent) DirEntries(dir string) []string {
 	var names []string
-	for _, l := range fc.lines {
-		if fl := l.(*fsEntryLine); fl.dir == dir && fl.entry != nil {
-			names = append(names, fl.entry.Name())
+	for it, e := range fc.entries {
+		if e.dir == dir && e.entry != nil && slices.Contains(fc.Lines(), Line(it)) {
+			names = append(names, e.entry.Name())
 		}
 	}
 	slices.Sort(names)
 	return names
 }
 
-// SyncState ensures that FsContent has all the dirs expanded as in the origin.
+// SyncState expands the directories of fc that are expanded in origin, which lists
+// the same root.
 func (fc *FsContent) SyncState(origin *FsContent) {
 	if fc.rootPath != origin.rootPath {
 		return
 	}
-	// We assume the same order between to FsContent entries; fc is collapsed; origin may be expanded.
-	i, j := 0, 0
-	for j < len(origin.lines) {
-		o := origin.lines[j].(*fsEntryLine)
-		var c *fsEntryLine
-		if i < len(fc.lines) {
-			c = fc.lines[i].(*fsEntryLine)
-		}
-		if c.samePath(o) {
-			i++
-			j++
-			continue
-		}
-
-		if (c == nil && o.level > 0) || (c != nil && o.level > c.level) {
-			prev := fc.lines[i-1].(*fsEntryLine)
-			if prev.isDir() {
-				prev.Engage()
-				if i < len(fc.lines) {
-					c = fc.lines[i].(*fsEntryLine)
-				}
-			}
-			if c.samePath(o) {
-				i++
-				j++
+	var sync func(items, originItems []*TreeItem)
+	sync = func(items, originItems []*TreeItem) {
+		for _, o := range originItems {
+			if !o.Expanded {
 				continue
 			}
-		}
-
-		if c != nil && c.name() < o.name() {
-			i++
-		} else {
-			j++
+			i := slices.IndexFunc(items, func(it *TreeItem) bool { return it.Text == o.Text && fc.entries[it].entry != nil })
+			if i < 0 {
+				continue
+			}
+			if !items[i].Expanded {
+				items[i].Engage()
+			}
+			sync(items[i].Children(), o.Children())
 		}
 	}
+	sync(fc.Roots(), origin.Roots())
 }
 
-func (fc *FsContent) insert(pos int, dirPath string) {
-	level := 0
-	if pos >= 0 && pos < len(fc.lines) {
-		level = fc.lines[pos].(*fsEntryLine).level + 1
-	}
-
+// list returns the items of the entries of the directory, the directories first,
+// or the item showing the error of listing it.
+func (fc *FsContent) list(dirPath string) []*TreeItem {
 	entries, err := fs.ReadDir(fc.root, dirPath)
 	if err != nil {
-		fc.insertLines(pos+1, []Line{&fsEntryLine{dir: dirPath, err: err, pos: pos + 1, level: level}})
-		return
+		it := &TreeItem{Text: err.Error()}
+		fc.entries[it] = fsEntry{dir: dirPath}
+		return []*TreeItem{it}
 	}
-
 	slices.SortFunc(entries, func(a, b fs.DirEntry) int {
-		if a.IsDir() && !b.IsDir() {
-			return -1
-		}
-		if b.IsDir() && !a.IsDir() {
+		if a.IsDir() != b.IsDir() {
+			if a.IsDir() {
+				return -1
+			}
 			return 1
 		}
 		return strings.Compare(a.Name(), b.Name())
 	})
 
-	lines := make([]Line, len(entries))
+	items := make([]*TreeItem, len(entries))
 	for i, entry := range entries {
-		lines[i] = &fsEntryLine{
-			dir:   dirPath,
-			level: level,
-			entry: entry,
-			pos:   pos + i + 1,
-			fc:    fc,
-		}
-	}
-	fc.insertLines(pos+1, lines)
-}
-
-func (fc *FsContent) insertLines(pos int, lines []Line) {
-	for i := pos; i < len(fc.lines); i++ {
-		fc.lines[i].(*fsEntryLine).pos += len(lines)
-	}
-	fc.lines = slices.Insert(fc.lines, pos, lines...)
-}
-
-func (fc *FsContent) collapse(pos int) {
-	if pos < 0 || pos >= len(fc.lines)-1 {
-		return
-	}
-	level := fc.lines[pos].(*fsEntryLine).level
-	end := pos + 1
-	for ; end < len(fc.lines) && fc.lines[end].(*fsEntryLine).level > level; end++ {
-	}
-	fc.lines = slices.Delete(fc.lines, pos+1, end)
-
-	removedLen := end - pos - 1
-	movedPart := fc.lines[pos+1:]
-	for i := range movedPart {
-		movedPart[i].(*fsEntryLine).pos -= removedLen
-	}
-}
-
-func (fc *FsContent) Len() int {
-	return len(fc.lines)
-}
-
-func (fc *FsContent) Lines() []Line {
-	return fc.lines
-}
-
-type fsEntryLine struct {
-	dir   string
-	pos   int
-	level int
-	err   error // error to display
-	entry fs.DirEntry
-
-	fc *FsContent
-
-	// mutable state, depends on the Engage action
-	display []byte
-	expIdx  int
-}
-
-const (
-	signExpanded = ">~"
-)
-
-func (fl *fsEntryLine) String() string {
-	if fl.display == nil {
-		prefix := strings.Repeat("\t", fl.level) + "  "
-		if fl.err != nil {
-			fl.display = []byte(prefix + fl.err.Error())
+		it := &TreeItem{Text: entry.Name()}
+		entryPath := path.Join(dirPath, entry.Name())
+		if entry.IsDir() {
+			it.Load = func(it *TreeItem) { it.SetChildren(fc.list(entryPath)...) }
 		} else {
-			fl.display = []byte(prefix + fl.entry.Name())
+			it.Action = LineActionFunc(func() {
+				if fc.open != nil {
+					fc.open.OpenFile(entryPath)
+				}
+			})
 		}
+		fc.entries[it] = fsEntry{dir: dirPath, entry: entry}
+		items[i] = it
 	}
-	if fl.isDir() {
-		fl.display[fl.level] = signExpanded[fl.expIdx]
-	}
-	return string(fl.display)
-}
-
-func (fl *fsEntryLine) samePath(another *fsEntryLine) bool {
-	if fl == nil || another == nil {
-		return false
-	}
-	return fl.dir == another.dir && fl.entry != nil && another.entry != nil && fl.name() == another.name()
-}
-
-// name returns the entry name or an empty string for the lines showing errors.
-func (fl *fsEntryLine) name() string {
-	if fl.entry == nil {
-		return ""
-	}
-	return fl.entry.Name()
-}
-
-func (fl *fsEntryLine) isDir() bool { return fl.entry != nil && fl.entry.IsDir() }
-
-func (fl *fsEntryLine) Len() int { return len(fl.display) }
-
-func (fl *fsEntryLine) MimeType() string { return "text/filename" }
-
-func (fl *fsEntryLine) Engage() {
-	if fl.err != nil || fl.fc == nil {
-		return
-	}
-
-	if !fl.entry.IsDir() {
-		if open := fl.fc.open; open != nil {
-			open.OpenFile(path.Join(fl.dir, fl.entry.Name()))
-		}
-		return
-	}
-
-	fl.expIdx = 1 - fl.expIdx
-	switch fl.expIdx {
-	case 0:
-		fl.fc.collapse(fl.pos)
-	case 1:
-		fl.fc.insert(fl.pos, path.Join(fl.dir, fl.entry.Name()))
-	}
+	return items
 }

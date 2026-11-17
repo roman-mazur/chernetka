@@ -88,6 +88,7 @@
 //	Ctrl+R   re-run the last engaged line action
 //	Ctrl+Alt+← / Ctrl+Alt+→
 //	         go back / forward in the navigation history (in any mode)
+//	Ctrl+T   switch the focus between the buffer and the tool buffer (in any mode, see Tool buffer)
 //	q        close the buffer if it has no unsaved changes; che exits when the last one is closed
 //	Ctrl+Q   exit che, closing all the buffers, if the current one has no unsaved changes (in any mode)
 //
@@ -151,6 +152,50 @@
 // Ctrl+click on a symbol goes to its definition, opening its file if needed.
 // Ctrl+O and Enter switch back to the previous buffer, and Ctrl+Alt+← returns
 // to where the cursor was.
+//
+// # Code navigation and refactoring
+//
+// The language server also finds where a symbol is used, and changes the code:
+// the keys are the ones of the JetBrains IDEs.
+//
+//	Alt+F7       list the usages of the symbol under the cursor in the tool buffer
+//	Ctrl+Alt+H   list the callers of the function under the cursor in the tool buffer;
+//	             the callers of a caller are listed on demand below it
+//	Shift+F6     rename the symbol under the cursor: the command line shows the name
+//	             to edit, Enter applies the renaming to all the files, Esc cancels it
+//	Alt+Enter    pick a fix or a refactoring of the selection, or of the cursor position,
+//	             from the list in the command line (type to narrow it down, ↑↓ or Tab
+//	             to select, Enter to apply)
+//
+// Ctrl+Alt+H and Alt+Enter need a terminal with the kitty keyboard protocol
+// (like Ghostty, kitty, or WezTerm): the other terminals send Esc for Alt.
+//
+// With gopls, renaming does more than naming: on the package clause, the command
+// line shows the import path of the package, and editing it moves the package;
+// on the func keyword of a function, it shows the signature of the function, and
+// editing it changes the signature, reordering, adding, and removing the
+// parameters, updating all the callers. The refactorings are the ones gopls
+// offers: extracting a function, a variable, or declarations to a new file
+// (select the code first), inlining a call, filling a struct literal or a switch,
+// and the fixes of the problems reported.
+//
+// The changes are made in the open buffers, where they are undone with Ctrl+Z,
+// and in the other files on the disk. Problems, like a renaming gopls refuses
+// because it would break the code, are reported in the tool buffer.
+//
+// # Tool buffer
+//
+// The tool buffer at the bottom of the screen shows what the tools find, like the
+// usages of a symbol. It has the focus when it's shown: Enter on a line jumps to
+// what it lists, keeping the focus to walk the list, and Enter on a line with ~
+// or > hides or shows the lines below it. Ctrl+T, Esc, and a click on the buffer
+// above return the focus to it, Ctrl+T and a click bring it back.
+//
+//	j / k / ↓ / ↑ and the other movement keys of the review mode
+//	Enter    jump to the line, or hide / show the lines below it
+//	y        copy the selected text
+//	Esc      return the focus to the buffer above
+//	q        close the tool buffer
 //
 // Unsaved changes of a file are saved automatically when switching to another
 // buffer or when the terminal loses focus (if the terminal supports focus reporting).

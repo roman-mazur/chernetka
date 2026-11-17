@@ -1,7 +1,9 @@
 package extlsp
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -189,6 +191,36 @@ func (lbd *BufferData) FindDefinition(loop editor.Sender, pos content.Position) 
 	})
 }
 
+// Close tells the server the document is closed, so the file on the disk is
+// the document from now on, not the text sent before.
+func (lbd *BufferData) Close() error {
+	if lbd.srv == nil || lbd.srv.failed.Load() || lbd.docUri == "" {
+		return nil
+	}
+	lbd.version++
+	lbd.srv.queue.push(syncReq{bufData: lbd, version: lbd.version, close: true})
+	return nil
+}
+
+// request syncs the text of the buffer with the server and runs then with it
+// in the background, see syncReq.then. It reports false if the server is not
+// available for the buffer.
+func (lbd *BufferData) request(loop editor.Sender, then func(ctx context.Context, client lspClient)) bool {
+	if lbd.srv == nil || lbd.srv.failed.Load() || lbd.docUri == "" {
+		return false
+	}
+	lbd.version++
+	lbd.srv.queue.push(syncReq{
+		editor:  loop,
+		buf:     lbd.buf,
+		bufData: lbd,
+		text:    lbd.buf.Text(),
+		version: lbd.version,
+		then:    then,
+	})
+	return true
+}
+
 // Diagnostics returns the latest problems the server found in the buffer.
 func (lbd *BufferData) Diagnostics() []code.Diagnostic {
 	if lbd.srv == nil || lbd.docUri == "" {
@@ -202,4 +234,5 @@ var (
 	_ editor.Formatter           = new(BufferData)
 	_ editor.DefinitionFinder    = new(BufferData)
 	_ editor.DiagnosticsProvider = new(BufferData)
+	_ io.Closer                  = new(BufferData)
 )

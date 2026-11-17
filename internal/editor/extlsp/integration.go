@@ -37,6 +37,17 @@ type lspClient interface {
 	OrganizeImports(ctx context.Context, fileURI uri.URI) ([]protocol.TextEdit, error)
 	Formatting(ctx context.Context, fileURI uri.URI, opts protocol.FormattingOptions) ([]protocol.TextEdit, error)
 	Shutdown(ctx context.Context) error
+
+	DidClose(ctx context.Context, fileURI uri.URI) error
+	DidChangeWatchedFiles(ctx context.Context, changes []protocol.FileEvent) error
+	References(ctx context.Context, fileURI uri.URI, pos protocol.Position) ([]protocol.Location, error)
+	PrepareCallHierarchy(ctx context.Context, fileURI uri.URI, pos protocol.Position) ([]protocol.CallHierarchyItem, error)
+	IncomingCalls(ctx context.Context, item protocol.CallHierarchyItem) ([]protocol.CallHierarchyIncomingCall, error)
+	PrepareRename(ctx context.Context, fileURI uri.URI, pos protocol.Position, text string) (*lsp.RenameTarget, error)
+	Rename(ctx context.Context, fileURI uri.URI, pos protocol.Position, newName string) (*lsp.WorkspaceEdit, error)
+	CodeActions(ctx context.Context, fileURI uri.URI, rng protocol.Range, diagnostics []protocol.Diagnostic) ([]lsp.CodeAction, error)
+	ResolveCodeAction(ctx context.Context, action lsp.CodeAction) (lsp.CodeAction, error)
+	ExecuteCommand(ctx context.Context, cmd protocol.Command) error
 }
 
 // lspStarter spawns and initialises an LSP client of the language with the
@@ -60,6 +71,15 @@ type lspStarter func(ctx context.Context, languageID, rootDir string) (lspClient
 // Ctrl+click on a symbol goes to its definition found by the server.
 //
 // The problems the server finds in the buffer are shown as diagnostics.
+//
+// The usages of a symbol and the callers of a function found by the server
+// are listed in the tool buffer, the symbols are renamed, and the fixes and
+// the refactorings the server offers are applied (see extrefactor for the
+// keys, and tools.go and refactor.go here).
+//
+// The server is told when a buffer is closed, and about the files changed on
+// the disk, which it asks to watch (see watch.go): it keeps up with the edits
+// made outside the editor.
 type Integration struct {
 	logger.LogEmbed
 
@@ -74,8 +94,8 @@ func (le *Integration) ID() string { return "lsp" }
 
 func (le *Integration) MakeBufferData(loop editor.Sender, buf *editor.Buffer) editor.BufferExtData {
 	lang := languageForPath(buf.Path)
-	if lang == nil {
-		return nil
+	if lang == nil || !buf.HoldsTextFile() {
+		return nil // An error message shown for the path is not the document.
 	}
 
 	absPath, err := filepath.Abs(buf.Path)
@@ -112,6 +132,7 @@ func (le *Integration) serverFor(loop editor.Sender, lang *language, dir string)
 		loop:     loop,
 		lang:     lang,
 		rootDir:  lang.root(dir),
+		ctx:      ctx,
 		cancel:   cancel,
 		loopDone: make(chan struct{}),
 	}
@@ -224,6 +245,7 @@ type server struct {
 	lang    *language
 	rootDir string // the workspace root to start the server with
 
+	ctx      context.Context // canceled when the server is closed
 	cancel   context.CancelFunc
 	queue    syncQueue
 	loopDone chan struct{}
@@ -232,8 +254,11 @@ type server struct {
 	failed   atomic.Bool // the server couldn't start
 
 	diagsMu       sync.Mutex
-	diags         map[uri.URI][]code.Diagnostic // the latest published problems by document
-	renderPending atomic.Bool                   // a render is requested for the published problems
+	diags         map[uri.URI][]code.Diagnostic     // the latest published problems by document
+	published     map[uri.URI][]protocol.Diagnostic // the problems as published, to match the fixes to them
+	renderPending atomic.Bool                       // a render is requested for the published problems
+
+	watcher fileWatcher // tells the server about the files changed on the disk
 }
 
 // syncLoop starts the language server, then sends it buffer changes and
@@ -271,6 +296,9 @@ func (srv *server) start(ctx context.Context) bool {
 				SnippetSupport: true,
 				Logf:           le.Logf,
 				Diagnostics:    srv.publishDiagnostics,
+				ApplyEdit:      srv.applyEditRequest,
+				ShowDocument:   srv.showDocument,
+				WatchFiles:     srv.watcher.watch,
 			})
 		}
 	}
@@ -284,6 +312,7 @@ func (srv *server) start(ctx context.Context) bool {
 	}
 	le.Logf("%s LSP server is ready in %s", srv.lang.id(), time.Since(started).Round(time.Millisecond))
 	srv.client = client
+	srv.watcher.start(ctx, srv, client)
 	srv.ready.Store(true)
 	return true
 }
@@ -295,6 +324,10 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	le := srv.le
 	docUri := req.bufData.docUri
 	data := req.bufData
+	if req.close {
+		srv.closeDoc(ctx, client, data)
+		return
+	}
 	synced := srv.syncText(ctx, client, req)
 	if req.format != nil {
 		// Reply before anything else: the editor is waiting.
@@ -312,6 +345,11 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	}
 	if req.definition != nil {
 		srv.goToDefinition(ctx, client, req)
+	}
+	if req.then != nil {
+		// The request works with the text sent: it runs on its own, with its own
+		// timeout, not to hold the typing up. The later syncs are not a problem.
+		go srv.runThen(client, req.then)
 	}
 	if req.completion == nil || srv.queue.hasPending(req.bufData) {
 		return // Nothing to ask, or a newer edit makes the answer useless.
@@ -369,6 +407,30 @@ func (srv *server) sync(ctx context.Context, client lspClient, req syncReq) {
 	}))
 }
 
+// thenTimeout is how long a follow-up request may take: finding the references
+// of a symbol used all over a workspace, or renaming it, takes a while.
+const thenTimeout = 30 * time.Second
+
+// runThen runs the follow-up request of a sync with the client.
+func (srv *server) runThen(client lspClient, then func(ctx context.Context, client lspClient)) {
+	ctx, cancel := context.WithTimeout(srv.ctx, thenTimeout)
+	defer cancel()
+	then(ctx, client)
+}
+
+// closeDoc tells the server the document is closed: it reads the file from the disk
+// from now on, and the changes of the file on the disk are not hidden by the text
+// it was sent anymore.
+func (srv *server) closeDoc(ctx context.Context, client lspClient, data *BufferData) {
+	if !data.serverOpen {
+		return
+	}
+	if err := client.DidClose(ctx, data.docUri); err != nil {
+		srv.le.Debugf("didClose failed: %s", err)
+	}
+	data.serverOpen, data.serverSynced = false, false
+}
+
 // publishDiagnostics replaces the problems of a document with the ones the
 // server found and makes the editor show them. The problems less severe than
 // warnings, like hints for code modernization, are left out.
@@ -388,7 +450,7 @@ func (srv *server) publishDiagnostics(params protocol.PublishDiagnosticsParams) 
 		diags = slices.Insert(diags, i, code.Diagnostic{Line: ln, Severity: sev, Message: d.Message})
 	}
 
-	srv.updateDiags(params.URI, diags)
+	srv.updateDiags(params.URI, diags, params.Diagnostics)
 
 	if srv.loop == nil || !srv.renderPending.CompareAndSwap(false, true) {
 		return // Nowhere to render, or the render is already on its way.
@@ -399,18 +461,38 @@ func (srv *server) publishDiagnostics(params protocol.PublishDiagnosticsParams) 
 	}))
 }
 
-func (srv *server) updateDiags(uri protocol.DocumentURI, diags []code.Diagnostic) {
+func (srv *server) updateDiags(uri protocol.DocumentURI, diags []code.Diagnostic, published []protocol.Diagnostic) {
 	srv.diagsMu.Lock()
 	defer srv.diagsMu.Unlock()
 
 	if srv.diags == nil {
 		srv.diags = make(map[protocol.DocumentURI][]code.Diagnostic)
+		srv.published = make(map[protocol.DocumentURI][]protocol.Diagnostic)
 	}
 	if len(diags) == 0 {
 		delete(srv.diags, uri)
 	} else {
 		srv.diags[uri] = diags
 	}
+	if len(published) == 0 {
+		delete(srv.published, uri)
+	} else {
+		srv.published[uri] = published
+	}
+}
+
+// publishedDiagnostics returns the problems of the document as the server published
+// them, the ones overlapping the range if it's given.
+func (srv *server) publishedDiagnostics(doc uri.URI, rng *protocol.Range) []protocol.Diagnostic {
+	srv.diagsMu.Lock()
+	defer srv.diagsMu.Unlock()
+	var res []protocol.Diagnostic
+	for _, d := range srv.published[doc] {
+		if rng == nil || !(positionBefore(rng.End, d.Range.Start) || positionBefore(d.Range.End, rng.Start)) {
+			res = append(res, d)
+		}
+	}
+	return res
 }
 
 // diagnostics returns the latest problems published for the document.
@@ -578,6 +660,7 @@ func (srv *server) sendChange(ctx context.Context, client lspClient, req syncReq
 func (srv *server) close() error {
 	srv.cancel()
 	<-srv.loopDone
+	srv.watcher.stop()
 	if srv.client == nil {
 		return nil
 	}
@@ -602,6 +685,12 @@ type syncReq struct {
 	addImports bool           // add the imports missing after the change
 	format     *formatReq     // nil if no formatting is needed
 	definition *definitionReq // nil if no definition is looked for
+	close      bool           // the document is closed: nothing else is done
+
+	// then runs after the text is synced, in the background, with the text sent
+	// to the server (see server.runThen). It's for the requests about the text,
+	// like the references of a symbol.
+	then func(ctx context.Context, client lspClient)
 }
 
 type definitionReq struct {
@@ -631,9 +720,16 @@ func (q *syncQueue) push(req syncReq) {
 	for i := range q.pending {
 		if q.pending[i].bufData == req.bufData {
 			// The latest state wins, but the imports must still be checked.
-			if prev := q.pending[i]; prev.addImports && !req.addImports {
+			prev := q.pending[i]
+			if prev.addImports && !req.addImports {
 				req.addImports = true
 				req.editor = prev.editor // A format request has no editor.
+			}
+			if prev.then != nil && req.then == nil {
+				req.then = prev.then // The request is about the latest text.
+			}
+			if prev.close {
+				req.close = true // Closed in the meantime: nothing else is done.
 			}
 			q.pending[i] = req
 			replaced = true

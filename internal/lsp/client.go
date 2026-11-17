@@ -1,17 +1,21 @@
 // Package lsp is a minimal LSP client used by the editor to obtain completion
-// suggestions, definitions, formatting, imports, and diagnostics from a language
-// server, like gopls.
+// suggestions, definitions, references, call hierarchies, formatting, imports,
+// renames, code actions, and diagnostics from a language server, like gopls.
 //
-// It exposes the small subset of LSP methods the editor needs: initialize,
-// didOpen, didChange, completion, signature help, definition, formatting,
-// organize imports, and shutdown. The diagnostics the server publishes are
-// passed to a callback. The transport is JSON-RPC over the server's stdio.
+// It exposes the subset of LSP methods the editor needs: initialize, didOpen,
+// didChange, didClose, didChangeWatchedFiles, completion, signature help,
+// definition, references, call hierarchy, formatting, organize imports and the
+// other code actions, prepareRename, rename, executeCommand, and shutdown. The
+// diagnostics the server publishes, the edits it asks to apply, the documents
+// it asks to show, and the files it asks to watch are passed to callbacks (see
+// Options). The transport is JSON-RPC over the server's stdio.
 package lsp
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -117,6 +121,26 @@ type Options struct {
 	// replacing the ones it reported for the document before. It's called on
 	// the connection goroutine, so it must not block.
 	Diagnostics func(protocol.PublishDiagnosticsParams)
+
+	// ApplyEdit receives the changes the server makes to the workspace, like
+	// the ones of the command of a code action, to apply them to the files and
+	// the open documents. It's called on the connection goroutine, so it must
+	// not block: the server is told the edit is applied once it returns nil.
+	ApplyEdit func(ApplyEditRequest) error
+
+	// ShowDocument receives the documents the server asks to show: a file to
+	// open, or a web page (External) with what the server renders, like the
+	// documentation of a package. It's called on the connection goroutine, so
+	// it must not block. The server is told the document is not shown if it's nil.
+	ShowDocument func(protocol.ShowDocumentParams) error
+
+	// WatchFiles receives the glob patterns of the files the server wants to be
+	// told about when they change on the disk (see Client.DidChangeWatchedFiles),
+	// replacing the patterns it asked for before. The patterns are absolute if
+	// the server watches a directory, like "/src/mod/**/*.{go,mod}"; the others
+	// are relative to the workspace root. The server asks only if it's set.
+	// It's called on the connection goroutine, so it must not block.
+	WatchFiles func(patterns []string)
 }
 
 // StartWith is like Start but runs opts.Command with opts.Args ("serve" when
@@ -229,7 +253,7 @@ func newConn(serverOut io.ReadCloser, serverIn io.WriteCloser) jsonrpc2.Conn {
 // which is given up once serverExited is closed. It exists separately from
 // Start so tests can supply a synthetic conn.
 func newClient(ctx context.Context, conn jsonrpc2.Conn, serverExited <-chan struct{}, rootDir string, opts Options) (*Client, error) {
-	conn.Go(ctx, jsonrpc2.ReplyHandler(serverHandler(opts.Logf, opts.Diagnostics)))
+	conn.Go(ctx, jsonrpc2.ReplyHandler(serverHandler(opts)))
 
 	// The connection doesn't fail the calls in flight when the server is gone:
 	// they would wait for a reply forever.
@@ -257,7 +281,44 @@ func newClient(ctx context.Context, conn jsonrpc2.Conn, serverExited <-chan stru
 						SnippetSupport: opts.SnippetSupport,
 					},
 				},
-				PublishDiagnostics: &protocol.PublishDiagnosticsClientCapabilities{},
+				PublishDiagnostics: &protocol.PublishDiagnosticsClientCapabilities{
+					// The fixes of a problem are bundled with it: they are sent back to get them.
+					DataSupport: true,
+				},
+				// The server tells what is renamed at a position: the identifier, or more
+				// with gopls, like the signature of a function on its func keyword.
+				Rename: &protocol.RenameClientCapabilities{
+					PrepareSupport:                true,
+					PrepareSupportDefaultBehavior: protocol.PrepareSupportDefaultBehaviorIdentifier,
+				},
+				CodeAction: &protocol.CodeActionClientCapabilities{
+					CodeActionLiteralSupport: &protocol.CodeActionClientCapabilitiesLiteralSupport{
+						CodeActionKind: &protocol.CodeActionClientCapabilitiesKind{
+							ValueSet: []protocol.CodeActionKind{
+								protocol.QuickFix, protocol.Refactor, protocol.RefactorExtract,
+								protocol.RefactorInline, protocol.RefactorRewrite, protocol.Source,
+								protocol.SourceOrganizeImports,
+							},
+						},
+					},
+					// The edits of the actions are computed when an action is picked (ResolveCodeAction).
+					DataSupport:    true,
+					ResolveSupport: &protocol.CodeActionClientCapabilitiesResolveSupport{Properties: []string{"edit"}},
+				},
+				CallHierarchy: &protocol.CallHierarchyClientCapabilities{},
+			},
+			Workspace: &protocol.WorkspaceClientCapabilities{
+				ApplyEdit: true,
+				WorkspaceEdit: &protocol.WorkspaceClientCapabilitiesWorkspaceEdit{
+					DocumentChanges:    true,
+					ResourceOperations: []string{"create", "rename", "delete"},
+				},
+				DidChangeWatchedFiles: &protocol.DidChangeWatchedFilesWorkspaceClientCapabilities{
+					DynamicRegistration: opts.WatchFiles != nil,
+				},
+			},
+			Window: &protocol.WindowClientCapabilities{
+				ShowDocument: &protocol.ShowDocumentClientCapabilities{Support: opts.ShowDocument != nil},
 			},
 		},
 	}
@@ -274,29 +335,121 @@ func newClient(ctx context.Context, conn jsonrpc2.Conn, serverExited <-chan stru
 	return &Client{conn: conn}, nil
 }
 
-// serverHandler handles messages initiated by the server. Error messages are
-// passed to logf, and diagnostics to diagnostics; otherwise we don't act on
-// them yet — requests get a method-not-found error, notifications are dropped —
-// but every request must be replied to (ReplyHandler enforces this).
-func serverHandler(logf func(format string, args ...any), diagnostics func(protocol.PublishDiagnosticsParams)) jsonrpc2.Handler {
+// serverHandler handles the messages initiated by the server. Error messages
+// are passed to opts.Logf, the diagnostics, the edits, the documents to show,
+// and the files to watch to the callbacks of opts. The other requests get a
+// method-not-found error, and the notifications are dropped. Every request must
+// be replied to (ReplyHandler enforces this). The handler runs on the
+// connection goroutine: a blocked callback blocks the replies to our requests.
+func serverHandler(opts Options) jsonrpc2.Handler {
+	logf := opts.Logf
+	if logf == nil {
+		logf = func(string, ...any) {}
+	}
 	return func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
 		switch req.Method() {
 		case protocol.MethodWindowShowMessage, protocol.MethodWindowLogMessage:
 			var msg protocol.ShowMessageParams // same shape as LogMessageParams
-			if logf != nil && json.Unmarshal(req.Params(), &msg) == nil && msg.Type == protocol.MessageTypeError {
+			if json.Unmarshal(req.Params(), &msg) == nil && msg.Type == protocol.MessageTypeError {
 				logf("server error: %s", strings.TrimSpace(msg.Message))
 			}
+
 		case protocol.MethodTextDocumentPublishDiagnostics:
 			var params protocol.PublishDiagnosticsParams
-			if diagnostics != nil && json.Unmarshal(req.Params(), &params) == nil {
-				diagnostics(params)
+			if opts.Diagnostics != nil && json.Unmarshal(req.Params(), &params) == nil {
+				opts.Diagnostics(params)
 			}
+
+		case protocol.MethodWorkspaceApplyEdit:
+			var params ApplyEditRequest
+			err := json.Unmarshal(req.Params(), &params)
+			if err == nil && opts.ApplyEdit != nil {
+				err = opts.ApplyEdit(params)
+			} else if err == nil {
+				err = errors.New("the client does not apply edits")
+			}
+			res := protocol.ApplyWorkspaceEditResponse{Applied: err == nil}
+			if err != nil {
+				res.FailureReason = err.Error()
+				logf("edit %q not applied: %s", params.Label, err)
+			}
+			return reply(ctx, res, nil)
+
+		case protocol.MethodShowDocument:
+			var params protocol.ShowDocumentParams
+			err := json.Unmarshal(req.Params(), &params)
+			if err == nil && opts.ShowDocument != nil {
+				err = opts.ShowDocument(params)
+			} else if err == nil {
+				err = errors.New("the client does not show documents")
+			}
+			if err != nil {
+				logf("cannot show %s: %s", params.URI, err)
+			}
+			return reply(ctx, protocol.ShowDocumentResult{Success: err == nil}, nil)
+
+		case protocol.MethodClientRegisterCapability:
+			var params protocol.RegistrationParams
+			if err := json.Unmarshal(req.Params(), &params); err != nil {
+				return reply(ctx, nil, err)
+			}
+			for _, r := range params.Registrations {
+				logf("the server registers %s", r.Method)
+				if r.Method != protocol.MethodWorkspaceDidChangeWatchedFiles || opts.WatchFiles == nil {
+					continue
+				}
+				patterns, err := watchPatterns(r.RegisterOptions)
+				if err != nil {
+					logf("cannot watch the files the server asks for: %s", err)
+					continue
+				}
+				opts.WatchFiles(patterns)
+			}
+			return reply(ctx, nil, nil)
+
+		case protocol.MethodClientUnregisterCapability, protocol.MethodWorkDoneProgressCreate:
+			return reply(ctx, nil, nil) // Nothing to undo, and the progress is not shown.
 		}
+
 		if _, isCall := req.(*jsonrpc2.Call); isCall {
 			return reply(ctx, nil, fmt.Errorf("%q: %w", req.Method(), jsonrpc2.ErrMethodNotFound))
 		}
 		return reply(ctx, nil, nil)
 	}
+}
+
+// watchPatterns returns the glob patterns of a didChangeWatchedFiles
+// registration. The patterns relative to a base URI are made absolute.
+func watchPatterns(registerOptions any) ([]string, error) {
+	data, err := json.Marshal(registerOptions)
+	if err != nil {
+		return nil, err
+	}
+	var opts struct {
+		Watchers []struct {
+			GlobPattern json.RawMessage `json:"globPattern"`
+		} `json:"watchers"`
+	}
+	if err := json.Unmarshal(data, &opts); err != nil {
+		return nil, err
+	}
+	var patterns []string
+	for _, w := range opts.Watchers {
+		var pattern string
+		if json.Unmarshal(w.GlobPattern, &pattern) == nil {
+			patterns = append(patterns, pattern)
+			continue
+		}
+		var relative struct {
+			BaseURI uri.URI `json:"baseUri"`
+			Pattern string  `json:"pattern"`
+		}
+		if err := json.Unmarshal(w.GlobPattern, &relative); err != nil {
+			return nil, fmt.Errorf("glob pattern %s: %w", w.GlobPattern, err)
+		}
+		patterns = append(patterns, filepath.ToSlash(relative.BaseURI.Filename())+"/"+relative.Pattern)
+	}
+	return patterns, nil
 }
 
 // DidOpen tells the server about a newly opened document.

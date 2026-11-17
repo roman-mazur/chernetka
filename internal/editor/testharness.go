@@ -220,3 +220,28 @@ func (h *TestHarness) RenderBuffer(width int) string {
 	b.Render(&out, &h.rPrefs)
 	return out.String()
 }
+
+// ToolBuffer returns the tool buffer, or nil if it's not shown.
+// It reads the state of the loop, so it must be called from a command.
+func (h *TestHarness) ToolBuffer() *Buffer { return h.toolBuf }
+
+// PromptText returns the text typed in the command line, or "" if it's closed.
+// It reads the state of the loop, so it must be called from a command.
+func (h *TestHarness) PromptText() string {
+	if c := h.status.cmd; c != nil {
+		return c.text
+	}
+	return ""
+}
+
+// PromptItems returns the items of the choice prompt (see Editor.PromptChoice)
+// shown in the command line, or nil if there is none.
+// It reads the state of the loop, so it must be called from a command.
+func (h *TestHarness) PromptItems() []string {
+	if c := h.status.cmd; c != nil {
+		if p, ok := c.prompt.(*choicePrompt); ok {
+			return p.items
+		}
+	}
+	return nil
+}

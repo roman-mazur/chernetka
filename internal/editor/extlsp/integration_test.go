@@ -346,6 +346,8 @@ type fakeLSP struct {
 
 	signature *protocol.SignatureHelp // what a signature help request returns
 	signedAt  []string                // the line before the position of every signature help request
+
+	fakeTools // the navigation and refactoring requests
 }
 
 func (f *fakeLSP) DidOpen(_ context.Context, _ uri.URI, languageID, text string, v int32) error {

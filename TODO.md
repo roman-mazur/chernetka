@@ -23,7 +23,8 @@
 
 - project search (render with the tool buffer)
 - project search inter-process (dir + main editor)
-- find references (render with the tool buffer), call hierarchy, diagnostics using the tool buffer
+- [x] find references (render with the tool buffer), call hierarchy
+- diagnostics using the tool buffer
 - git diff coloring the line number (greenish for insert, blueish for change, greying for whitespace change, red underline for deletion)
 - present a choice on what version to keep when content is updated outside the editor
 - store and visualize local history based on change.History (to define where to persist)

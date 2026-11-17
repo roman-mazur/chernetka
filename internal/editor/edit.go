@@ -53,9 +53,10 @@ type Editor struct {
 	logger.LogEmbed
 	mouseHandler
 
-	bufs    []*Buffer // stack of open buffers, the active one is the last
-	status  StatusBar // shown below the top buffer
-	toolBuf *Buffer   // buffer shown at the bottom for the tooling output, not set by the editor yet
+	bufs        []*Buffer // stack of open buffers, the active one is the last
+	status      StatusBar // shown below the top buffer
+	toolBuf     *Buffer   // buffer shown at the bottom for the tooling output, see tool.go
+	toolFocused bool      // the tool buffer receives the keyboard input
 
 	lState layoutState
 	nav    navigation.History
@@ -145,7 +146,11 @@ func (e *Editor) SendBufferCmd(cmd BufferCommand) {
 }
 
 func (e *Editor) execBufferCmd(cmd BufferCommand) {
-	b := e.Top()
+	e.runBufferCmd(e.Top(), cmd)
+}
+
+// runBufferCmd runs the command on the buffer, which may be the tool buffer.
+func (e *Editor) runBufferCmd(b *Buffer, cmd BufferCommand) {
 	if b == nil {
 		return
 	}

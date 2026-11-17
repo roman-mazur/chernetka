@@ -149,21 +149,29 @@ func (e *Editor) handleMouse(data input.Mouse) {
 	if buf == nil {
 		return
 	}
+	// The event goes to the buffer under the pointer, and a click focuses it.
+	row := event.Y - 1
+	if tb := e.toolAt(row); tb != nil {
+		buf, row = tb, row-tb.y
+	}
+	if event.eventType != mouseEventTypeScroll && event.Pressed && (buf == e.toolBuf) != e.toolFocused {
+		e.focusTool(buf == e.toolBuf)
+	}
 	buf.noKeyboard = true
 
 	switch event.eventType {
 	case mouseEventTypeScroll:
 		dir := event.Mod.SrollDirection(event.Mouse)
-		e.execBufferCmd(Scroll(dir))
+		e.runBufferCmd(buf, Scroll(dir))
 
 	case mouseEventTypeDragStart:
-		if buf.CheckContentCoordinates(event.Y-1, event.X-1) {
-			e.execBufferCmd(StartTextSelection)
+		if buf.CheckContentCoordinates(row, event.X-1) {
+			e.runBufferCmd(buf, StartTextSelection)
 		}
 		e.renderRequested = true
 
 	case mouseEventTypeDragEnd:
-		e.execBufferCmd(StopTextSelection)
+		e.runBufferCmd(buf, StopTextSelection)
 
 	case mouseEventTypeDoubleClick:
 		if buf.engageOnDoubleClick && e.maybeEngage(buf) {
@@ -171,13 +179,13 @@ func (e *Editor) handleMouse(data input.Mouse) {
 			e.handleAfterEdit(buf)
 			return
 		}
-		e.execBufferCmd(SelectWord)
+		e.runBufferCmd(buf, SelectWord)
 
 	case mouseEventTypeTripleClick:
-		e.execBufferCmd(SelectLine)
+		e.runBufferCmd(buf, SelectLine)
 
 	case mouseEventTypeRaw:
-		overContent := buf.CheckContentCoordinates(event.Y-1, event.X-1)
+		overContent := buf.CheckContentCoordinates(row, event.X-1)
 		if e.ensureMouseTextShape(overContent) {
 			e.renderRequested = true
 		}
@@ -190,12 +198,12 @@ func (e *Editor) handleMouse(data input.Mouse) {
 
 		shiftClick := !ctrlClick && event.Mod.HasShift() && !event.Mod.HasMotion()
 		if shiftClick {
-			e.execBufferCmd(StartTextSelection) // Anchored at the cursor before it moves.
+			e.runBufferCmd(buf, StartTextSelection) // Anchored at the cursor before it moves.
 		}
-		buf.updateCursor(buf.screenToContentPosition(data.Y-1, data.X-1, e.rPrefs.TabSize))
+		buf.updateCursor(buf.screenToContentPosition(row, data.X-1, e.rPrefs.TabSize))
 		switch {
 		case shiftClick:
-			e.execBufferCmd(StopTextSelection)
+			e.runBufferCmd(buf, StopTextSelection)
 		case buf.selecting && event.Mod.HasMotion():
 			// Dragging over the line numbers or below the text still selects the closest content.
 			buf.sel[len(buf.sel)-1].End = buf.c()
@@ -301,7 +309,7 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 
 	// Clipboard.
 	case input.Ctrl('c'):
-		e.execBufferCmd(ClipboardCopy)
+		e.runBufferCmd(e.focused(), ClipboardCopy)
 		return false
 	case input.Ctrl('v'):
 		e.execBufferCmd(ClipboardPaste)
@@ -317,10 +325,22 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	case input.Move(input.CursorArrowRight, input.ModAlt|input.ModCtrl):
 		e.navigateHistory(true)
 		return false
+
+	// Switch the focus between the main buffer and the tool buffer.
+	case input.Ctrl('t'):
+		e.focusTool(!e.toolFocused)
+		return false
 	}
 
 	if e.status.cmd != nil {
 		return e.cmdLineInput(k)
+	}
+	if e.toolFocused && e.toolBuf != nil {
+		e.toolInput(k)
+		return false
+	}
+	if e.extHandleKey(buf, k) {
+		return false
 	}
 
 	if e.extHandleKey(buf, k) {
@@ -402,6 +422,15 @@ func (e *Editor) showDiff(buf *Buffer) {
 		path = abs
 	}
 	e.ShowDiff(path)
+}
+
+func (e *Editor) extHandleKey(buf *Buffer, k input.Key) (handled bool) {
+	for _, ext := range e.x {
+		if h, ok := ext.(KeyHandler); ok && h.HandleKey(e, buf, k) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Editor) extHandleInsert(buf *Buffer, k input.Key) (handled bool) {

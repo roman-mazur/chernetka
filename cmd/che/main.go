@@ -21,6 +21,7 @@ import (
 	"rmazur.io/chernetka/internal/editor/extindent"
 	"rmazur.io/chernetka/internal/editor/extlsp"
 	"rmazur.io/chernetka/internal/editor/extmd"
+	"rmazur.io/chernetka/internal/editor/extrefactor"
 	"rmazur.io/chernetka/internal/editor/extsyntaxhl"
 	"rmazur.io/chernetka/internal/logger"
 	"rmazur.io/chernetka/internal/remotectl"
@@ -74,6 +75,7 @@ func main() {
 	edit.Extend(new(extmd.Integration))
 	edit.Extend(new(extcomment.Integration))
 	edit.Extend(&extgo.Integration{Runner: newPaneRunner(goRunPurpose, "down", logf)})
+	edit.Extend(new(extrefactor.Integration))
 
 	if flag.NArg() < 1 {
 		stat, err := os.Stdin.Stat()

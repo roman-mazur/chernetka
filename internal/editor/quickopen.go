@@ -12,7 +12,6 @@ import (
 
 	"rmazur.io/chernetka/internal/content/symbol"
 	"rmazur.io/chernetka/internal/editor/input"
-	"rmazur.io/chernetka/internal/vt/escape"
 )
 
 const (
@@ -29,11 +28,9 @@ type quickOpen struct {
 	query   string
 	started bool         // the matches were listed for the query
 	matches []quickMatch // the best matches first, at most maxQuickMatches
-	total   int          // the number of all matches
-	sel     int          // the selected match
 	loading bool         // project files are being listed
 
-	tall bool // the matches take a row of the status bar on their own
+	pickList // shows the matches
 }
 
 type quickMatch struct {
@@ -124,12 +121,6 @@ func (q *quickOpen) submit(e *Editor) (quit bool) {
 	return false
 }
 
-func (q *quickOpen) move(d int) {
-	if n := len(q.matches); n > 0 {
-		q.sel = (q.sel + d + n) % n
-	}
-}
-
 // refresh matches the query against the open buffers and the project files.
 func (q *quickOpen) refresh(e *Editor) {
 	root := e.root()
@@ -180,6 +171,34 @@ func (q *quickOpen) refresh(e *Editor) {
 	q.total += len(files)
 	for _, f := range files[:min(len(files), max(maxQuickMatches-len(q.matches), 0))] {
 		q.matches = append(q.matches, quickMatch{path: filepath.Join(root, f.path), display: f.path})
+	}
+	q.items = q.items[:0]
+	for _, m := range q.matches {
+		q.items = append(q.items, m.display)
+	}
+}
+
+// height returns the number of the status bar rows needed to show the picker.
+func (q *quickOpen) height(w int) int {
+	return q.pickList.height(w, symbol.DisplayWidth(q.prefix()+q.c.text, symbol.NoTabExpansion))
+}
+
+// render prints the command line and the matches.
+func (q *quickOpen) render(out io.Writer, w int) {
+	q.pickList.render(out, w, q.prefix()+q.c.text, q.info())
+}
+
+// info describes the matches for the command line.
+func (q *quickOpen) info() string {
+	switch {
+	case len(q.matches) > 0:
+		return fmt.Sprintf("%d/%d", q.sel+1, q.total)
+	case q.loading:
+		return "loading…"
+	case q.query != "":
+		return "new file"
+	default:
+		return "no files"
 	}
 }
 
@@ -302,150 +321,4 @@ func listProjectFiles(root string, limit int) []string {
 
 func isSkippedDir(name string) bool {
 	return strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor"
-}
-
-// height returns the number of the status bar rows needed to show the picker.
-// Once the matches don't fit next to the command line, they stay on a separate row
-// until the picker is closed, so that the content does not jump while typing.
-func (q *quickOpen) height(w int) int {
-	if !q.tall {
-		avail := w - q.cmdWidth() - inlineGap
-		from, to := q.window(avail)
-		q.tall = to-from < min(minInlineMatches, len(q.matches))
-	}
-	if q.tall {
-		return 2
-	}
-	return 1
-}
-
-const (
-	inlineGap        = 4 // columns between the command line and the matches
-	minInlineMatches = 3 // matches to show next to the command line, a separate row is used otherwise
-)
-
-func (q *quickOpen) cmdWidth() int {
-	return symbol.DisplayWidth(q.prefix()+q.c.text, symbol.NoTabExpansion)
-}
-
-// render prints the command line and the matches.
-func (q *quickOpen) render(out io.Writer, w int) {
-	restore := escape.ReverseVideo(out)
-	// Not deferred directly: renderMatches may replace restore.
-	defer func() { restore.Undo() }()
-
-	cmd := q.prefix() + q.c.text
-	escape.ClearLine(out)
-	if q.tall {
-		from, to := q.window(w)
-		q.renderMatches(out, w, from, to, &restore)
-		writePadding(out, w-q.matchesWidth(w, from, to))
-		printLineEnding(out)
-		escape.ClearLine(out)
-	}
-	_, _ = io.WriteString(out, cmd)
-
-	avail := w - q.cmdWidth() - inlineGap
-	if from, to := q.window(avail); !q.tall && to > from {
-		writePadding(out, w-q.cmdWidth()-q.matchesWidth(avail, from, to))
-		q.renderMatches(out, avail, from, to, &restore)
-		return
-	}
-	info := q.info()
-	writePadding(out, w-q.cmdWidth()-symbol.DisplayWidth(info, symbol.NoTabExpansion)-1)
-	_, _ = io.WriteString(out, info+" ")
-}
-
-// info describes the matches for the command line.
-func (q *quickOpen) info() string {
-	switch {
-	case len(q.matches) > 0:
-		return fmt.Sprintf("%d/%d", q.sel+1, q.total)
-	case q.loading:
-		return "loading…"
-	case q.query != "":
-		return "new file"
-	default:
-		return "no files"
-	}
-}
-
-// renderMatches prints the matches in the range selected by window for w columns.
-// The selected match is printed with the regular colors, restore is updated to re-enable
-// the reverse video.
-func (q *quickOpen) renderMatches(out io.Writer, w, from, to int, restore *escape.Restore) {
-	for i := from; i < to; i++ {
-		item := q.item(i, w)
-		if i == q.sel {
-			restore.Undo()
-			_, _ = io.WriteString(out, item)
-			*restore = escape.ReverseVideo(out)
-		} else {
-			_, _ = io.WriteString(out, item)
-		}
-	}
-	_, _ = io.WriteString(out, q.moreLabel(to))
-}
-
-// matchesWidth returns the number of columns taken by renderMatches.
-func (q *quickOpen) matchesWidth(w, from, to int) int {
-	sum := symbol.DisplayWidth(q.moreLabel(to), symbol.NoTabExpansion)
-	for i := from; i < to; i++ {
-		sum += symbol.DisplayWidth(q.item(i, w), symbol.NoTabExpansion)
-	}
-	return sum
-}
-
-// item returns the text of the match to show in w columns.
-func (q *quickOpen) item(i, w int) string {
-	return " " + shortenPath(q.matches[i].display, w-2) + " "
-}
-
-func (q *quickOpen) moreLabel(shown int) string {
-	if shown >= q.total {
-		return ""
-	}
-	return fmt.Sprintf(" +%d ", q.total-shown)
-}
-
-// window selects the range of matches that fit into w columns and include the selected one.
-func (q *quickOpen) window(w int) (from, to int) {
-	if len(q.matches) == 0 || w <= 2 {
-		return 0, 0
-	}
-	fits := func(from, to int) bool { return q.matchesWidth(w, from, to) <= w }
-	from, to = 0, q.sel+1
-	for from < q.sel && !fits(from, to) {
-		from++
-	}
-	if !fits(from, to) {
-		return from, from // Even the selected match does not fit.
-	}
-	for to < len(q.matches) && fits(from, to+1) {
-		to++
-	}
-	return from, to
-}
-
-// shortenPath cuts the beginning of the path to fit it into w columns.
-func shortenPath(p string, w int) string {
-	rest := symbol.DisplayWidth(p, symbol.NoTabExpansion)
-	if rest <= w || w < 2 {
-		return p
-	}
-	start := 0
-	for cluster, clusterWidth := range symbol.Clusters(p, symbol.NoTabExpansion) {
-		if rest <= w-1 {
-			break
-		}
-		start += len(cluster)
-		rest -= clusterWidth
-	}
-	return "…" + p[start:]
-}
-
-func writePadding(out io.Writer, n int) {
-	if n > 0 {
-		_, _ = io.WriteString(out, strings.Repeat(" ", n))
-	}
 }

@@ -15,6 +15,7 @@ func (e *Editor) Run(t vt.Terminal) {
 	start := time.Now()
 	defer func() {
 		e.Logf("session done %s", time.Since(start))
+		e.closeTool()
 		close(e.loopDone())
 		for _, ext := range e.x {
 			if c, ok := ext.(io.Closer); ok {
@@ -113,6 +114,8 @@ func (e *Editor) render(out *bufio.Writer) {
 	e.status.buf = topBuf
 
 	for _, buf := range e.layout() {
+		// The cursor line is highlighted in the focused buffer only.
+		buf.noCurrentLineHL = buf != e.focused() && e.toolBuf != nil
 		buf.clampCursor(e.rPrefs.TabSize)
 		escape.SetCursorPosition(out, buf.y+1, 1)
 		buf.Render(out, &e.rPrefs)
@@ -125,7 +128,7 @@ func (e *Editor) render(out *bufio.Writer) {
 	if e.status.cmd != nil {
 		e.status.RenderCursorPosition(out)
 	} else {
-		topBuf.RenderCursorPosition(out, &e.rPrefs)
+		e.focused().RenderCursorPosition(out, &e.rPrefs)
 	}
 
 	e.mouseHandler.render(out)

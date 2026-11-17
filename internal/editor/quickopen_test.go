@@ -316,6 +316,7 @@ func TestQuickOpen_Render(t *testing.T) {
 		q := newQuickOpen(&cmdLine{buf: &Buffer{}, text: "e q"})
 		for i := range n {
 			q.matches = append(q.matches, quickMatch{display: strings.Repeat(string(rune('a'+i)), 5)})
+			q.items = append(q.items, q.matches[i].display)
 		}
 		q.total = n + 10
 		return q
@@ -360,7 +361,7 @@ func TestQuickOpen_Render(t *testing.T) {
 		}
 
 		// The height does not change back while the picker is shown.
-		q.matches = q.matches[:1]
+		q.matches, q.items = q.matches[:1], q.items[:1]
 		if h := q.height(30); h != 2 {
 			t.Errorf("height = %d", h)
 		}
@@ -378,7 +379,7 @@ func TestQuickOpen_Render(t *testing.T) {
 	t.Run("long path", func(t *testing.T) {
 		q := newPicker(0)
 		q.matches = []quickMatch{{display: strings.Repeat("x/", 30) + "file.go"}}
-		q.total = 1
+		q.items, q.total = []string{q.matches[0].display}, 1
 		rows, _ := render(q, 30)
 		if want := ":e q     …x/x/x/x/x/x/file.go "; len(rows) != 1 || rows[0] != want {
 			t.Errorf("rendered %q, want %q", rows, want)
