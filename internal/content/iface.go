@@ -25,6 +25,14 @@ type Line interface {
 	Len() int
 }
 
+// Observable is a document that can notify about changes that happen in other content.
+// For example, when a file is changed by some other process or a tree gets updated in background.
+type Observable interface {
+	Document
+	Observe() <-chan Document
+	Unobserve(<-chan Document)
+}
+
 // Mutable is a Document that can be modified.
 type Mutable interface {
 	Document
