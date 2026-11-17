@@ -445,3 +445,111 @@ func TestPasteText_ReplacesSelection(t *testing.T) {
 		t.Errorf("cursor at %s, selection %v", buf.c(), buf.sel)
 	}
 }
+
+func TestDragSelectionScrolls(t *testing.T) {
+	const left = input.MouseButtonLeft
+	newEditor := func(t *testing.T) (*Editor, *Buffer) {
+		t.Helper()
+		e := &Editor{cmdChannel: make(chan Command, 16)}
+		var lines []string
+		for i := range 30 {
+			lines = append(lines, fmt.Sprintf("line %d", i))
+		}
+		if err := e.OpenReader("", strings.NewReader(strings.Join(lines, "\n"))); err != nil {
+			t.Fatal(err)
+		}
+		b := e.Top()
+		b.w, b.h = 40, 10
+		t.Cleanup(e.stopDragScroll)
+		return e, b
+	}
+	// waitTick runs the next queued scroll tick.
+	waitTick := func(t *testing.T, e *Editor) {
+		t.Helper()
+		select {
+		case cmd := <-e.cmdChannel:
+			cmd.DoOnEditor(e)
+		case <-time.After(time.Second):
+			t.Fatal("no scroll tick")
+		}
+	}
+	selection := func(b *Buffer) content.Span { return b.sel[len(b.sel)-1] }
+
+	t.Run("down past the bottom edge", func(t *testing.T) {
+		e, b := newEditor(t)
+		sendChunks(t, e, input.Press(left, 5, 3).Encode()+input.Drag(left, 6, 3).Encode())
+		// Over the status bar, the row below the buffer.
+		sendChunks(t, e, input.Drag(left, 6, 11).Encode())
+		if b.offset != 1 {
+			t.Errorf("offset %d, want 1", b.offset)
+		}
+		if got := selection(b); got.Start.Line != 2 || got.End.Line != 10 {
+			t.Errorf("selection %v, want lines 2-10", got)
+		}
+
+		// The text keeps scrolling while the mouse stays there.
+		waitTick(t, e)
+		waitTick(t, e)
+		if b.offset != 3 {
+			t.Errorf("offset %d after ticks, want 3", b.offset)
+		}
+		if got := selection(b).End.Line; got != 12 {
+			t.Errorf("selection end line %d, want 12", got)
+		}
+
+		// Further down, it's faster, and it stops at the end of the text.
+		sendChunks(t, e, input.Drag(left, 6, 40).Encode())
+		if b.offset != 20 {
+			t.Errorf("offset %d, want 20", b.offset)
+		}
+		waitTick(t, e)
+		if e.dragScrolling {
+			t.Error("still scrolling at the end of the text")
+		}
+		sendChunks(t, e, input.Release(left, 6, 40).Encode())
+		if got := selection(b); got.Start.Line != 2 || got.End.Line != 29 {
+			t.Errorf("selection %v, want lines 2-29", got)
+		}
+	})
+
+	t.Run("up at the top row", func(t *testing.T) {
+		e, b := newEditor(t)
+		b.offset = 10
+		sendChunks(t, e, input.Press(left, 5, 5).Encode()+input.Drag(left, 6, 5).Encode())
+		sendChunks(t, e, input.Drag(left, 6, 1).Encode())
+		if b.offset != 9 {
+			t.Errorf("offset %d, want 9", b.offset)
+		}
+		waitTick(t, e)
+		if b.offset != 8 {
+			t.Errorf("offset %d after a tick, want 8", b.offset)
+		}
+		if got := selection(b); got.Start.Line != 14 || got.End.Line != 8 {
+			t.Errorf("selection %v, want lines 14-8", got)
+		}
+	})
+
+	t.Run("stops when back inside or released", func(t *testing.T) {
+		e, b := newEditor(t)
+		sendChunks(t, e, input.Press(left, 5, 3).Encode()+input.Drag(left, 6, 3).Encode()+input.Drag(left, 6, 12).Encode())
+		if !e.dragScrolling {
+			t.Fatal("not scrolling")
+		}
+		sendChunks(t, e, input.Drag(left, 6, 5).Encode())
+		if e.dragScrolling {
+			t.Error("still scrolling inside the buffer")
+		}
+		offset := b.offset
+		sendChunks(t, e, input.Drag(left, 6, 12).Encode()+input.Release(left, 6, 12).Encode())
+		if e.dragScrolling {
+			t.Error("still scrolling after the release")
+		}
+		time.Sleep(2 * mouseDragScrollInterval)
+		for len(e.cmdChannel) > 0 {
+			(<-e.cmdChannel).DoOnEditor(e)
+		}
+		if b.offset != offset+2 {
+			t.Errorf("offset %d, want %d", b.offset, offset+2)
+		}
+	})
+}

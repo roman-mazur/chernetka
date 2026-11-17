@@ -41,6 +41,12 @@ type mouseHandler struct {
 	clickCount    int
 	isDragging    bool
 
+	// Auto-scrolling while the selection is dragged past the buffer edge, see Editor.dragSelect.
+	dragScrolling   bool
+	dragScrollMouse input.Mouse // the last dragged position, repeated by the scroll ticks
+	dragScrollTimer *time.Timer // fires the next scroll tick
+	dragScrollGen   int         // incremented when the scrolling starts, so the ticks queued before are dropped
+
 	shapeText bool
 }
 
@@ -120,4 +126,8 @@ func (mh *mouseHandler) transformInput(in input.Mouse) mouseEvent {
 	}
 }
 
-const mouseDelayDoubleClick = 500 * time.Millisecond
+const (
+	mouseDelayDoubleClick = 500 * time.Millisecond
+	// mouseDragScrollInterval is how often the text scrolls while the selection is dragged past the buffer edge.
+	mouseDragScrollInterval = 50 * time.Millisecond
+)

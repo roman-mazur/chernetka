@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"time"
 
 	"rmazur.io/chernetka/internal/content"
 	"rmazur.io/chernetka/internal/editor/input"
@@ -151,6 +152,10 @@ func (e *Editor) handleMouse(data input.Mouse) {
 	}
 	buf.noKeyboard = true
 
+	if !event.Mod.HasMotion() {
+		e.stopDragScroll() // Any press or release ends the drag.
+	}
+
 	switch event.eventType {
 	case mouseEventTypeScroll:
 		dir := event.Mod.SrollDirection(event.Mouse)
@@ -188,6 +193,11 @@ func (e *Editor) handleMouse(data input.Mouse) {
 			return
 		}
 
+		if buf.selecting && event.Mod.HasMotion() {
+			e.dragSelect(buf, data)
+			return
+		}
+
 		shiftClick := !ctrlClick && event.Mod.HasShift() && !event.Mod.HasMotion()
 		if shiftClick {
 			e.execBufferCmd(StartTextSelection) // Anchored at the cursor before it moves.
@@ -196,9 +206,6 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		switch {
 		case shiftClick:
 			e.execBufferCmd(StopTextSelection)
-		case buf.selecting && event.Mod.HasMotion():
-			// Dragging over the line numbers or below the text still selects the closest content.
-			buf.sel[len(buf.sel)-1].End = buf.c()
 		case !buf.selecting:
 			buf.sel = nil
 		}
@@ -208,6 +215,70 @@ func (e *Editor) handleMouse(data input.Mouse) {
 		}
 	}
 
+}
+
+// dragSelect extends the selection being dragged to the mouse position m. Dragging over the line
+// numbers or below the text still selects the closest content. Past the bottom edge of the buffer
+// (over the status bar or out of the terminal), or at its top row, the text scrolls, and it keeps
+// scrolling while the mouse stays there. The top row is the edge since the buffer is at the top of
+// the screen, and the terminals don't report the positions above it.
+func (e *Editor) dragSelect(buf *Buffer, m input.Mouse) {
+	row := m.Y - 1 - buf.y
+	var scroll int // lines to scroll, faster the further the mouse is past the edge
+	switch {
+	case row <= 0 && buf.offset > 0:
+		scroll = row - 1
+	case row >= buf.h && buf.offset < buf.Content.Len()-buf.h:
+		scroll = row - buf.h + 1
+	}
+	if scroll != 0 {
+		buf.offset = max(0, min(buf.offset+scroll, buf.Content.Len()-buf.h))
+		row = max(0, min(row, buf.h-1))
+	}
+	buf.updateCursor(buf.screenToContentPosition(row, m.X-1, e.rPrefs.TabSize))
+	buf.sel[len(buf.sel)-1].End = buf.c()
+	e.renderRequested = true
+
+	if scroll == 0 {
+		e.stopDragScroll()
+		return
+	}
+	e.dragScrollMouse = m
+	if !e.dragScrolling {
+		e.dragScrolling = true
+		e.dragScrollGen++
+		e.scheduleDragScroll(buf)
+	}
+}
+
+// scheduleDragScroll queues the next drag scroll tick, which repeats the last dragged position
+// unless the drag scrolling is stopped by then.
+func (e *Editor) scheduleDragScroll(buf *Buffer) {
+	gen := e.dragScrollGen
+	tick := CommandFunc(func(e *Editor) {
+		active := func() bool { return e.dragScrolling && gen == e.dragScrollGen }
+		if !active() {
+			return
+		}
+		if !e.isDragging || !buf.selecting || e.Top() != buf {
+			e.stopDragScroll()
+			return
+		}
+		e.dragSelect(buf, e.dragScrollMouse)
+		if active() {
+			e.scheduleDragScroll(buf)
+		}
+	})
+	e.dragScrollTimer = time.AfterFunc(mouseDragScrollInterval, func() { e.Send(tick) })
+}
+
+// stopDragScroll stops scrolling the text while the selection is dragged past the buffer edge.
+func (e *Editor) stopDragScroll() {
+	if !e.dragScrolling {
+		return
+	}
+	e.dragScrolling = false
+	e.dragScrollTimer.Stop()
 }
 
 // goToDefinition moves the cursor to the definition of the symbol under it
