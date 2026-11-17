@@ -416,13 +416,48 @@ type orderExt struct {
 	order *[]string
 }
 
-func (oe orderExt) ID() string                                                        { return oe.id }
-func (oe orderExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData { return nil }
+func (oe orderExt) ID() string { return oe.id }
 func (oe orderExt) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {
 	*oe.order = append(*oe.order, oe.id)
 }
+func (oe orderExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData { return nil }
 
 // highlighterOrderExt is an orderExt that is a syntax highlighter.
 type highlighterOrderExt struct{ orderExt }
 
 func (highlighterOrderExt) HighlightsSyntax() {}
+
+func TestKeyHandler(t *testing.T) {
+	var calls []string
+	h := editor.NewTestHarness(t)
+	h.Extend(keyHandlerExt{id: "h1", recording: &calls})
+	h.Extend(keyHandlerExt{id: "h2", recording: &calls})
+
+	if err := h.OpenReader("file.txt", strings.NewReader("text")); err != nil {
+		t.Fatal(err)
+	}
+	h.Run(t)
+	const inputs = "ix\x1b"
+	h.SendInput(t, []byte(inputs))
+	h.DrainCommands(t)
+
+	expected := slices.Repeat([]string{"h1", "h2"}, len(inputs))
+	if !slices.Equal(calls, expected) {
+		t.Errorf("unexpected calls sequence: %v, wanted %v", calls, expected)
+	}
+}
+
+type keyHandlerExt struct {
+	id        string
+	recording *[]string
+}
+
+func (kh keyHandlerExt) ID() string                                             { return kh.id }
+func (kh keyHandlerExt) AfterEdit(editor.Sender, *editor.Buffer, []change.Item) {}
+func (kh keyHandlerExt) MakeBufferData(editor.Sender, *editor.Buffer) editor.BufferExtData {
+	return nil
+}
+func (kh keyHandlerExt) HandleKey(editor.Sender, *editor.Buffer, input.Key) bool {
+	*kh.recording = append(*kh.recording, kh.id)
+	return false
+}

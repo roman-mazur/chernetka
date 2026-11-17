@@ -323,6 +323,10 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		return e.cmdLineInput(k)
 	}
 
+	if e.extHandleKey(buf, k) {
+		return false
+	}
+
 	switch buf.mode {
 	case ModeReview:
 		// Open the command line.
@@ -350,6 +354,16 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 	default:
 		return false
 	}
+}
+
+func (e *Editor) extHandleKey(buf *Buffer, k input.Key) bool {
+	// TODO: reconsider if key handlers should be kept in a dedicated/smaller list.
+	for _, ext := range e.x {
+		if h, ok := ext.(KeyHandler); ok && h.HandleKey(e, buf, k) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Editor) maybeEngage(buf *Buffer) bool {

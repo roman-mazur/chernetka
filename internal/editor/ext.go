@@ -54,6 +54,15 @@ type InsertKeyHandler interface {
 	HandleInsertKey(buf *Buffer, k input.Key) (handled bool)
 }
 
+// KeyHandler can be optionally implemented by an Extension to handle the keys
+// typed in the buffer, in any mode, before the editor does: the keys the editor
+// uses in any mode (like Ctrl+S) and the keys typed in the command line are not
+// passed. The results of the work started in the background are to be sent back
+// to the loop.
+type KeyHandler interface {
+	HandleKey(loop Sender, buf *Buffer, k input.Key) (handled bool)
+}
+
 // BufferExtData represents data associated with a Buffer and managed by an Extension.
 type BufferExtData any
 
