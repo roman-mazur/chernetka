@@ -33,6 +33,7 @@ const (
 	FocusIn                   // the terminal window got the focus (with focus reporting enabled)
 	FocusOut                  // the terminal window lost the focus
 	Function                  // one of the function keys F1 to F12, the number is in Key.Rune
+	Delete                    // Delete (forward delete), sent as "CSI 3 ~"
 )
 
 // Modifier bits.
@@ -238,22 +239,24 @@ func csiModifier(m string, given bool) (Modifier, bool) {
 	return Modifier(v - 1), true
 }
 
-// tildeKeys are the function keys sent as "CSI number ~", also with ";modifiers" before the tilde.
-var tildeKeys = map[string]int{
-	"11": 1, "12": 2, "13": 3, "14": 4, "15": 5,
-	"17": 6, "18": 7, "19": 8, "20": 9, "21": 10,
-	"23": 11, "24": 12,
+// tildeKeys are the keys sent as "CSI number ~", also with ";modifiers" before the tilde.
+var tildeKeys = map[string]Key{
+	"3":  Of(Delete),
+	"11": Fn(1, 0), "12": Fn(2, 0), "13": Fn(3, 0), "14": Fn(4, 0), "15": Fn(5, 0),
+	"17": Fn(6, 0), "18": Fn(7, 0), "19": Fn(8, 0), "20": Fn(9, 0), "21": Fn(10, 0),
+	"23": Fn(11, 0), "24": Fn(12, 0),
 }
 
 // decodeTildeKey decodes the parameters of a "CSI number ; modifiers ~" sequence.
 func decodeTildeKey(params string) (Key, bool) {
 	number, m, found := strings.Cut(params, ";")
-	fn, isFunction := tildeKeys[number]
+	k, known := tildeKeys[number]
 	mod, ok := csiModifier(m, found)
-	if !isFunction || !ok {
+	if !known || !ok {
 		return Key{}, false
 	}
-	return Fn(fn, mod), true
+	k.Mod = mod
+	return k, true
 }
 
 // ss3Function returns the function key sent as "ESC O final", or 0.
