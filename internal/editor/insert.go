@@ -31,7 +31,7 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 		if k.Mod != 0 {
 			return // Not a typed character.
 		}
-	case input.Enter, input.Tab, input.Backspace:
+	case input.Enter, input.Tab, input.Backspace, input.Delete:
 	default:
 		return
 	}
@@ -42,7 +42,7 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 	if buf.HasSelection() {
 		// The input replaces the selection. The cursor may move to another line.
 		DeleteSelection.DoOnBuffer(buf, *prefs)
-		if k.Special == input.Backspace {
+		if k.Special == input.Backspace || k.Special == input.Delete {
 			return
 		}
 	}
@@ -63,6 +63,16 @@ func insertInput(buf *Buffer, k input.Key, prefs *RenderPrefs) {
 			mut.Update(c.Line-1, content.TextLine(prev+line))
 			mut.Delete(c.Line, c.Line+1)
 			buf.updateCursor(content.Position{Line: c.Line - 1, Col: len(prev)})
+		}
+		return
+
+	case input.Delete:
+		if c.Col < len(line) {
+			end := symbol.NextClusterEnd(line, c.Col)
+			mut.Update(c.Line, content.TextLine(line[:c.Col]+line[end:]))
+		} else if c.Line+1 < len(lines) {
+			mut.Update(c.Line, content.TextLine(line+lines[c.Line+1].String()))
+			mut.Delete(c.Line+1, c.Line+2)
 		}
 		return
 

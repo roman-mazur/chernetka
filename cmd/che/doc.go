@@ -63,6 +63,7 @@
 //	A        enter insert mode at end of line
 //	o        open a new line below and enter insert mode
 //	x        delete the character under the cursor, or the selected text
+//	Delete   the same as x
 //	y        copy the selected text to the clipboard
 //	+ / =    increase tab width
 //	-        decrease tab width
@@ -121,6 +122,8 @@
 //	Shift+Tab  unindent the selected lines, or the cursor line without a selection
 //	Backspace  delete the character before the cursor;
 //	           if at column 0, join the line with the one above
+//	Delete     delete the character after the cursor;
+//	           if at the line end, join the line with the one below
 //	Enter      split the line at the cursor, keeping its indentation on the new line
 //	           (taken from the line above if the line is empty; one level deeper after
 //	           an opening bracket, a closing bracket right after the cursor goes below)

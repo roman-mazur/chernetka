@@ -16,9 +16,15 @@ func reviewInput(buf *Buffer, k input.Key, prefs *RenderPrefs) (quit bool) {
 		buf.cancelSelection()
 		buf.search = nil
 
-	// Engage.
+	// Enter == move down.
 	case input.Enter:
 		RelMove{Dy: 1}.DoOnBuffer(buf, *prefs)
+
+	// Delete == 'x'.
+	case input.Delete:
+		if k.Mod == 0 {
+			return reviewCommand(buf, 'x', prefs)
+		}
 
 	case input.Text:
 		if k.Mod == 0 {

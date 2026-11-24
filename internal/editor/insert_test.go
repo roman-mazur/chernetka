@@ -65,6 +65,37 @@ func TestInsertInput_BackspaceRemovesCluster(t *testing.T) {
 	}
 }
 
+func TestInsertInput_Delete(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		lines []string
+		c     content.Position
+		sel   []content.Span
+		want  string
+	}{
+		{name: "cluster", lines: []string{"a" + testMermaid + "b"}, c: pos(0, 1), want: "ab"},
+		{name: "joins next line", lines: []string{"ab", "cd"}, c: pos(0, 2), want: "abcd"},
+		{name: "end of text", lines: []string{"ab"}, c: pos(0, 2), want: "ab"},
+		{name: "selection", lines: []string{"abc", "def"}, c: pos(1, 1),
+			sel: []content.Span{{Start: pos(0, 1), End: pos(1, 1)}}, want: "aef"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ft := content.FullText{}
+			for _, l := range tc.lines {
+				ft = append(ft, content.TextLine(l))
+			}
+			buf := Buffer{Content: &ft, _c: tc.c, sel: tc.sel}
+			insertInput(&buf, input.Of(input.Delete), &RenderPrefs{TabSize: 2})
+			if got := buf.Text(); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+			if tc.sel == nil && buf.c() != tc.c {
+				t.Errorf("cursor at %s, want %s", buf.c(), tc.c)
+			}
+		})
+	}
+}
+
 func TestInsertInput_CursorStaysAfterJoinedText(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
