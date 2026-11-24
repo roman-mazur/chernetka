@@ -19,11 +19,12 @@ func _() {
 	_ = x[FocusOut-8]
 	_ = x[Function-9]
 	_ = x[Delete-10]
+	_ = x[Insert-11]
 }
 
-const _Special_name = "TextEnterTabBacktabBackspaceEscCursorMoveFocusInFocusOutFunctionDelete"
+const _Special_name = "TextEnterTabBacktabBackspaceEscCursorMoveFocusInFocusOutFunctionDeleteInsert"
 
-var _Special_index = [...]uint8{0, 4, 9, 12, 19, 28, 31, 41, 48, 56, 64, 70}
+var _Special_index = [...]uint8{0, 4, 9, 12, 19, 28, 31, 41, 48, 56, 64, 70, 76}
 
 func (i Special) String() string {
 	idx := int(i) - 0

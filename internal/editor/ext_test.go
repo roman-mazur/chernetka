@@ -235,6 +235,26 @@ func TestEditor_AfterEditOnClipboard(t *testing.T) {
 			wantAfter: true,
 			wantText:  "pasted first\nsecond",
 		},
+		{
+			name:      "copy with Ctrl+Insert",
+			prepare:   selectFirstLine,
+			input:     "\x1b[2;5~",
+			wantAfter: false,
+			wantText:  "pasted first\nsecond",
+		},
+		{
+			name:      "cut with Shift+Delete",
+			prepare:   selectFirstLine,
+			input:     "\x1b[3;2~",
+			wantAfter: true,
+			wantText:  "second",
+		},
+		{
+			name:      "paste with Shift+Insert",
+			input:     "\x1b[2;2~",
+			wantAfter: true,
+			wantText:  "pasted first\nsecond",
+		},
 	} {
 		if step.prepare != nil {
 			h.Post(t, step.prepare)

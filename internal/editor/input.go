@@ -370,14 +370,14 @@ func (e *Editor) handleKey(k input.Key) (quit bool) {
 		e.execBufferCmd(Redo)
 		return false
 
-	// Clipboard.
-	case input.Ctrl('c'):
+	// Clipboard, also with the Insert and Delete keys like on Windows.
+	case input.Ctrl('c'), input.Key{Special: input.Insert, Mod: input.ModCtrl}:
 		e.execBufferCmd(ClipboardCopy)
 		return false
-	case input.Ctrl('v'):
+	case input.Ctrl('v'), input.Key{Special: input.Insert, Mod: input.ModShift}:
 		e.execBufferCmd(ClipboardPaste)
 		return false
-	case input.Ctrl('x'):
+	case input.Ctrl('x'), input.Key{Special: input.Delete, Mod: input.ModShift}:
 		e.execBufferCmd(ClipboardCut)
 		return false
 

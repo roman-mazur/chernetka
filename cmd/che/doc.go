@@ -78,9 +78,9 @@
 //	Ctrl+D   save the current file and show its git diff in a terminal pane on the right (in any mode);
 //	         the pane is opened once and reused for the next diff, like the pane of the Go line actions
 //	Ctrl+S   save the current buffer (in any mode)
-//	Ctrl+C   copy the selected text to the clipboard (in any mode)
-//	Ctrl+X   cut the selected text to the clipboard (in any mode)
-//	Ctrl+V   paste the clipboard text, replacing the selection (in any mode)
+//	Ctrl+C   copy the selected text to the clipboard (in any mode); also Ctrl+Insert
+//	Ctrl+X   cut the selected text to the clipboard (in any mode); also Shift+Delete
+//	Ctrl+V   paste the clipboard text, replacing the selection (in any mode); also Shift+Insert
 //	Ctrl+Z   undo the last change (in any mode)
 //	Ctrl+Shift+Z
 //	         redo the undone change (in any mode, in a terminal supporting the kitty keyboard

@@ -34,6 +34,7 @@ const (
 	FocusOut                  // the terminal window lost the focus
 	Function                  // one of the function keys F1 to F12, the number is in Key.Rune
 	Delete                    // Delete (forward delete), sent as "CSI 3 ~"
+	Insert                    // Insert, sent as "CSI 2 ~"
 )
 
 // Modifier bits.
@@ -241,7 +242,7 @@ func csiModifier(m string, given bool) (Modifier, bool) {
 
 // tildeKeys are the keys sent as "CSI number ~", also with ";modifiers" before the tilde.
 var tildeKeys = map[string]Key{
-	"3":  Of(Delete),
+	"2": Of(Insert), "3": Of(Delete),
 	"11": Fn(1, 0), "12": Fn(2, 0), "13": Fn(3, 0), "14": Fn(4, 0), "15": Fn(5, 0),
 	"17": Fn(6, 0), "18": Fn(7, 0), "19": Fn(8, 0), "20": Fn(9, 0), "21": Fn(10, 0),
 	"23": Fn(11, 0), "24": Fn(12, 0),
