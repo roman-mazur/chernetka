@@ -308,7 +308,15 @@ func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsMark(r) }
 
 var clipboard clipb.Clipboard = new(clipb.System)
 
+// PasteText inserts the text at the cursor, replacing the selection.
+// The line breaks may be "\r\n" or "\r": Windows clipboard uses the former,
+// and terminals send the latter in a bracketed paste.
 type PasteText string
+
+// normalizeNewLines replaces the "\r\n" and "\r" line breaks with "\n".
+func normalizeNewLines(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
+}
 
 func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 	if !b.canEdit() {
@@ -320,7 +328,7 @@ func (pt PasteText) DoOnBuffer(b *Buffer, prefs RenderPrefs) {
 			DeleteSelection.DoOnBuffer(b, prefs)
 		}
 		b.cancelSelection()
-		b.cursorAfterInsert(content.InsertText(m, b.c(), string(pt)))
+		b.cursorAfterInsert(content.InsertText(m, b.c(), normalizeNewLines(string(pt))))
 	})
 }
 

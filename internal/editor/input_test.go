@@ -434,6 +434,26 @@ func TestPasteText_CursorStaysAfterJoinedText(t *testing.T) {
 	}
 }
 
+func TestPasteText_LineBreaks(t *testing.T) {
+	for _, tc := range []struct{ name, text string }{
+		{name: "LF", text: "one\ntwo\n"},
+		{name: "CRLF", text: "one\r\ntwo\r\n"},
+		{name: "CR", text: "one\rtwo\r"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ft := content.FullText{content.TextLine("x")}
+			buf := &Buffer{Content: &ft}
+			PasteText(tc.text).DoOnBuffer(buf, RenderPrefs{TabSize: 4})
+			if got := buf.Text(); got != "one\ntwo\nx" {
+				t.Errorf("text %q", got)
+			}
+			if buf.c() != pos(2, 0) {
+				t.Errorf("cursor at %s", buf.c())
+			}
+		})
+	}
+}
+
 func TestPasteText_ReplacesSelection(t *testing.T) {
 	ft := content.FullText{content.TextLine("one"), content.TextLine("two")}
 	buf := &Buffer{Content: &ft, sel: []content.Span{{Start: pos(0, 1), End: pos(1, 1)}}}
