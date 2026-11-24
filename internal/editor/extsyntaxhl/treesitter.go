@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"iter"
+	"sort"
 	"strings"
 	"sync"
 	"unsafe"
@@ -147,6 +148,11 @@ type tsHighlighter struct {
 	grammar *tsGrammar
 	parser  *treesitter.Parser
 	tree    *treesitter.Tree
+
+	// changed are the ranges of the tree whose syntax changed with the last reparse,
+	// if it reused the tree of the previous revision (see changedLines).
+	changed      []treesitter.Range
+	changedKnown bool
 }
 
 func newTreeSitter(g *tsGrammar) func() highlighter {
@@ -180,12 +186,66 @@ func (h *tsHighlighter) reparse(src *source, edits []textEdit) error {
 		old = nil
 	}
 	tree := h.parser.ParseBuffer([]byte(src.text), old)
+	h.changed, h.changedKnown = nil, false
+	if old != nil && tree != nil {
+		h.changed, h.changedKnown = old.ChangedRanges(tree), true
+	}
 	h.closeTree()
 	h.tree = tree
 	return nil
 }
 
+// changedLines implements incrementalHighlighter.
+func (h *tsHighlighter) changedLines() (lines [][2]int, ok bool) {
+	if !h.changedKnown {
+		return nil, false
+	}
+	for _, r := range h.changed {
+		lines = append(lines, [2]int{int(r.StartPoint.Row), int(r.EndPoint.Row)})
+	}
+	return lines, true
+}
+
+// expandLines implements incrementalHighlighter: the highlight query matches within the
+// top-level nodes, so a node that changed is highlighted again as a whole. The top-level
+// nodes are the children of the first node with several, like the declarations of a Go
+// file, or the pairs of the object holding a JSON document.
+func (h *tsHighlighter) expandLines(first, last int) (int, int) {
+	if h.tree == nil {
+		return first, last
+	}
+	root := h.tree.RootNode()
+	for root.ChildCount() == 1 {
+		root = root.Child(0)
+	}
+	n := int(root.ChildCount())
+	// The first child ending on the first line or after it.
+	i := sort.Search(n, func(i int) bool { return int(root.Child(uint(i)).EndPosition().Row) >= first })
+	for ; i < n; i++ {
+		child := root.Child(uint(i))
+		start, end := int(child.StartPosition().Row), int(child.EndPosition().Row)
+		if start > last {
+			break
+		}
+		first, last = min(first, start), max(last, end)
+	}
+	return first, last
+}
+
+// spansOfLines implements incrementalHighlighter.
+func (h *tsHighlighter) spansOfLines(src *source, first, last int) iter.Seq[code.Token] {
+	return h.querySpans(src, func(c *treesitter.QueryCursor) {
+		c.SetPointRange(treesitter.NewPoint(uint(first), 0), treesitter.NewPoint(uint(last+1), 0))
+	})
+}
+
 func (h *tsHighlighter) spans(src *source) iter.Seq[code.Token] {
+	return h.querySpans(src, nil)
+}
+
+// querySpans runs the highlight query, over the part of the document set by the restrict
+// function if it's not nil.
+func (h *tsHighlighter) querySpans(src *source, restrict func(*treesitter.QueryCursor)) iter.Seq[code.Token] {
 	// The cursor lives as long as the iteration does: it's closed when the
 	// iteration ends, not when spans returns.
 	return func(yield func(code.Token) bool) {
@@ -199,6 +259,9 @@ func (h *tsHighlighter) spans(src *source) iter.Seq[code.Token] {
 
 		cursor := treesitter.NewQueryCursor()
 		defer cursor.Close()
+		if restrict != nil {
+			restrict(cursor)
+		}
 
 		captures := cursor.Captures(h.grammar.compiled, root, []byte(src.text))
 		for {

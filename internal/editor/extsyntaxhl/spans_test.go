@@ -124,31 +124,6 @@ func TestSpanBuilder(t *testing.T) {
 	}
 }
 
-func TestSpansOfLine(t *testing.T) {
-	src := newSource("aaa\nbbb\nccc\nddd")
-	spans := buildSpans(src,
-		lineToken(0, 0, 3, code.TtKeyword),
-		lineToken(2, 0, 1, code.TtKeyword),
-		lineToken(2, 2, 3, code.TtComment),
-	)
-
-	for _, tc := range []struct {
-		line int
-		want string
-	}{
-		{0, "[0:0:3:Keyword]"},
-		{1, "[]"},
-		{2, "[2:0:1:Keyword 2:2:3:Comment]"},
-		{3, "[]"},
-		{99, "[]"},
-		{-1, "[]"},
-	} {
-		if got := formatSpans(spansOfLine(spans, tc.line)); got != tc.want {
-			t.Errorf("spansOfLine(%d) = %s, want %s", tc.line, got, tc.want)
-		}
-	}
-}
-
 // TestClipSpans covers the case where the editor renders a line that is shorter
 // than it was at the last parse. Without clipping the renderer would be handed
 // an offset past the end of the line.

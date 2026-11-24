@@ -58,10 +58,15 @@ func (sb *spanBuilder) reset() {
 // add cuts a token into per-line pieces, dropping whatever falls outside the
 // document or outside its line.
 func (sb *spanBuilder) add(src *source, t code.Token) {
+	sb.addLines(src, t, 0, len(src.lines)-1)
+}
+
+// addLines is add keeping only the pieces on the lines [first, last].
+func (sb *spanBuilder) addLines(src *source, t code.Token, first, last int) {
 	if t.TokenType == code.TtNothing || t.End.Line < t.Start.Line {
 		return
 	}
-	for ln := max(t.Start.Line, 0); ln <= min(t.End.Line, len(src.lines)-1); ln++ {
+	for ln := max(t.Start.Line, first, 0); ln <= min(t.End.Line, last, len(src.lines)-1); ln++ {
 		start, end := 0, len(src.line(ln))
 		if ln == t.Start.Line {
 			start = t.Start.Col
@@ -141,20 +146,6 @@ func encodeRuns(dst []editor.SyntaxSpan, ln int, canvas []code.TokenType) []edit
 		i = j
 	}
 	return dst
-}
-
-// spansOfLine returns the range of spans belonging to line ln. spans must be
-// sorted by line number, as produced by spanBuilder.build.
-func spansOfLine(spans []editor.SyntaxSpan, ln int) []editor.SyntaxSpan {
-	// BinarySearchFunc returns the smallest matching index, so i starts the run.
-	i, _ := slices.BinarySearchFunc(spans, ln, func(s editor.SyntaxSpan, ln int) int {
-		return s.LineNumber - ln
-	})
-	j := i
-	for j < len(spans) && spans[j].LineNumber == ln {
-		j++
-	}
-	return spans[i:j]
 }
 
 // clipSpans keeps spans within the bounds of the line about to be rendered. The
